@@ -1,28 +1,33 @@
-# CineVoice 🎬🎙️
-> **AI Video & Voiceover Studio** — Automated script-to-screen cinematic video generation with realistic neural voiceovers, dynamic camera motion, and immersive audio design.
+# CineVoice
+> **AI Video and Voiceover Studio** — Automated script-to-screen cinematic video generation with realistic neural voiceovers, dynamic camera motion, and immersive audio design.
 
 ---
 
-## ✨ Features
+## Features
 
-- **Cinematic Web Studio Interface (`index.html`)**:
-  - Interactive multi-scene script editor with live voiceover auditioning.
-  - Scene-by-scene storyboard inspector with camera pan & zoom controls.
-  - Visual timeline player with synchronized audio waveform monitoring.
-  - Fast script generation and custom prompt assistance.
-- **Automated Movie Rendering Pipeline (`render_movie.py`)**:
-  - High-definition 1080p 24fps video synthesis.
-  - Neural text-to-speech integration via Edge-TTS (supporting multi-speaker male and female voices).
-  - Ken Burns effects (smooth camera pans and subtle zoom dynamics).
-  - Procedural ambient cinematic soundtrack synthesis and audio ducking.
-  - Subtitle styling and cinematic letterboxing / badge watermarks.
-- **Turnkey Setup**:
-  - Windows launcher script (`Open_Film_And_Download.bat`).
-  - Pre-packaged scene art and reference storyboard images in `cinematic_film_assets/`.
+### Cinematic Web Studio Interface (`index.html`)
+- **Interactive Multi-Scene Script Editor**: Write, edit, and organize narrative scenes with granular control over scene timing, captions, and visual cues.
+- **Live Voiceover Auditioning**: Test and audition voiceover lines directly within the browser before triggering full renders.
+- **Cinematic 16:9 Viewport and Media Player**: Supports direct video playback, drag-and-drop video file upload, and custom cinematic letterboxing (2.39:1 aspect ratio bars).
+- **Interactive Timeline and Audio Waveform Visualizer**: Real-time scrubbing, frame-accurate seeking, and dynamic canvas-based audio waveform visualization.
+- **Render Configuration and CLI Command Generator**: One-click generation of terminal commands and exportable scene configuration JSON for headless execution.
+- **Keyboard Shortcuts**: Built-in hotkeys for play/pause, frame stepping, mute, and fullscreen toggle.
+
+### Automated Movie Rendering Pipeline (`render_movie.py`)
+- **High-Definition Video Synthesis**: Automated 1080p 24fps video composition powered by OpenCV and FFmpeg.
+- **Neural Text-to-Speech Integration**: Powered by Edge-TTS with multi-voice support (natural male and female neural voices), speech rate tuning, and pitch adjustments.
+- **Ken Burns Motion Engine**: Smooth, frame-interpolated camera panning and scale zooming tailored to each scene's mood and pacing.
+- **Procedural Ambient Soundtrack Synthesis**: Algorithmic generation of cinematic ambient drones, chord progressions, sub-bass layers, and automated audio ducking behind spoken dialogue.
+- **Cinematic Visual Effects and Typography**: Scene timecode badges, custom typography, drop shadows, and synchronized subtitle overlays.
+- **Flexible CLI Arguments**: Support for `--voice`, `--script`, and custom asset directories for headless batch processing.
+
+### Turnkey Scripts and Assets
+- **Windows Quick Launcher**: `Open_Film_And_Download.bat` for one-click setup and launch.
+- **Pre-packaged Scene Artwork**: High-resolution concept art for immediate testing located in `cinematic_film_assets/`.
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```text
 CineVoice/
@@ -31,16 +36,16 @@ CineVoice/
 ├── render_movie.py              # Core Python rendering pipeline
 ├── Open_Film_And_Download.bat   # Windows launcher helper
 ├── requirements.txt             # Python dependencies
-└── .gitignore                   # Ignored files (rendered media & caches)
+└── .gitignore                   # Ignored files (rendered media and caches)
 ```
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Prerequisites
 
-- Python 3.10+
+- Python 3.10 or higher
 - Modern Web Browser (Chrome, Edge, Firefox)
 
 ### 2. Installation
@@ -79,13 +84,13 @@ python render_movie.py --script path/to/script.json
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
-- **Frontend**: HTML5, Modern Vanilla CSS (Glassmorphism & Cine Dark Theme), Vanilla JavaScript (Web Audio API, Canvas rendering).
-- **Backend / Pipeline**: Python, OpenCV (`cv2`), Edge-TTS, Pillow (`PIL`), NumPy, SciPy, FFmpeg (`imageio-ffmpeg`).
+- **Frontend**: HTML5, Modern Vanilla CSS (Glassmorphism and Cine Dark Theme), Vanilla JavaScript (Web Audio API, HTML5 Canvas).
+- **Backend and Rendering Pipeline**: Python, OpenCV (`cv2`), Edge-TTS, Pillow (`PIL`), NumPy, SciPy, FFmpeg (`imageio-ffmpeg`).
 
 ---
 
-## 📄 License
+## License
 
-MIT License. Feel free to use and modify for personal or commercial projects.
+MIT License. Free for personal and commercial use.

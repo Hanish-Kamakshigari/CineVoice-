@@ -1,0 +1,4573 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CINEVOICE STUDIO — AI Video &amp; Voiceover Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #07090c;
+      --card-bg: rgba(18, 23, 31, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-gold: #e5b364;
+      --accent-amber: #f59e0b;
+      --accent-cyan: #38bdf8;
+      --accent-purple: #a855f7;
+      --accent-red: #ef4444;
+      --accent-emerald: #10b981;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --font-serif: 'Cinzel', serif;
+      --font-sans: 'Inter', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    /* Ambient glow background */
+    .ambient-glow {
+      position: fixed;
+      top: -20vh;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80vw;
+      height: 60vh;
+      background: radial-gradient(ellipse at center, rgba(229, 179, 100, 0.09) 0%, rgba(56, 189, 248, 0.04) 45%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+      filter: blur(80px);
+    }
+
+    header {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.15rem 2.5rem;
+      border-bottom: 1px solid var(--card-border);
+      backdrop-filter: blur(16px);
+      background: rgba(7, 9, 12, 0.88);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(229, 179, 100, 0.25), rgba(245, 158, 11, 0.15));
+      border: 1px solid var(--accent-gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-gold);
+      font-size: 1.25rem;
+      box-shadow: 0 0 15px rgba(229, 179, 100, 0.25);
+    }
+
+    .title-group h1 {
+      font-family: var(--font-serif);
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      color: #fff;
+    }
+
+    .title-group span {
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      color: var(--accent-gold);
+      text-transform: uppercase;
+      font-family: var(--font-mono);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 0.52rem 1.15rem;
+      border-radius: 9999px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-1px);
+    }
+
+    .btn-gold {
+      background: linear-gradient(135deg, rgba(229, 179, 100, 0.28), rgba(245, 158, 11, 0.18));
+      border: 1px solid var(--accent-gold);
+      color: #fff;
+      box-shadow: 0 0 20px rgba(229, 179, 100, 0.22);
+    }
+
+    .btn-gold:hover {
+      background: linear-gradient(135deg, rgba(229, 179, 100, 0.45), rgba(245, 158, 11, 0.35));
+      box-shadow: 0 0 30px rgba(229, 179, 100, 0.4);
+    }
+
+    /* Main Container */
+    main {
+      position: relative;
+      z-index: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1.5rem 2rem 3.5rem;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 1.75rem;
+    }
+
+    /* Cinema Viewport */
+    .cinema-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.95), 0 0 45px rgba(229, 179, 100, 0.08);
+      border: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Letterbox Bars */
+    .letterbox-top,
+    .letterbox-bottom {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 7%;
+      background: #000;
+      z-index: 8;
+      pointer-events: none;
+      transition: height 0.3s ease;
+    }
+
+    .letterbox-top {
+      top: 0;
+    }
+
+    .letterbox-bottom {
+      bottom: 0;
+    }
+
+    .letterbox-top.hidden,
+    .letterbox-bottom.hidden {
+      height: 0;
+    }
+
+    /* HTML5 Video Element */
+    #mainVideoPlayer {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000;
+      display: none;
+    }
+
+    #mainVideoPlayer.active {
+      display: block;
+    }
+
+    /* Video Upload Dropzone (When no video is uploaded) */
+    .video-dropzone {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.1rem;
+      background: radial-gradient(circle at center, rgba(18, 23, 31, 0.85) 0%, rgba(7, 9, 12, 0.95) 100%);
+      padding: 2.5rem;
+      text-align: center;
+      cursor: pointer;
+      z-index: 9;
+      transition: all 0.3s ease;
+      border: 2px dashed rgba(229, 179, 100, 0.35);
+      border-radius: 16px;
+    }
+
+    .video-dropzone:hover,
+    .video-dropzone.dragover {
+      border-color: var(--accent-gold);
+      background: radial-gradient(circle at center, rgba(229, 179, 100, 0.08) 0%, rgba(7, 9, 12, 0.98) 100%);
+      transform: scale(0.997);
+    }
+
+    .dropzone-pulse {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(229, 179, 100, 0.25), rgba(245, 158, 11, 0.15));
+      border: 1px solid var(--accent-gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.4rem;
+      color: var(--accent-gold);
+      box-shadow: 0 0 30px rgba(229, 179, 100, 0.25);
+      transition: transform 0.3s ease;
+    }
+
+    .video-dropzone:hover .dropzone-pulse {
+      transform: scale(1.1);
+    }
+
+    .dropzone-title {
+      font-family: var(--font-serif);
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #fff;
+    }
+
+    .dropzone-sub {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      max-width: 480px;
+      line-height: 1.5;
+    }
+
+    .dropzone-tags {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+    }
+
+    .dropzone-tag {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0.3rem 0.7rem;
+      border-radius: 9999px;
+      color: var(--accent-gold);
+    }
+
+    /* Subtitles on Video */
+    .video-subtitles-overlay {
+      position: absolute;
+      bottom: 9%;
+      left: 5%;
+      right: 5%;
+      text-align: center;
+      z-index: 10;
+      pointer-events: none;
+      transition: all 0.25s ease;
+    }
+
+    .video-subtitles-overlay.pos-bottom {
+      bottom: 8%;
+      top: auto;
+    }
+
+    .video-subtitles-overlay.pos-lower {
+      bottom: 16%;
+      top: auto;
+    }
+
+    .video-subtitles-overlay.pos-top {
+      top: 12%;
+      bottom: auto;
+    }
+
+    .video-subtitles-text {
+      font-family: var(--font-serif);
+      font-size: 1.65rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      line-height: 1.4;
+      color: #ffffff;
+      text-shadow: 0 2px 14px rgba(0, 0, 0, 0.95), 0 0 30px rgba(0, 0, 0, 0.85);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      display: inline-block;
+      max-width: 90%;
+      word-wrap: break-word;
+    }
+
+    /* Subtitle Styling Variants */
+    .video-subtitles-text.size-sm {
+      font-size: 1.15rem;
+    }
+
+    .video-subtitles-text.size-md {
+      font-size: 1.65rem;
+    }
+
+    .video-subtitles-text.size-lg {
+      font-size: 2.15rem;
+    }
+
+    .video-subtitles-text.size-xl {
+      font-size: 2.75rem;
+    }
+
+    .video-subtitles-text.color-white {
+      color: #ffffff;
+    }
+
+    .video-subtitles-text.color-gold {
+      color: #f5c067;
+      text-shadow: 0 0 20px rgba(229, 179, 100, 0.65), 0 2px 14px rgba(0, 0, 0, 0.95);
+    }
+
+    .video-subtitles-text.color-yellow {
+      color: #fde047;
+      text-shadow: 0 0 20px rgba(253, 224, 71, 0.65), 0 2px 14px rgba(0, 0, 0, 0.95);
+    }
+
+    .video-subtitles-text.color-cyan {
+      color: #38bdf8;
+      text-shadow: 0 0 20px rgba(56, 189, 248, 0.65), 0 2px 14px rgba(0, 0, 0, 0.95);
+    }
+
+    .video-subtitles-text.style-none {
+      background: transparent;
+      padding: 0.2rem 0.6rem;
+    }
+
+    .video-subtitles-text.style-box {
+      background: rgba(0, 0, 0, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 0.4rem 1.15rem;
+      border-radius: 8px;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.75);
+    }
+
+    .video-subtitles-text.style-blur {
+      background: rgba(15, 17, 26, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(229, 179, 100, 0.35);
+      padding: 0.45rem 1.35rem;
+      border-radius: 10px;
+      box-shadow: 0 6px 28px rgba(0, 0, 0, 0.85);
+    }
+
+    /* Subtitles Prompt Banner on Video Upload */
+    .video-sub-banner {
+      position: absolute;
+      bottom: 12%;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 25;
+      background: linear-gradient(135deg, rgba(16, 20, 29, 0.96), rgba(24, 29, 43, 0.96));
+      border: 1px solid rgba(229, 179, 100, 0.5);
+      border-radius: 14px;
+      padding: 1.1rem 1.5rem;
+      box-shadow: 0 12px 45px rgba(0, 0, 0, 0.85), 0 0 35px rgba(229, 179, 100, 0.25);
+      backdrop-filter: blur(20px);
+      width: 92%;
+      max-width: 720px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+      animation: bannerSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes bannerSlideUp {
+      from {
+        opacity: 0;
+        transform: translate(-50%, 20px) scale(0.97);
+      }
+
+      to {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(1);
+      }
+    }
+
+    .sub-banner-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .sub-banner-badge {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      color: var(--accent-gold);
+      background: rgba(229, 179, 100, 0.16);
+      border: 1px solid rgba(229, 179, 100, 0.35);
+      padding: 0.25rem 0.7rem;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-weight: 600;
+    }
+
+    .sub-banner-close {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .sub-banner-close:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+    }
+
+    .sub-banner-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .sub-banner-title {
+      font-family: var(--font-serif);
+      font-size: 1.1rem;
+      color: #ffffff;
+      letter-spacing: 0.03em;
+    }
+
+    .sub-banner-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    .sub-banner-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 0.25rem;
+    }
+
+    .sub-action-btn {
+      padding: 0.5rem 1rem;
+      font-size: 0.78rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    /* HUD Top Info Bar */
+    .video-hud-top {
+      position: absolute;
+      top: 9%;
+      left: 4%;
+      right: 4%;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+    }
+
+    .video-badge {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      background: rgba(0, 0, 0, 0.65);
+      padding: 0.4rem 0.9rem;
+      border-radius: 9999px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .video-badge span {
+      color: var(--accent-gold);
+      font-weight: 600;
+    }
+
+    .audio-mode-badge {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      background: rgba(0, 0, 0, 0.65);
+      padding: 0.4rem 0.9rem;
+      border-radius: 9999px;
+      border: 1px solid rgba(229, 179, 100, 0.3);
+      backdrop-filter: blur(10px);
+      color: var(--accent-gold);
+      font-weight: 600;
+    }
+
+    /* Big Center Play Button Overlay */
+    .video-center-trigger {
+      position: absolute;
+      inset: 0;
+      z-index: 11;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: opacity 0.3s ease;
+    }
+
+    .video-center-trigger.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .video-pulse-btn {
+      width: 84px;
+      height: 84px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(229, 179, 100, 0.92), rgba(245, 158, 11, 0.92));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #000;
+      box-shadow: 0 0 45px rgba(229, 179, 100, 0.6);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .video-center-trigger:hover .video-pulse-btn {
+      transform: scale(1.12);
+    }
+
+    /* Player Controls Bar */
+    .player-controls {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 1.1rem 1.4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      backdrop-filter: blur(16px);
+    }
+
+    .timeline-container {
+      position: relative;
+      width: 100%;
+      padding: 6px 0;
+      cursor: pointer;
+    }
+
+    .timeline-bar-wrapper {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+      position: relative;
+      transition: height 0.15s ease;
+    }
+
+    .timeline-container:hover .timeline-bar-wrapper {
+      height: 8px;
+    }
+
+    .timeline-progress {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-gold), var(--accent-amber));
+      box-shadow: 0 0 10px rgba(229, 179, 100, 0.7);
+      transition: width 0.1s linear;
+    }
+
+    .control-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .playback-tools {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .time-readout {
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      color: var(--text-main);
+    }
+
+    .time-readout span {
+      color: var(--text-muted);
+    }
+
+    /* Audio Select Toolbar */
+    .audio-choice-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      flex-wrap: wrap;
+    }
+
+    .choice-group {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      border-radius: 9999px;
+      padding: 3px 5px;
+      gap: 3px;
+    }
+
+    .choice-label {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      color: var(--accent-gold);
+      padding: 0 4px 0 8px;
+      font-weight: 600;
+    }
+
+    .choice-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      font-size: 0.74rem;
+      font-weight: 500;
+      padding: 0.28rem 0.75rem;
+      border-radius: 9999px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .choice-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .choice-btn.active {
+      background: linear-gradient(135deg, rgba(229, 179, 100, 0.35), rgba(245, 158, 11, 0.2));
+      border-color: var(--accent-gold);
+      color: #fff;
+      font-weight: 600;
+      box-shadow: 0 0 14px rgba(229, 179, 100, 0.3);
+    }
+
+    .pill-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      border-radius: 9999px;
+      padding: 0.4rem 0.9rem;
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.2s;
+    }
+
+    .pill-btn:hover {
+      background: rgba(255, 255, 255, 0.09);
+      color: #fff;
+    }
+
+    .pill-btn.active {
+      background: rgba(229, 179, 100, 0.15);
+      border-color: var(--accent-gold);
+      color: #fff;
+    }
+
+    /* Sound Pulse Indicator */
+    .sound-pulse {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      height: 14px;
+    }
+
+    .sound-bar {
+      width: 2.5px;
+      height: 100%;
+      background: var(--accent-gold);
+      border-radius: 2px;
+      animation: sound-bounce 0.8s ease-in-out infinite alternate;
+    }
+
+    .sound-bar:nth-child(2) {
+      animation-delay: 0.2s;
+      height: 60%;
+    }
+
+    .sound-bar:nth-child(3) {
+      animation-delay: 0.4s;
+      height: 90%;
+    }
+
+    .sound-bar:nth-child(4) {
+      animation-delay: 0.1s;
+      height: 40%;
+    }
+
+    @keyframes sound-bounce {
+      0% {
+        transform: scaleY(0.25);
+      }
+
+      100% {
+        transform: scaleY(1);
+      }
+    }
+
+    .paused .sound-bar {
+      animation-play-state: paused;
+      transform: scaleY(0.3);
+    }
+
+    /* Studio Deck Layout */
+    .studio-deck {
+      display: grid;
+      grid-template-columns: 1fr 1.25fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 1050px) {
+      .studio-deck {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .deck-panel {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      backdrop-filter: blur(16px);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 0.9rem;
+    }
+
+    .panel-title {
+      font-family: var(--font-serif);
+      font-size: 1.05rem;
+      letter-spacing: 0.08em;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Audio Cards List */
+    .audio-cards-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .audio-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 1rem 1.15rem;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .audio-card:hover {
+      border-color: rgba(229, 179, 100, 0.45);
+      background: rgba(255, 255, 255, 0.05);
+      transform: translateY(-2px);
+    }
+
+    .audio-card.active {
+      border-color: var(--accent-gold);
+      background: linear-gradient(135deg, rgba(229, 179, 100, 0.16), rgba(245, 158, 11, 0.06));
+      box-shadow: 0 0 20px rgba(229, 179, 100, 0.22);
+    }
+
+    .audio-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .audio-card-info {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .audio-card-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .audio-card.active .audio-card-icon {
+      background: rgba(229, 179, 100, 0.2);
+      border: 1px solid var(--accent-gold);
+    }
+
+    .audio-card-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .audio-card-desc {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      line-height: 1.35;
+    }
+
+    .audio-card-status {
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 2px 7px;
+      border-radius: 9999px;
+      color: var(--text-muted);
+    }
+
+    .audio-card.active .audio-card-status {
+      background: var(--accent-gold);
+      color: #000;
+      font-weight: 700;
+    }
+
+    /* Audio Uploader Box */
+    .audio-upload-box {
+      border: 2px dashed rgba(229, 179, 100, 0.35);
+      background: rgba(229, 179, 100, 0.04);
+      border-radius: 10px;
+      padding: 1.1rem;
+      text-align: center;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.2s;
+    }
+
+    .audio-upload-box:hover,
+    .audio-upload-box.dragover {
+      border-color: var(--accent-gold);
+      background: rgba(229, 179, 100, 0.12);
+    }
+
+    /* Voice Tuning Controls */
+    .tuning-box {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 1rem 1.15rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+    }
+
+    .tuning-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .tuning-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+    }
+
+    .tuning-labels span.val {
+      color: var(--accent-gold);
+      font-weight: 600;
+    }
+
+    .slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.15);
+      outline: none;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent-gold);
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(229, 179, 100, 0.7);
+    }
+
+    .select-dropdown {
+      background: rgba(18, 23, 31, 0.95);
+      border: 1px solid var(--card-border);
+      color: #fff;
+      padding: 0.45rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      outline: none;
+      font-family: var(--font-sans);
+      width: 100%;
+    }
+
+    /* Script Editor Deck */
+    .script-mode-tabs {
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 0.75rem;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 0.45rem 0.9rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .tab-btn.active {
+      background: var(--accent-gold);
+      color: #000;
+      font-weight: 600;
+    }
+
+    /* Script Cues List */
+    .cues-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+      max-height: 480px;
+      overflow-y: auto;
+      padding-right: 0.4rem;
+    }
+
+    .cue-card {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      transition: border-color 0.2s;
+    }
+
+    .cue-card:focus-within {
+      border-color: rgba(229, 179, 100, 0.5);
+    }
+
+    .cue-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .cue-time-input {
+      background: rgba(14, 18, 25, 0.85);
+      border: 1px solid var(--card-border);
+      color: var(--accent-gold);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      width: 75px;
+      text-align: center;
+    }
+
+    .cue-textarea {
+      background: rgba(14, 18, 25, 0.85);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 0.6rem 0.8rem;
+      color: #fff;
+      font-family: var(--font-sans);
+      font-size: 0.84rem;
+      line-height: 1.45;
+      resize: vertical;
+      min-height: 52px;
+      outline: none;
+    }
+
+    .cue-textarea:focus {
+      border-color: var(--accent-gold);
+    }
+
+    .cue-subtitle-input {
+      background: rgba(14, 18, 25, 0.85);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 0.4rem 0.75rem;
+      color: #cbd5e1;
+      font-family: var(--font-sans);
+      font-size: 0.78rem;
+      outline: none;
+    }
+
+    .cue-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .cue-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: #cbd5e1;
+      font-size: 0.7rem;
+      padding: 0.25rem 0.65rem;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      transition: all 0.2s;
+    }
+
+    .cue-btn:hover {
+      background: rgba(229, 179, 100, 0.2);
+      border-color: var(--accent-gold);
+      color: #fff;
+    }
+
+    /* Master text area */
+    .master-script-text {
+      width: 100%;
+      height: 380px;
+      background: rgba(10, 13, 18, 0.85);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      color: #e2e8f0;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 1.6;
+      resize: vertical;
+      outline: none;
+    }
+
+    .master-script-text:focus {
+      border-color: var(--accent-gold);
+    }
+
+    /* Subtitle Suite Styling */
+    .sub-config-box {
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(229, 179, 100, 0.25);
+      border-radius: 10px;
+      padding: 0.9rem 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .sub-config-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.75rem;
+    }
+
+    @media (max-width: 800px) {
+      .sub-config-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .sub-config-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .sub-config-label {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .sub-tools-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      border-top: 1px solid var(--card-border);
+      padding-top: 0.75rem;
+    }
+
+    .sub-tools-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      align-items: center;
+    }
+
+    .subtitles-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      max-height: 480px;
+      overflow-y: auto;
+      padding-right: 0.4rem;
+    }
+
+    .sub-item-card {
+      background: rgba(14, 18, 25, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      transition: all 0.2s ease;
+    }
+
+    .sub-item-card:hover {
+      border-color: rgba(229, 179, 100, 0.4);
+      background: rgba(18, 23, 33, 0.95);
+    }
+
+    .sub-item-card.active-playing {
+      border-color: var(--accent-gold);
+      box-shadow: 0 0 16px rgba(229, 179, 100, 0.25);
+      background: rgba(26, 29, 41, 0.95);
+    }
+
+    .sub-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .sub-time-group {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .sub-time-input {
+      background: rgba(8, 10, 15, 0.9);
+      border: 1px solid var(--card-border);
+      color: var(--accent-gold);
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 0.2rem 0.45rem;
+      border-radius: 5px;
+      width: 76px;
+      text-align: center;
+    }
+
+    .sub-time-input:focus {
+      border-color: var(--accent-gold);
+      outline: none;
+    }
+
+    .sub-dur-badge {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--accent-cyan);
+      background: rgba(56, 189, 248, 0.1);
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+    }
+
+    .sub-text-input {
+      background: rgba(8, 10, 15, 0.9);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 0.55rem 0.8rem;
+      color: #fff;
+      font-family: var(--font-sans);
+      font-size: 0.84rem;
+      line-height: 1.4;
+      resize: vertical;
+      min-height: 48px;
+      outline: none;
+      width: 100%;
+    }
+
+    .sub-text-input:focus {
+      border-color: var(--accent-gold);
+    }
+
+    .sub-item-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .cc-badge-active {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-gold);
+      box-shadow: 0 0 8px var(--accent-gold);
+      margin-right: 4px;
+    }
+
+    .cc-badge-inactive {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      margin-right: 4px;
+    }
+
+    /* Toast Notification */
+    #studioToast {
+      position: fixed;
+      top: 1.5rem;
+      right: 1.5rem;
+      z-index: 99999;
+      background: rgba(18, 23, 31, 0.96);
+      border: 1px solid var(--accent-gold);
+      border-radius: 12px;
+      padding: 0.85rem 1.35rem;
+      color: #fff;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.85), 0 0 25px rgba(229, 179, 100, 0.25);
+      backdrop-filter: blur(16px);
+      max-width: 440px;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      opacity: 0;
+      transform: translateY(-10px);
+      pointer-events: none;
+    }
+
+    /* Video Workflow Banner (Dual Option: Scene-by-Scene Upload & AI Frame Analysis) */
+    .video-workflow-banner {
+      position: absolute;
+      bottom: 8%;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 25;
+      background: linear-gradient(135deg, rgba(12, 16, 25, 0.98), rgba(20, 26, 39, 0.98));
+      border: 1px solid rgba(229, 179, 100, 0.45);
+      border-radius: 16px;
+      padding: 1.25rem 1.6rem;
+      box-shadow: 0 16px 50px rgba(0, 0, 0, 0.92), 0 0 40px rgba(229, 179, 100, 0.2);
+      backdrop-filter: blur(24px);
+      width: 94%;
+      max-width: 860px;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      animation: bannerSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .workflow-banner-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .workflow-banner-badge {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      color: var(--accent-gold);
+      background: rgba(229, 179, 100, 0.15);
+      border: 1px solid rgba(229, 179, 100, 0.35);
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-weight: 600;
+    }
+
+    .workflow-banner-close {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .workflow-banner-close:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+    }
+
+    .workflow-banner-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .workflow-banner-title {
+      font-family: var(--font-serif);
+      font-size: 1.15rem;
+      color: #ffffff;
+      letter-spacing: 0.03em;
+    }
+
+    .workflow-banner-desc {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    .workflow-cards-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 760px) {
+      .workflow-cards-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .workflow-card {
+      background: rgba(10, 14, 22, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 1.15rem;
+      display: flex;
+      gap: 0.95rem;
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .workflow-card:hover {
+      border-color: rgba(229, 179, 100, 0.5);
+      background: rgba(15, 20, 31, 0.95);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+      transform: translateY(-2px);
+    }
+
+    .workflow-card.highlight {
+      border-color: rgba(56, 189, 248, 0.4);
+      background: linear-gradient(145deg, rgba(11, 18, 30, 0.95), rgba(18, 25, 42, 0.95));
+    }
+
+    .workflow-card.highlight:hover {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 25px rgba(56, 189, 248, 0.22);
+    }
+
+    .workflow-card-icon {
+      font-size: 1.6rem;
+      flex-shrink: 0;
+      margin-top: 0.15rem;
+    }
+
+    .workflow-card-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      flex-grow: 1;
+    }
+
+    .workflow-card-head {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .workflow-card-tag {
+      font-family: var(--font-mono);
+      font-size: 0.64rem;
+      letter-spacing: 0.08em;
+      color: var(--accent-gold);
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .workflow-card-title {
+      font-family: var(--font-serif);
+      font-size: 0.98rem;
+      color: #fff;
+      font-weight: 700;
+    }
+
+    .workflow-card-desc {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .workflow-card-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-top: 0.35rem;
+    }
+
+    .workflow-banner-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 0.75rem;
+    }
+
+    /* AI Frame-by-Frame Scanner Overlay */
+    .frame-scanner-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 35;
+      background: rgba(5, 8, 13, 0.88);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+      overflow: hidden;
+      animation: fadeIn 0.25s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .scan-laser-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #38bdf8 25%, #e5b364 50%, #38bdf8 75%, transparent);
+      box-shadow: 0 0 16px #38bdf8, 0 0 32px #e5b364;
+      pointer-events: none;
+      animation: scanSweep 2.2s ease-in-out infinite alternate;
+    }
+
+    @keyframes scanSweep {
+      0% { top: 4%; opacity: 0.9; }
+      100% { top: 96%; opacity: 0.9; }
+    }
+
+    .scanner-hud-box {
+      width: 90%;
+      max-width: 680px;
+      background: rgba(11, 15, 23, 0.96);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      border-radius: 14px;
+      padding: 1.35rem 1.6rem;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.95), 0 0 35px rgba(56, 189, 248, 0.25);
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+      position: relative;
+      z-index: 2;
+    }
+
+    .scanner-hud-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .scanner-hud-title {
+      font-family: var(--font-serif);
+      font-size: 0.98rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #fff;
+    }
+
+    .scanner-pulse-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 10px var(--accent-cyan);
+      animation: pulseGlow 1s infinite alternate;
+    }
+
+    @keyframes pulseGlow {
+      from { transform: scale(0.85); opacity: 0.7; }
+      to { transform: scale(1.15); opacity: 1; }
+    }
+
+    .scanner-status-text {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--accent-cyan);
+      letter-spacing: 0.03em;
+    }
+
+    .scanner-telemetry-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.6rem;
+    }
+
+    @media (max-width: 640px) {
+      .scanner-telemetry-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .scanner-telemetry-cell {
+      background: rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 0.5rem 0.65rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .telemetry-label {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .telemetry-val {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      color: #fff;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .scanner-progress-bar-wrap {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+
+    .scanner-progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-cyan), var(--accent-gold));
+      transition: width 0.15s ease;
+      box-shadow: 0 0 12px var(--accent-cyan);
+    }
+
+    .scanner-filmstrip-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      letter-spacing: 0.05em;
+      margin-top: 0.2rem;
+    }
+
+    .scanner-filmstrip {
+      display: flex;
+      gap: 0.55rem;
+      overflow-x: auto;
+      padding: 0.4rem 0.2rem;
+      min-height: 60px;
+      scrollbar-width: thin;
+    }
+
+    .scanner-thumb-card {
+      position: relative;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      flex-shrink: 0;
+      width: 80px;
+      height: 45px;
+      background: #000;
+    }
+
+    .scanner-thumb-card.is-cut {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+    }
+
+    .scanner-thumb-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .scanner-thumb-badge {
+      position: absolute;
+      bottom: 2px;
+      left: 2px;
+      font-family: var(--font-mono);
+      font-size: 0.58rem;
+      background: rgba(0, 0, 0, 0.85);
+      color: var(--accent-cyan);
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+    }
+
+    /* Modal Backdrop & Scene Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: rgba(4, 6, 10, 0.88);
+      backdrop-filter: blur(14px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .modal-card {
+      background: linear-gradient(135deg, rgba(14, 18, 27, 0.98), rgba(20, 26, 38, 0.98));
+      border: 1px solid rgba(229, 179, 100, 0.4);
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.95), 0 0 40px rgba(229, 179, 100, 0.15);
+      padding: 1.5rem 1.8rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 0.85rem;
+    }
+
+    .modal-close-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1.1rem;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .modal-close-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+    }
+
+    .scene-format-tips {
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 0.75rem 0.95rem;
+    }
+
+    .scene-script-textarea {
+      width: 100%;
+      height: 220px;
+      background: rgba(8, 11, 16, 0.95);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 0.9rem 1.1rem;
+      color: #f1f5f9;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 1.55;
+      resize: vertical;
+      outline: none;
+    }
+
+    .scene-script-textarea:focus {
+      border-color: var(--accent-gold);
+    }
+
+    .scene-preview-card {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 8px;
+      padding: 0.6rem 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-size: 0.78rem;
+    }
+
+    .scene-preview-header {
+      display: flex;
+      justify-content: space-between;
+      color: var(--accent-gold);
+      font-family: var(--font-mono);
+      font-size: 0.74rem;
+      font-weight: 600;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="ambient-glow"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">🎬</div>
+      <div class="title-group">
+        <h1>CINEVOICE STUDIO</h1>
+        <span>AI VIDEO &amp; MULTI-AUDIO NARRATION SUITE</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-gold" id="btnHeaderUploadVideo">
+        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        </svg>
+        Upload Video
+      </button>
+      <button class="btn" id="btnLoadDemoVideo">
+        <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M8 5v14l11-7z" />
+        </svg>
+        Load Demo Video
+      </button>
+      <button class="btn" id="btnToggleLetterbox">
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 18h16" />
+        </svg>
+        Letterbox: 2.39:1
+      </button>
+    </div>
+  </header>
+
+  <!-- Main View -->
+  <main>
+    <!-- Hidden File Inputs -->
+    <input type="file" id="videoFileInput" accept="video/*,.mp4,.webm,.mov,.mkv" style="display:none;">
+    <input type="file" id="customAudioFileInput" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg" style="display:none;">
+    <input type="file" id="subtitleFileInput" accept=".srt,.vtt,.txt,.sub" style="display:none;">
+    <input type="file" id="sceneScriptFileInput" accept=".json,.txt,.fountain,.csv,.srt" style="display:none;">
+
+    <!-- Cinema Viewport -->
+    <div class="cinema-wrapper" id="cinemaViewport">
+      <div class="letterbox-top" id="boxTop"></div>
+      <div class="letterbox-bottom" id="boxBottom"></div>
+
+      <!-- Video Upload Dropzone (Shown when no video loaded) -->
+      <div class="video-dropzone" id="videoDropzone">
+        <div class="dropzone-pulse">🎬</div>
+        <div class="dropzone-title">UPLOAD YOUR VIDEO</div>
+        <div class="dropzone-sub">Drag and drop your video file here or click to browse. Easily upload scene-by-scene scripts, trigger AI frame-by-frame visual analysis, add subtitles, and direct your audio voiceover.</div>
+        <div class="dropzone-tags">
+          <span class="dropzone-tag">MP4</span>
+          <span class="dropzone-tag">WEBM</span>
+          <span class="dropzone-tag">MOV</span>
+          <span class="dropzone-tag">MKV</span>
+          <span class="dropzone-tag" style="color:var(--accent-gold); border-color:rgba(229,179,100,0.35);">📜 SCENE SCRIPT</span>
+          <span class="dropzone-tag" style="color:var(--accent-cyan); border-color:rgba(56,189,248,0.35);">⚡ AI FRAME SCAN</span>
+        </div>
+      </div>
+
+      <!-- HTML5 Video Player Element -->
+      <video id="mainVideoPlayer" playsinline></video>
+
+      <!-- HUD Top Info -->
+      <div class="video-hud-top" id="videoHudTop" style="display:none;">
+        <div class="video-badge" id="videoBadge">
+          <span>VIDEO:</span> <strong id="videoFilenameLabel">custom_video.mp4</strong>
+        </div>
+        <div style="display:flex; gap:0.5rem; align-items:center;">
+          <div class="video-badge" id="hudSubtitlesBadge" style="cursor:pointer; pointer-events:auto;"
+            title="Click to configure subtitles">
+            <span>CC:</span> <strong id="hudSubtitlesStatus">OFF (0 CUES)</strong>
+          </div>
+          <div class="audio-mode-badge" id="hudAudioModeBadge">
+            AUDIO: 👨 MALE AI VOICE
+          </div>
+        </div>
+      </div>
+
+      <!-- Center Play Trigger Overlay -->
+      <div class="video-center-trigger hidden" id="videoCenterTrigger">
+        <div class="video-pulse-btn">
+          <svg width="34" height="34" fill="currentColor" viewBox="0 0 24 24" style="margin-left:4px;">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </div>
+      </div>
+
+      <!-- Subtitles Display -->
+      <div class="video-subtitles-overlay pos-bottom" id="videoSubtitleOverlay">
+        <div class="video-subtitles-text size-md color-white style-none" id="videoSubtitleText"></div>
+      </div>
+
+      <!-- AI Frame-by-Frame Scanner HUD Overlay -->
+      <div class="frame-scanner-overlay" id="frameScannerOverlay" style="display:none;">
+        <div class="scan-laser-line"></div>
+        <div class="scanner-hud-box">
+          <div class="scanner-hud-header">
+            <div style="display:flex; align-items:center; gap:0.6rem;">
+              <span class="scanner-pulse-dot"></span>
+              <span class="scanner-hud-title">AI FRAME-BY-FRAME VISION SCANNER</span>
+            </div>
+            <button class="btn" id="btnCancelFrameScan" style="padding:0.25rem 0.65rem; font-size:0.7rem; color:var(--accent-red); border-color:rgba(239,68,68,0.3);">✕ Cancel</button>
+          </div>
+
+          <div class="scanner-status-text" id="scannerStatusText">
+            Initializing frame-by-frame visual analysis...
+          </div>
+
+          <!-- Live Telemetry Grid -->
+          <div class="scanner-telemetry-grid">
+            <div class="scanner-telemetry-cell">
+              <span class="telemetry-label">FRAME / TIME</span>
+              <span class="telemetry-val" id="telemetryFrameTime">Frame 0 / 0 (00:00)</span>
+            </div>
+            <div class="scanner-telemetry-cell">
+              <span class="telemetry-label">LUMINANCE &amp; MOOD</span>
+              <span class="telemetry-val" id="telemetryMood">Sampling...</span>
+            </div>
+            <div class="scanner-telemetry-cell">
+              <span class="telemetry-label">SCENE CUT TRANSITION</span>
+              <span class="telemetry-val" id="telemetryCut">Scanning delta...</span>
+            </div>
+            <div class="scanner-telemetry-cell">
+              <span class="telemetry-label">DETECTED SCENES</span>
+              <span class="telemetry-val" id="telemetrySceneCount" style="color:var(--accent-gold);">0 Scenes</span>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="scanner-progress-bar-wrap">
+            <div class="scanner-progress-bar" id="scannerProgressBar" style="width:0%;"></div>
+          </div>
+
+          <!-- Keyframe Thumbnail Filmstrip -->
+          <div class="scanner-filmstrip-header">
+            <span>SAMPLED KEYFRAMES &amp; DETECTED SCENES</span>
+            <span id="filmstripCount" style="color:var(--accent-cyan); font-family:var(--font-mono);">0 keyframes</span>
+          </div>
+          <div class="scanner-filmstrip" id="scannerFilmstrip">
+            <!-- Mini canvas keyframe thumbnails dynamically injected here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Smart Video Workflow Banner Upon Video Upload -->
+      <div class="video-workflow-banner" id="videoWorkflowBanner" style="display:none;">
+        <div class="workflow-banner-header">
+          <div class="workflow-banner-badge">
+            <span>🎬</span> VIDEO READY • SCRIPT &amp; DIRECTION
+          </div>
+          <button class="workflow-banner-close" id="btnWorkflowDismiss" title="Dismiss banner">✕</button>
+        </div>
+
+        <div class="workflow-banner-body">
+          <div class="workflow-banner-title">
+            Script Options for: <span id="bannerVideoFilename" style="color:var(--accent-gold);">Your Video</span>
+          </div>
+          <div class="workflow-banner-desc">
+            How would you like to develop the screenplay and voiceover narration for your uploaded video?
+          </div>
+        </div>
+
+        <!-- Dual Option Cards Grid -->
+        <div class="workflow-cards-grid">
+          <!-- Card 1: Upload Scene-by-Scene Script -->
+          <div class="workflow-card" id="cardUploadSceneScript">
+            <div class="workflow-card-icon">📜</div>
+            <div class="workflow-card-content">
+              <div class="workflow-card-head">
+                <span class="workflow-card-tag">CUSTOM SCREENPLAY</span>
+                <h3 class="workflow-card-title">Upload Scene-by-Scene Script</h3>
+              </div>
+              <p class="workflow-card-desc">
+                Upload your scene screenplay (.txt, .json, .csv, .fountain) or enter custom scene timestamps and visual actions.
+              </p>
+              <div class="workflow-card-actions">
+                <button class="btn btn-gold" id="btnWorkflowUploadScript">
+                  📥 Upload Script File
+                </button>
+                <button class="btn" id="btnWorkflowOpenSceneEditor">
+                  ✍️ Scene Importer
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: AI Frame-by-Frame Video Analysis -->
+          <div class="workflow-card highlight" id="cardAiFrameAnalysis">
+            <div class="workflow-card-icon" style="color:var(--accent-cyan);">👁️</div>
+            <div class="workflow-card-content">
+              <div class="workflow-card-head">
+                <span class="workflow-card-tag" style="color:var(--accent-cyan); border-color:rgba(56,189,248,0.4); background:rgba(56,189,248,0.12);">VISION AI 2.0</span>
+                <h3 class="workflow-card-title">AI Frame-by-Frame Video Analysis</h3>
+              </div>
+              <p class="workflow-card-desc">
+                AI scans video frames across playback, detects scene cuts, motion dynamics, lighting moods, and auto-generates a synchronized scene script.
+              </p>
+              <div class="workflow-card-actions">
+                <button class="btn" id="btnWorkflowStartFrameScan" style="background:linear-gradient(135deg, rgba(56,189,248,0.25), rgba(168,85,247,0.22)); border-color:var(--accent-cyan); color:#fff; box-shadow:0 0 15px rgba(56,189,248,0.25);">
+                  ⚡ Analyze Frames &amp; Generate Script
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Banner Footer Options -->
+        <div class="workflow-banner-footer">
+          <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+            <span style="font-size:0.75rem; color:var(--text-muted);">Subtitle options:</span>
+            <button class="btn sub-action-btn" id="btnWorkflowSubtitlesSuite" style="font-size:0.73rem; padding:0.3rem 0.75rem;">
+              💬 Subtitle Suite
+            </button>
+            <button class="btn sub-action-btn" id="btnWorkflowAutoSubs" style="font-size:0.73rem; padding:0.3rem 0.75rem;">
+              🤖 AI Develop Subtitles
+            </button>
+          </div>
+          <button class="btn sub-action-btn" id="btnWorkflowKeepCurrent" style="font-size:0.73rem; padding:0.3rem 0.75rem; color:var(--text-muted);">
+            Keep Existing Screenplay ✕
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timeline & Playback Bar -->
+    <div class="player-controls">
+      <div class="timeline-container" id="timelineContainer">
+        <div class="timeline-bar-wrapper">
+          <div class="timeline-progress" id="timelineProgress"></div>
+        </div>
+      </div>
+
+      <div class="control-row">
+        <!-- Playback Tools -->
+        <div class="playback-tools">
+          <button class="btn" id="playPauseBtn" style="padding: 0.5rem 0.9rem;">
+            <svg id="playIcon" width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+            <svg id="pauseIcon" width="16" height="16" fill="currentColor" viewBox="0 0 24 24" style="display:none;">
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+            </svg>
+          </button>
+          <div class="time-readout">
+            <span id="currentTimeDisplay">00:00</span> / <span id="totalTimeDisplay">00:00</span>
+          </div>
+          <div class="sound-pulse paused" id="soundWave">
+            <div class="sound-bar"></div>
+            <div class="sound-bar"></div>
+            <div class="sound-bar"></div>
+            <div class="sound-bar"></div>
+          </div>
+        </div>
+
+        <!-- Audio of Choice Toolbar & Subtitles Controls -->
+        <div class="audio-choice-toolbar">
+          <div class="choice-group">
+            <span class="choice-label">AUDIO CHOICE:</span>
+            <button class="choice-btn active" id="btnAudioMale" data-mode="male">👨 Male AI Voice</button>
+            <button class="choice-btn" id="btnAudioFemale" data-mode="female">👩 Female AI Voice</button>
+            <button class="choice-btn" id="btnAudioCustom" data-mode="custom">🎙️ Custom Audio</button>
+            <button class="choice-btn" id="btnAudioNative" data-mode="native">🔊 Video Native Audio</button>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:0.45rem; flex-wrap:wrap;">
+            <button class="pill-btn" id="btnToggleCC" title="Toggle Closed Captions On/Off">
+              <span class="cc-badge-inactive" id="ccBadgeDot"></span>
+              <span style="font-weight:700; font-family:var(--font-mono); letter-spacing:0.04em;">CC</span>
+              <span id="ccStatusText">Subtitles: OFF</span>
+            </button>
+            <button class="pill-btn" id="btnOpenSubtitlesDeck" title="Open Subtitle Suite">
+              💬 Subtitles
+            </button>
+            <button class="pill-btn" id="btnChangeVideo" title="Upload a different video">
+              <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              Replace Video
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Studio Deck: Audio Direction & Script Editor -->
+    <div class="studio-deck">
+      <!-- Left Panel: Audio Configuration of Choice -->
+      <div class="deck-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>1. SELECT AUDIO &amp; VOICE DIRECTION</span>
+          </div>
+          <span style="font-family:var(--font-mono); font-size:0.7rem; color:var(--accent-gold);"
+            id="deckActiveAudioLabel">👨 MALE AI</span>
+        </div>
+
+        <!-- 4 Audio Source Cards -->
+        <div class="audio-cards-grid">
+          <!-- Card 1: Male AI Voice -->
+          <div class="audio-card active" id="cardMale" data-mode="male">
+            <div class="audio-card-head">
+              <div class="audio-card-info">
+                <div class="audio-card-icon">👨</div>
+                <div>
+                  <div class="audio-card-name">Male AI Narrator (Marcus / Christopher)</div>
+                  <div class="audio-card-desc">Deep, resonant trailer-style voice. High clarity and dramatic pacing.
+                  </div>
+                </div>
+              </div>
+              <span class="audio-card-status">ACTIVE</span>
+            </div>
+          </div>
+
+          <!-- Card 2: Female AI Voice -->
+          <div class="audio-card" id="cardFemale" data-mode="female">
+            <div class="audio-card-head">
+              <div class="audio-card-info">
+                <div class="audio-card-icon">👩</div>
+                <div>
+                  <div class="audio-card-name">Female AI Narrator (Elena / Jenny)</div>
+                  <div class="audio-card-desc">Clear, articulate and expressive voice with emotional poise.</div>
+                </div>
+              </div>
+              <span class="audio-card-status">SELECT</span>
+            </div>
+          </div>
+
+          <!-- Card 3: Custom Audio File Upload -->
+          <div class="audio-card" id="cardCustom" data-mode="custom">
+            <div class="audio-card-head">
+              <div class="audio-card-info">
+                <div class="audio-card-icon" style="color:var(--accent-cyan);">🎙️</div>
+                <div>
+                  <div class="audio-card-name">Upload Custom Audio / Voiceover Track</div>
+                  <div class="audio-card-desc" id="customAudioDesc">Upload an MP3, WAV, or M4A file to play in exact
+                    sync with your video.</div>
+                </div>
+              </div>
+              <span class="audio-card-status">SELECT</span>
+            </div>
+          </div>
+
+          <!-- Card 4: Video Original Audio -->
+          <div class="audio-card" id="cardNative" data-mode="native">
+            <div class="audio-card-head">
+              <div class="audio-card-info">
+                <div class="audio-card-icon" style="color:var(--accent-emerald);">🔊</div>
+                <div>
+                  <div class="audio-card-name">Original Video Native Audio Track</div>
+                  <div class="audio-card-desc">Use the audio embedded directly in your uploaded video file.</div>
+                </div>
+              </div>
+              <span class="audio-card-status">SELECT</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Custom Audio Upload Dropzone (Click to upload audio) -->
+        <div class="audio-upload-box" id="audioUploadBox">
+          <div style="font-size:1.5rem; color:var(--accent-gold);">🎙️</div>
+          <div style="font-weight:600; font-size:0.85rem; color:#fff;" id="audioUploadBoxTitle">Upload Custom Narration
+            Audio (MP3 / WAV / M4A)</div>
+          <div style="font-size:0.72rem; color:var(--text-muted);">Click here or drag &amp; drop your voiceover or
+            soundtrack file</div>
+        </div>
+
+        <!-- Voice Cadence & Tuning Controls -->
+        <div class="tuning-box" id="voiceTuningBox">
+          <div
+            style="font-size:0.72rem; font-family:var(--font-mono); color:var(--accent-gold); letter-spacing:0.08em; text-transform:uppercase;">
+            AI Speech Parameters &amp; System Voices
+          </div>
+
+          <div class="tuning-row">
+            <div class="tuning-labels">
+              <span>CADENCE / SPEED</span>
+              <span class="val" id="valRateText">0.86x</span>
+            </div>
+            <input type="range" class="slider" id="sliderRate" min="0.6" max="1.4" step="0.02" value="0.86">
+          </div>
+
+          <div class="tuning-row">
+            <div class="tuning-labels">
+              <span>TONE / PITCH</span>
+              <span class="val" id="valPitchText">0.84x</span>
+            </div>
+            <input type="range" class="slider" id="sliderPitch" min="0.5" max="1.5" step="0.02" value="0.84">
+          </div>
+
+          <div class="tuning-row">
+            <div class="tuning-labels">
+              <span>SYSTEM SYNTHESIS VOICE</span>
+            </div>
+            <select class="select-dropdown" id="selectVoice">
+              <option value="">Detecting installed system voices...</option>
+            </select>
+          </div>
+
+          <div style="display:flex; gap:0.5rem; margin-top:0.2rem;">
+            <button class="btn btn-gold" id="btnAuditionVoice"
+              style="flex:1; justify-content:center; padding:0.45rem 1rem; font-size:0.76rem;">
+              🔊 Audition Selected Voice
+            </button>
+          </div>
+        </div>
+
+        <!-- Audio Volume Mixer -->
+        <div class="tuning-box">
+          <div
+            style="font-size:0.72rem; font-family:var(--font-mono); color:var(--accent-cyan); letter-spacing:0.08em; text-transform:uppercase;">
+            Audio Volume Mixer
+          </div>
+
+          <div class="tuning-row">
+            <div class="tuning-labels">
+              <span>VIDEO NATIVE AUDIO VOLUME</span>
+              <span class="val" id="valVideoVolText">100%</span>
+            </div>
+            <input type="range" class="slider" id="sliderVideoVol" min="0" max="1" step="0.05" value="1">
+          </div>
+
+          <div class="tuning-row">
+            <div class="tuning-labels">
+              <span>NARRATION / CUSTOM AUDIO VOLUME</span>
+              <span class="val" id="valNarrationVolText">100%</span>
+            </div>
+            <input type="range" class="slider" id="sliderNarrationVol" min="0" max="1" step="0.05" value="1">
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Panel: Script Editor & Subtitle Suite -->
+      <div class="deck-panel" id="deckRightPanel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span id="rightPanelTitle">2. NARRATION SCRIPT &amp; SUBTITLES</span>
+          </div>
+          <div class="script-mode-tabs" style="border:none; padding:0;">
+            <button class="tab-btn active" id="tabCues">Timed Voice Cues</button>
+            <button class="tab-btn" id="tabFullText">Master Script Text</button>
+            <button class="tab-btn" id="tabSubtitles">💬 Subtitle Suite</button>
+          </div>
+        </div>
+
+        <!-- Timed Voice Cues View -->
+        <div id="viewCues" style="display:flex; flex-direction:column; gap:0.85rem;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+            <span style="font-size:0.75rem; color:var(--text-muted);">
+              Timed scene cues synchronized with your video playback.
+            </span>
+            <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+              <button class="btn" id="btnDeckUploadSceneScript" style="padding:0.35rem 0.75rem; font-size:0.72rem;" title="Upload or import scene screenplay">
+                📜 Upload Scene Script
+              </button>
+              <button class="btn" id="btnDeckStartFrameScan" style="padding:0.35rem 0.75rem; font-size:0.72rem; border-color:var(--accent-cyan); color:var(--accent-cyan);" title="AI analyzes video frame-by-frame">
+                ⚡ AI Frame Scan
+              </button>
+              <button class="btn btn-gold" id="btnAddCue" style="padding:0.35rem 0.85rem; font-size:0.72rem;">
+                + Add Cue
+              </button>
+            </div>
+          </div>
+
+          <div class="cues-list" id="cuesContainer">
+            <!-- Dynamically populated cues -->
+          </div>
+        </div>
+
+        <!-- Master Script View -->
+        <div id="viewFullText" style="display:none; flex-direction:column; gap:0.85rem;">
+          <p style="font-size:0.75rem; color:var(--text-muted); line-height:1.4;">
+            Paste or write your full narrative script here. Format each section as <code>[SCENE 1: 00:05]</code> or click <strong>Distribute Across Video</strong>.
+          </p>
+          <textarea class="master-script-text" id="masterScriptArea" spellcheck="false"
+            placeholder="Write or paste your script here..."></textarea>
+          <div style="display:flex; justify-content:flex-end; gap:0.55rem; flex-wrap:wrap;">
+            <button class="btn" id="btnDeckFullTextUploadScene" style="font-size:0.75rem;">
+              📜 Import Scene Script
+            </button>
+            <button class="btn" id="btnDeckFullTextFrameScan" style="font-size:0.75rem; border-color:var(--accent-cyan); color:var(--accent-cyan);">
+              ⚡ AI Frame-by-Frame Scan
+            </button>
+            <button class="btn" id="btnDistributeMasterText" style="font-size:0.75rem;">
+              ✨ Parse &amp; Distribute Cues
+            </button>
+          </div>
+        </div>
+
+        <!-- Subtitles & Closed Captions View -->
+        <div id="viewSubtitles" style="display:none; flex-direction:column; gap:0.95rem;">
+          <!-- Subtitle Visual Styling Box -->
+          <div class="sub-config-box">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span
+                style="font-family:var(--font-mono); font-size:0.72rem; color:var(--accent-gold); letter-spacing:0.08em; text-transform:uppercase;">
+                📺 Subtitle Display &amp; Visual Styling
+              </span>
+              <span style="font-family:var(--font-mono); font-size:0.7rem; color:var(--text-muted);"
+                id="subCountReadout">
+                0 cues loaded
+              </span>
+            </div>
+
+            <div class="sub-config-grid">
+              <div class="sub-config-item">
+                <span class="sub-config-label">Text Size</span>
+                <select class="select-dropdown" id="selectSubSize">
+                  <option value="size-sm">Small (18px)</option>
+                  <option value="size-md" selected>Medium (26px)</option>
+                  <option value="size-lg">Large (34px)</option>
+                  <option value="size-xl">Cinematic (44px)</option>
+                </select>
+              </div>
+
+              <div class="sub-config-item">
+                <span class="sub-config-label">Font Color</span>
+                <select class="select-dropdown" id="selectSubColor">
+                  <option value="color-white" selected>Clean White</option>
+                  <option value="color-gold">Cinematic Gold</option>
+                  <option value="color-yellow">Broadcast Yellow</option>
+                  <option value="color-cyan">Neon Cyan</option>
+                </select>
+              </div>
+
+              <div class="sub-config-item">
+                <span class="sub-config-label">Box Background</span>
+                <select class="select-dropdown" id="selectSubStyle">
+                  <option value="style-none" selected>Transparent (Shadowed)</option>
+                  <option value="style-box">Black Matte Box</option>
+                  <option value="style-blur">Frosted Glass Box</option>
+                </select>
+              </div>
+
+              <div class="sub-config-item">
+                <span class="sub-config-label">Screen Position</span>
+                <select class="select-dropdown" id="selectSubPos">
+                  <option value="pos-bottom" selected>Bottom (Standard)</option>
+                  <option value="pos-lower">Lower Third</option>
+                  <option value="pos-top">Top Header</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subtitle Action Tools -->
+          <div class="sub-tools-row">
+            <div class="sub-tools-group">
+              <button class="btn btn-gold" id="btnUploadSubFile" style="padding:0.35rem 0.85rem; font-size:0.74rem;">
+                📥 Upload .SRT / .VTT
+              </button>
+              <button class="btn btn-gold" id="btnAutoSyncSubtitles"
+                style="padding:0.35rem 0.85rem; font-size:0.74rem;">
+                🤖 AI Develop Subtitles from Script
+              </button>
+              <button class="btn" id="btnAddSubLine" style="padding:0.35rem 0.85rem; font-size:0.74rem;">
+                + Add Subtitle Line
+              </button>
+            </div>
+            <div class="sub-tools-group">
+              <button class="btn" id="btnExportSrt" title="Export as SubRip (.srt)">Export .SRT</button>
+              <button class="btn" id="btnExportVtt" title="Export as WebVTT (.vtt)">Export .VTT</button>
+              <button class="btn" id="btnClearSubs" title="Clear all subtitles"
+                style="color:var(--accent-red);">Clear</button>
+            </div>
+          </div>
+
+          <!-- Dynamic Subtitles List Container -->
+          <div class="subtitles-list" id="subtitlesContainer">
+            <!-- Dynamically populated subtitle cards -->
+          </div>
+        </div>
+
+        <!-- Script Toolbar & Export -->
+        <div
+          style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--card-border); padding-top:1rem; flex-wrap:wrap; gap:0.6rem;">
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <button class="btn" id="btnExportScriptJson" title="Export script as JSON">Export JSON</button>
+            <button class="btn" id="btnExportScriptTxt" title="Export script as text">Export Text</button>
+            <button class="btn" id="btnResetScript">Clear Script</button>
+          </div>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <button class="btn" id="btnAiDevelopSubsBottom"
+              style="padding:0.55rem 1.1rem; border-color:var(--accent-gold); color:var(--accent-gold);"
+              title="AI generates subtitles from current audio script">
+              🤖 AI Develop Subtitles
+            </button>
+            <button class="btn btn-gold" id="btnApplyScriptLive" style="padding:0.55rem 1.25rem;">
+              ✨ Apply Script to Video
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Scene-by-Scene Script Importer Modal -->
+  <div class="modal-backdrop" id="sceneScriptModal" style="display:none;">
+    <div class="modal-card" style="max-width:780px; width:94%;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:0.65rem;">
+          <span style="font-size:1.4rem;">📜</span>
+          <div>
+            <div style="font-family:var(--font-serif); font-size:1.1rem; color:#fff; font-weight:700;">SCENE-BY-SCENE SCRIPT IMPORTER</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">Import, format, or paste your screenplay scenes to sync with your video</div>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="btnCloseSceneModal" title="Close modal">✕</button>
+      </div>
+
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:0.95rem;">
+        <div class="scene-format-tips">
+          <div style="font-family:var(--font-mono); font-size:0.72rem; color:var(--accent-gold); margin-bottom:0.25rem;">SUPPORTED SCENE FORMATS:</div>
+          <div style="font-size:0.76rem; color:var(--text-muted); line-height:1.45;">
+            Paste scene blocks with headers like <code>[SCENE 1: 00:00 - EXT. DAWN]</code>, <code>[00:15] Spoken text...</code>, or upload a <code>.txt</code>, <code>.json</code>, <code>.fountain</code>, <code>.csv</code> file.
+          </div>
+        </div>
+
+        <div style="display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center; justify-content:space-between;">
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <button class="btn btn-gold" id="btnModalUploadFile" style="padding:0.4rem 0.9rem; font-size:0.75rem;">
+              📥 Upload Script File (.txt / .json / .csv)
+            </button>
+            <button class="btn" id="btnModalLoadTemplate" style="padding:0.4rem 0.9rem; font-size:0.75rem;">
+              📋 Load Sample Scene Template
+            </button>
+          </div>
+          <span id="sceneParsedCountBadge" style="font-family:var(--font-mono); font-size:0.74rem; color:var(--accent-cyan); font-weight:600;">
+            Ready to parse
+          </span>
+        </div>
+
+        <textarea class="scene-script-textarea" id="sceneScriptInputArea" spellcheck="false" placeholder="Paste your scene-by-scene script here... Format:
+
+[SCENE 1: 00:00 - Scene Title]
+VISUAL: Describe the visual action of this scene...
+VOICE: Enter custom voiceover dialogue for this scene here.
+
+[SCENE 2: 00:15 - Next Scene]
+VISUAL: Describe the visual action of the next scene...
+VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
+
+        <div style="font-family:var(--font-mono); font-size:0.7rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.06em;">
+          Live Scene Parse Preview:
+        </div>
+        <div id="sceneParsedPreviewContainer" style="display:flex; flex-direction:column; gap:0.45rem; max-height:160px; overflow-y:auto; padding-right:0.3rem;">
+          <!-- Dynamically parsed scene cards -->
+        </div>
+      </div>
+
+      <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--card-border); padding-top:0.85rem; margin-top:0.35rem;">
+        <button class="btn" id="btnCancelSceneModal">Cancel</button>
+        <button class="btn btn-gold" id="btnApplySceneScript" style="padding:0.55rem 1.3rem;">
+          ✨ Apply Scene Script to Video
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="studioToast">
+    <div style="font-size:1.2rem;" id="toastIcon">🎙️</div>
+    <div style="font-size:0.84rem; line-height:1.4;" id="toastMsg">Ready</div>
+  </div>
+
+  <script>
+    // -------------------------------------------------------------
+    // SCRIPT CUES (ZERO DEFAULT SCRIPT - CLEAN STATE)
+    // -------------------------------------------------------------
+    const DEFAULT_CUES = [];
+    var SCRIPT_CUES = [];
+
+    // NO default subtitles at all: starts completely empty until AI develops or user uploads
+    var SUBTITLES = [];
+    var subtitlesEnabled = false;
+
+    let subStyleConfig = {
+      size: 'size-md',
+      color: 'color-white',
+      style: 'style-none',
+      position: 'pos-bottom'
+    };
+
+    // Ensure zero default script cues or cached subtitles exist on clean load
+    try {
+      localStorage.removeItem('cinevoice_script_cues');
+      localStorage.removeItem('cinevoice_subtitles');
+      const savedStyle = localStorage.getItem('cinevoice_sub_style');
+      if (savedStyle) {
+        subStyleConfig = Object.assign(subStyleConfig, JSON.parse(savedStyle));
+      }
+    } catch (e) {
+      console.warn('LocalStorage load failed:', e);
+    }
+
+    function saveSubtitles() {
+      try {
+        localStorage.setItem('cinevoice_subtitles', JSON.stringify(SUBTITLES));
+      } catch (e) {
+        console.warn('LocalStorage subtitle save failed:', e);
+      }
+    }
+
+    function saveSubStyle() {
+      try {
+        localStorage.setItem('cinevoice_sub_style', JSON.stringify(subStyleConfig));
+      } catch (e) {
+        console.warn('LocalStorage subtitle style save failed:', e);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // AI VOICE SYNTHESIS ENGINE
+    // -------------------------------------------------------------
+    class StudioVoiceEngine {
+      constructor() {
+        this.synth = window.speechSynthesis;
+        this.allVoices = [];
+        this.maleVoice = null;
+        this.femaleVoice = null;
+        this.manualVoice = null;
+
+        this.rate = 0.86;
+        this.pitch = 0.84;
+        this.volume = 1.0;
+        this.initVoices();
+      }
+
+      initVoices() {
+        if (!this.synth) return;
+        const load = () => {
+          this.allVoices = this.synth.getVoices() || [];
+          if (!this.allVoices.length) return;
+
+          const enVoices = this.allVoices.filter(v => v.lang.startsWith('en'));
+          const pool = enVoices.length ? enVoices : this.allVoices;
+
+          // Male matching
+          const maleKw = ['david', 'christopher', 'guy', 'george', 'mark', 'daniel', 'male', 'natural'];
+          let matchedM = null;
+          for (const kw of maleKw) {
+            matchedM = pool.find(v => v.name.toLowerCase().includes(kw));
+            if (matchedM) break;
+          }
+          this.maleVoice = matchedM || pool[0];
+
+          // Female matching
+          const femaleKw = ['jenny', 'zira', 'aria', 'samantha', 'victoria', 'sonia', 'female', 'natural'];
+          let matchedF = null;
+          for (const kw of femaleKw) {
+            matchedF = pool.find(v => v.name.toLowerCase().includes(kw));
+            if (matchedF) break;
+          }
+          this.femaleVoice = (matchedF && matchedF !== this.maleVoice) ? matchedF : pool.find(v => v !== this.maleVoice) || pool[0];
+
+          populateVoiceSelect();
+        };
+
+        load();
+        if (this.synth.onvoiceschanged !== undefined) {
+          this.synth.onvoiceschanged = load;
+        }
+      }
+
+      speak(text, mode = 'male') {
+        if (!this.synth || !text) return;
+        this.synth.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+
+        if (this.manualVoice) {
+          utterance.voice = this.manualVoice;
+        } else if (mode === 'female' && this.femaleVoice) {
+          utterance.voice = this.femaleVoice;
+        } else if (this.maleVoice) {
+          utterance.voice = this.maleVoice;
+        }
+
+        utterance.rate = this.rate;
+        utterance.pitch = (mode === 'female') ? Math.max(1.02, this.pitch) : this.pitch;
+        utterance.volume = this.volume;
+
+        this.synth.speak(utterance);
+      }
+
+      stop() {
+        if (this.synth) this.synth.cancel();
+      }
+    }
+
+    // -------------------------------------------------------------
+    // CUSTOM UPLOADED AUDIO MANAGER
+    // -------------------------------------------------------------
+    class CustomAudioManager {
+      constructor() {
+        this.audioEl = document.createElement('audio');
+        this.audioEl.id = 'customTrackAudio';
+        this.audioEl.preload = 'auto';
+        document.body.appendChild(this.audioEl);
+
+        this.isLoaded = false;
+        this.fileName = '';
+        this.duration = 0;
+        this.blobUrl = null;
+      }
+
+      loadFile(file) {
+        if (!file) return;
+        if (this.blobUrl) URL.revokeObjectURL(this.blobUrl);
+        this.blobUrl = URL.createObjectURL(file);
+        this.fileName = file.name;
+        this.audioEl.src = this.blobUrl;
+        this.audioEl.load();
+
+        this.audioEl.onloadedmetadata = () => {
+          this.isLoaded = true;
+          this.duration = this.audioEl.duration;
+          setAudioMode('custom');
+          document.getElementById('customAudioDesc').textContent = `Loaded: ${this.fileName} (${formatTime(this.duration)})`;
+          document.getElementById('audioUploadBoxTitle').textContent = `✓ Loaded: ${this.fileName}`;
+          showToast(`Custom audio loaded: ${this.fileName} (${formatTime(this.duration)})`);
+        };
+
+        this.audioEl.onerror = () => {
+          this.isLoaded = false;
+          showToast('Could not load audio file. Please check format.', true);
+        };
+      }
+
+      play(atSeconds = 0) {
+        if (!this.isLoaded) return;
+        this.audioEl.currentTime = atSeconds;
+        this.audioEl.play().catch(e => console.warn('Audio play deferred:', e));
+      }
+
+      pause() {
+        if (this.isLoaded) this.audioEl.pause();
+      }
+
+      seek(seconds) {
+        if (this.isLoaded) {
+          this.audioEl.currentTime = Math.min(seconds, this.audioEl.duration || 9999);
+        }
+      }
+
+      setVolume(v) {
+        this.audioEl.volume = Math.max(0, Math.min(1, v));
+      }
+    }
+
+    // -------------------------------------------------------------
+    // MASTER APPLICATION ORCHESTRATOR
+    // -------------------------------------------------------------
+    const voiceEngine = new StudioVoiceEngine();
+    const customAudio = new CustomAudioManager();
+
+    // DOM Elements
+    const mainVideoPlayer = document.getElementById('mainVideoPlayer');
+    const videoDropzone = document.getElementById('videoDropzone');
+    const videoFileInput = document.getElementById('videoFileInput');
+    const customAudioFileInput = document.getElementById('customAudioFileInput');
+    const subtitleFileInput = document.getElementById('subtitleFileInput');
+    const videoHudTop = document.getElementById('videoHudTop');
+    const videoFilenameLabel = document.getElementById('videoFilenameLabel');
+    const hudAudioModeBadge = document.getElementById('hudAudioModeBadge');
+    const hudSubtitlesBadge = document.getElementById('hudSubtitlesBadge');
+    const hudSubtitlesStatus = document.getElementById('hudSubtitlesStatus');
+    const deckActiveAudioLabel = document.getElementById('deckActiveAudioLabel');
+    const videoSubtitleOverlay = document.getElementById('videoSubtitleOverlay');
+    const videoSubtitleText = document.getElementById('videoSubtitleText');
+    const videoCenterTrigger = document.getElementById('videoCenterTrigger');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const playIcon = document.getElementById('playIcon');
+    const pauseIcon = document.getElementById('pauseIcon');
+    const currentTimeDisplay = document.getElementById('currentTimeDisplay');
+    const totalTimeDisplay = document.getElementById('totalTimeDisplay');
+    const timelineContainer = document.getElementById('timelineContainer');
+    const timelineProgress = document.getElementById('timelineProgress');
+    const soundWave = document.getElementById('soundWave');
+
+    // Video Workflow Banner & Direction
+    const videoWorkflowBanner = document.getElementById('videoWorkflowBanner');
+    const bannerVideoFilename = document.getElementById('bannerVideoFilename');
+    const btnWorkflowDismiss = document.getElementById('btnWorkflowDismiss');
+    const btnWorkflowUploadScript = document.getElementById('btnWorkflowUploadScript');
+    const btnWorkflowOpenSceneEditor = document.getElementById('btnWorkflowOpenSceneEditor');
+    const btnWorkflowStartFrameScan = document.getElementById('btnWorkflowStartFrameScan');
+    const btnWorkflowSubtitlesSuite = document.getElementById('btnWorkflowSubtitlesSuite');
+    const btnWorkflowAutoSubs = document.getElementById('btnWorkflowAutoSubs');
+    const btnWorkflowKeepCurrent = document.getElementById('btnWorkflowKeepCurrent');
+    const sceneScriptFileInput = document.getElementById('sceneScriptFileInput');
+
+    // AI Frame Scanner Overlay Elements
+    const frameScannerOverlay = document.getElementById('frameScannerOverlay');
+    const btnCancelFrameScan = document.getElementById('btnCancelFrameScan');
+    const scannerStatusText = document.getElementById('scannerStatusText');
+    const telemetryFrameTime = document.getElementById('telemetryFrameTime');
+    const telemetryMood = document.getElementById('telemetryMood');
+    const telemetryCut = document.getElementById('telemetryCut');
+    const telemetrySceneCount = document.getElementById('telemetrySceneCount');
+    const scannerProgressBar = document.getElementById('scannerProgressBar');
+    const scannerFilmstrip = document.getElementById('scannerFilmstrip');
+    const filmstripCount = document.getElementById('filmstripCount');
+
+    // Scene Script Modal Elements
+    const sceneScriptModal = document.getElementById('sceneScriptModal');
+    const btnCloseSceneModal = document.getElementById('btnCloseSceneModal');
+    const btnCancelSceneModal = document.getElementById('btnCancelSceneModal');
+    const btnModalUploadFile = document.getElementById('btnModalUploadFile');
+    const btnModalLoadTemplate = document.getElementById('btnModalLoadTemplate');
+    const sceneScriptInputArea = document.getElementById('sceneScriptInputArea');
+    const sceneParsedCountBadge = document.getElementById('sceneParsedCountBadge');
+    const sceneParsedPreviewContainer = document.getElementById('sceneParsedPreviewContainer');
+    const btnApplySceneScript = document.getElementById('btnApplySceneScript');
+
+    // Deck script action buttons
+    const btnDeckUploadSceneScript = document.getElementById('btnDeckUploadSceneScript');
+    const btnDeckStartFrameScan = document.getElementById('btnDeckStartFrameScan');
+    const btnDeckFullTextUploadScene = document.getElementById('btnDeckFullTextUploadScene');
+    const btnDeckFullTextFrameScan = document.getElementById('btnDeckFullTextFrameScan');
+
+    // Legacy Banner alias
+    const videoSubBanner = videoWorkflowBanner;
+    const btnBannerUploadSub = btnWorkflowSubtitlesSuite;
+    const btnBannerAutoSync = btnWorkflowAutoSubs;
+    const btnBannerOpenStudio = btnWorkflowSubtitlesSuite;
+    const btnBannerToggleCC = null;
+    const btnBannerDismiss = btnWorkflowDismiss;
+    const bannerCCText = null;
+
+    // Player toolbar CC & Subtitles buttons
+    const btnToggleCC = document.getElementById('btnToggleCC');
+    const ccBadgeDot = document.getElementById('ccBadgeDot');
+    const ccStatusText = document.getElementById('ccStatusText');
+    const btnOpenSubtitlesDeck = document.getElementById('btnOpenSubtitlesDeck');
+
+    // Subtitle Suite Deck elements
+    const tabSubtitles = document.getElementById('tabSubtitles');
+    const viewSubtitles = document.getElementById('viewSubtitles');
+    const subtitlesContainer = document.getElementById('subtitlesContainer');
+    const subCountReadout = document.getElementById('subCountReadout');
+    const selectSubSize = document.getElementById('selectSubSize');
+    const selectSubColor = document.getElementById('selectSubColor');
+    const selectSubStyle = document.getElementById('selectSubStyle');
+    const selectSubPos = document.getElementById('selectSubPos');
+    const btnUploadSubFile = document.getElementById('btnUploadSubFile');
+    const btnAutoSyncSubtitles = document.getElementById('btnAutoSyncSubtitles');
+    const btnAddSubLine = document.getElementById('btnAddSubLine');
+    const btnExportSrt = document.getElementById('btnExportSrt');
+    const btnExportVtt = document.getElementById('btnExportVtt');
+    const btnClearSubs = document.getElementById('btnClearSubs');
+    const deckRightPanel = document.getElementById('deckRightPanel');
+    const rightPanelTitle = document.getElementById('rightPanelTitle');
+
+    // Audio Mode buttons
+    const btnAudioMale = document.getElementById('btnAudioMale');
+    const btnAudioFemale = document.getElementById('btnAudioFemale');
+    const btnAudioCustom = document.getElementById('btnAudioCustom');
+    const btnAudioNative = document.getElementById('btnAudioNative');
+    const cardMale = document.getElementById('cardMale');
+    const cardFemale = document.getElementById('cardFemale');
+    const cardCustom = document.getElementById('cardCustom');
+    const cardNative = document.getElementById('cardNative');
+    const audioUploadBox = document.getElementById('audioUploadBox');
+
+    // Sliders
+    const sliderRate = document.getElementById('sliderRate');
+    const valRateText = document.getElementById('valRateText');
+    const sliderPitch = document.getElementById('sliderPitch');
+    const valPitchText = document.getElementById('valPitchText');
+    const selectVoice = document.getElementById('selectVoice');
+    const btnAuditionVoice = document.getElementById('btnAuditionVoice');
+    const sliderVideoVol = document.getElementById('sliderVideoVol');
+    const valVideoVolText = document.getElementById('valVideoVolText');
+    const sliderNarrationVol = document.getElementById('sliderNarrationVol');
+    const valNarrationVolText = document.getElementById('valNarrationVolText');
+
+    // Script tabs & controls
+    const tabCues = document.getElementById('tabCues');
+    const tabFullText = document.getElementById('tabFullText');
+    const viewCues = document.getElementById('viewCues');
+    const viewFullText = document.getElementById('viewFullText');
+    const cuesContainer = document.getElementById('cuesContainer');
+    const btnAddCue = document.getElementById('btnAddCue');
+    const masterScriptArea = document.getElementById('masterScriptArea');
+    const btnDistributeMasterText = document.getElementById('btnDistributeMasterText');
+    const btnExportScriptJson = document.getElementById('btnExportScriptJson');
+    const btnExportScriptTxt = document.getElementById('btnExportScriptTxt');
+    const btnResetScript = document.getElementById('btnResetScript');
+    const btnApplyScriptLive = document.getElementById('btnApplyScriptLive');
+
+    // Header buttons
+    const btnHeaderUploadVideo = document.getElementById('btnHeaderUploadVideo');
+    const btnLoadDemoVideo = document.getElementById('btnLoadDemoVideo');
+    const btnChangeVideo = document.getElementById('btnChangeVideo');
+    const btnToggleLetterbox = document.getElementById('btnToggleLetterbox');
+    const boxTop = document.getElementById('boxTop');
+    const boxBottom = document.getElementById('boxBottom');
+
+    // App State
+    let currentAudioMode = 'male'; // 'male', 'female', 'custom', 'native'
+    let isVideoLoaded = false;
+    let videoBlobUrl = null;
+    let lastSpokenCueId = null;
+    let isLetterboxActive = true;
+
+    // Helper: format seconds to MM:SS
+    function formatTime(totalSec) {
+      if (!totalSec || isNaN(totalSec)) return "00:00";
+      const mins = Math.floor(totalSec / 60);
+      const secs = Math.floor(totalSec % 60);
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    // Helper: parse MM:SS or seconds to float
+    function parseTimeString(str) {
+      if (!str) return 0;
+      if (typeof str === 'number') return str;
+      if (str.includes(':')) {
+        const parts = str.split(':');
+        return (parseInt(parts[0], 10) || 0) * 60 + (parseFloat(parts[1]) || 0);
+      }
+      return parseFloat(str) || 0;
+    }
+
+    // Format seconds to standard SRT timestamp: HH:MM:SS,mmm
+    function formatSrtTimestamp(sec) {
+      if (isNaN(sec) || sec < 0) sec = 0;
+      const hours = Math.floor(sec / 3600);
+      const mins = Math.floor((sec % 3600) / 60);
+      const s = Math.floor(sec % 60);
+      const ms = Math.floor((sec % 1) * 1000);
+      return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(s).padStart(2, '0')},${String(ms).padStart(3, '0')}`;
+    }
+
+    // Format seconds to standard WebVTT timestamp: HH:MM:SS.mmm
+    function formatVttTimestamp(sec) {
+      if (isNaN(sec) || sec < 0) sec = 0;
+      const hours = Math.floor(sec / 3600);
+      const mins = Math.floor((sec % 3600) / 60);
+      const s = Math.floor(sec % 60);
+      const ms = Math.floor((sec % 1) * 1000);
+      return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+    }
+
+    // Format seconds to user-friendly MM:SS.ms (e.g. 01:23.4)
+    function formatSubCueTime(sec) {
+      if (isNaN(sec) || sec < 0) sec = 0;
+      const mins = Math.floor(sec / 60);
+      const s = (sec % 60).toFixed(1);
+      const parts = s.split('.');
+      return `${String(mins).padStart(2, '0')}:${String(parts[0]).padStart(2, '0')}.${parts[1] || '0'}`;
+    }
+
+    // Parse MM:SS.ms or SS.ms or HH:MM:SS,mmm to seconds float
+    function parseSubCueTime(str) {
+      if (!str) return 0;
+      if (typeof str === 'number') return str;
+      const clean = String(str).trim().replace(',', '.');
+      if (clean.includes(':')) {
+        const parts = clean.split(':');
+        if (parts.length === 3) {
+          return (parseFloat(parts[0]) || 0) * 3600 + (parseFloat(parts[1]) || 0) * 60 + (parseFloat(parts[2]) || 0);
+        } else if (parts.length === 2) {
+          return (parseFloat(parts[0]) || 0) * 60 + (parseFloat(parts[1]) || 0);
+        }
+      }
+      return parseFloat(clean) || 0;
+    }
+
+    // Parse SRT or WebVTT content to structured subtitle cue array
+    function parseSrtOrVtt(content) {
+      const cues = [];
+      if (!content) return cues;
+
+      const lines = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+
+      function parseTimeComponents(h, m, s, ms) {
+        const hrs = parseInt(h || '0', 10);
+        const mins = parseInt(m || '0', 10);
+        const secs = parseInt(s || '0', 10);
+        let millis = parseInt(ms || '0', 10);
+        if (ms && ms.length === 1) millis *= 100;
+        else if (ms && ms.length === 2) millis *= 10;
+        return hrs * 3600 + mins * 60 + secs + (millis / 1000);
+      }
+
+      let i = 0;
+      while (i < lines.length) {
+        const line = lines[i].trim();
+        if (line.includes('-->')) {
+          const match = line.match(/(?:(?:(\d{1,2}):)?(\d{1,2}):(\d{2})[,.](\d{1,3}))\s*-->\s*(?:(?:(\d{1,2}):)?(\d{1,2}):(\d{2})[,.](\d{1,3}))/);
+          if (match) {
+            const startSec = parseTimeComponents(match[1], match[2], match[3], match[4]);
+            const endSec = parseTimeComponents(match[5], match[6], match[7], match[8]);
+
+            i++;
+            const textLines = [];
+            while (i < lines.length && lines[i].trim() !== '' && !lines[i].includes('-->')) {
+              textLines.push(lines[i].trim());
+              i++;
+            }
+            const fullText = textLines.join(' ').replace(/<[^>]+>/g, '').trim();
+            if (fullText) {
+              cues.push({
+                id: Date.now() + cues.length,
+                start: parseFloat(startSec.toFixed(2)),
+                end: parseFloat(Math.max(startSec + 0.5, endSec).toFixed(2)),
+                text: fullText
+              });
+            }
+            continue;
+          }
+        }
+        i++;
+      }
+
+      return cues;
+    }
+
+    // Apply subtitle styling classes from configuration
+    function applySubStyles() {
+      if (videoSubtitleOverlay) {
+        videoSubtitleOverlay.className = `video-subtitles-overlay ${subStyleConfig.position || 'pos-bottom'}`;
+      }
+      if (videoSubtitleText) {
+        videoSubtitleText.className = `video-subtitles-text ${subStyleConfig.size || 'size-md'} ${subStyleConfig.color || 'color-white'} ${subStyleConfig.style || 'style-none'}`;
+      }
+      if (selectSubSize) selectSubSize.value = subStyleConfig.size || 'size-md';
+      if (selectSubColor) selectSubColor.value = subStyleConfig.color || 'color-white';
+      if (selectSubStyle) selectSubStyle.value = subStyleConfig.style || 'style-none';
+      if (selectSubPos) selectSubPos.value = subStyleConfig.position || 'pos-bottom';
+    }
+
+    // Workflow Banner Controls
+    function showVideoWorkflowBanner(filename) {
+      if (!videoWorkflowBanner) return;
+      if (bannerVideoFilename) bannerVideoFilename.textContent = filename || 'Your Video';
+      videoWorkflowBanner.style.display = 'flex';
+    }
+
+    function dismissWorkflowBanner() {
+      if (videoWorkflowBanner) videoWorkflowBanner.style.display = 'none';
+    }
+
+    const showSubtitlePromptBanner = showVideoWorkflowBanner;
+    const dismissSubtitleBanner = dismissWorkflowBanner;
+
+    // -------------------------------------------------------------
+    // VIDEO LOADING & PLAYBACK LOGIC
+    // -------------------------------------------------------------
+    function loadVideoFromFile(file) {
+      if (!file) return;
+      if (videoBlobUrl) URL.revokeObjectURL(videoBlobUrl);
+      videoBlobUrl = URL.createObjectURL(file);
+      mainVideoPlayer.src = videoBlobUrl;
+      mainVideoPlayer.load();
+
+      mainVideoPlayer.onloadedmetadata = () => {
+        isVideoLoaded = true;
+        mainVideoPlayer.classList.add('active');
+        videoDropzone.style.display = 'none';
+        videoHudTop.style.display = 'flex';
+        videoFilenameLabel.textContent = file.name;
+        videoCenterTrigger.classList.remove('hidden');
+        totalTimeDisplay.textContent = formatTime(mainVideoPlayer.duration);
+        showToast(`✓ Video loaded: ${file.name} (${formatTime(mainVideoPlayer.duration)})`);
+
+        // Provide script and subtitle direction options immediately upon upload
+        showVideoWorkflowBanner(file.name);
+      };
+
+      mainVideoPlayer.onerror = () => {
+        showToast('Error playing video file. Please check format.', true);
+      };
+    }
+
+    function loadDemoVideo() {
+      mainVideoPlayer.src = "THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4";
+      mainVideoPlayer.load();
+      mainVideoPlayer.onloadedmetadata = () => {
+        isVideoLoaded = true;
+        mainVideoPlayer.classList.add('active');
+        videoDropzone.style.display = 'none';
+        videoHudTop.style.display = 'flex';
+        videoFilenameLabel.textContent = "THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4";
+        videoCenterTrigger.classList.remove('hidden');
+        totalTimeDisplay.textContent = formatTime(mainVideoPlayer.duration);
+        showToast('✓ Demo video loaded successfully.');
+        showVideoWorkflowBanner("THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4");
+      };
+    }
+
+    // Video Play / Pause
+    function togglePlay() {
+      if (!isVideoLoaded) {
+        videoFileInput.click();
+        return;
+      }
+      if (mainVideoPlayer.paused || mainVideoPlayer.ended) {
+        startVideoPlayback();
+      } else {
+        pauseVideoPlayback();
+      }
+    }
+
+    function startVideoPlayback() {
+      mainVideoPlayer.play().then(() => {
+        playIcon.style.display = 'none';
+        pauseIcon.style.display = 'block';
+        videoCenterTrigger.classList.add('hidden');
+        soundWave.classList.remove('paused');
+
+        if (currentAudioMode === 'custom' && customAudio.isLoaded) {
+          customAudio.play(mainVideoPlayer.currentTime);
+        }
+      }).catch(err => {
+        console.warn('Playback error:', err);
+      });
+    }
+
+    function pauseVideoPlayback() {
+      mainVideoPlayer.pause();
+      playIcon.style.display = 'block';
+      pauseIcon.style.display = 'none';
+      videoCenterTrigger.classList.remove('hidden');
+      soundWave.classList.add('paused');
+      voiceEngine.stop();
+      if (customAudio.isLoaded) customAudio.pause();
+    }
+
+    // Video Timeupdate & Timeline Sync
+    mainVideoPlayer.addEventListener('timeupdate', () => {
+      const cur = mainVideoPlayer.currentTime;
+      const dur = mainVideoPlayer.duration || 1;
+      currentTimeDisplay.textContent = formatTime(cur);
+      timelineProgress.style.width = `${(cur / dur) * 100}%`;
+
+      // Real-time functional subtitle sync
+      updateSubtitlesForTime(cur);
+
+      // Check for timed speech cues when in Male or Female AI mode
+      if (currentAudioMode === 'male' || currentAudioMode === 'female') {
+        checkSpeechCues(cur);
+      }
+    });
+
+    mainVideoPlayer.addEventListener('ended', () => {
+      pauseVideoPlayback();
+      videoSubtitleText.textContent = "";
+      videoSubtitleText.style.display = 'none';
+      highlightActiveSubtitleCard(null);
+      lastSpokenCueId = null;
+    });
+
+    // Timeline Scrubbing
+    timelineContainer.addEventListener('click', (e) => {
+      if (!isVideoLoaded) return;
+      const rect = timelineContainer.getBoundingClientRect();
+      const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const targetTime = pct * (mainVideoPlayer.duration || 0);
+      mainVideoPlayer.currentTime = targetTime;
+
+      if (currentAudioMode === 'custom' && customAudio.isLoaded) {
+        customAudio.seek(targetTime);
+      }
+
+      voiceEngine.stop();
+      lastSpokenCueId = null;
+      updateSubtitlesForTime(targetTime);
+    });
+
+    // Real-time functional subtitle rendering based on playback time
+    function updateSubtitlesForTime(currentTime) {
+      if (!subtitlesEnabled) {
+        videoSubtitleText.textContent = "";
+        videoSubtitleText.style.display = 'none';
+        highlightActiveSubtitleCard(null);
+        return;
+      }
+
+      const activeSub = SUBTITLES.find(s => currentTime >= s.start && currentTime <= s.end);
+      if (activeSub) {
+        videoSubtitleText.textContent = activeSub.text;
+        videoSubtitleText.style.display = 'inline-block';
+        highlightActiveSubtitleCard(activeSub.id);
+      } else {
+        videoSubtitleText.textContent = "";
+        videoSubtitleText.style.display = 'none';
+        highlightActiveSubtitleCard(null);
+      }
+    }
+
+    function highlightActiveSubtitleCard(activeId) {
+      document.querySelectorAll('.sub-item-card').forEach(card => {
+        if (activeId && card.id === `subCard_${activeId}`) {
+          card.classList.add('active-playing');
+        } else {
+          card.classList.remove('active-playing');
+        }
+      });
+    }
+
+    // Check speech cues against current video playback time
+    function checkSpeechCues(currentTime) {
+      const activeCue = SCRIPT_CUES
+        .filter(c => currentTime >= c.time && currentTime < c.time + 10)
+        .sort((a, b) => b.time - a.time)[0];
+
+      if (activeCue) {
+        if (lastSpokenCueId !== activeCue.id && !mainVideoPlayer.paused) {
+          lastSpokenCueId = activeCue.id;
+          voiceEngine.speak(activeCue.text, currentAudioMode);
+        }
+      }
+    }
+
+    function updateSubtitleForTime(time) {
+      updateSubtitlesForTime(time);
+    }
+
+    // -------------------------------------------------------------
+    // AUDIO MODE SELECTION (MALE / FEMALE / CUSTOM / NATIVE)
+    // -------------------------------------------------------------
+    function setAudioMode(mode) {
+      currentAudioMode = mode;
+
+      // Update button & card states
+      [btnAudioMale, btnAudioFemale, btnAudioCustom, btnAudioNative].forEach(b => b.classList.remove('active'));
+      [cardMale, cardFemale, cardCustom, cardNative].forEach(c => {
+        c.classList.remove('active');
+        const st = c.querySelector('.audio-card-status');
+        if (st) st.textContent = 'SELECT';
+      });
+
+      let modeName = '';
+      if (mode === 'male') {
+        btnAudioMale.classList.add('active');
+        cardMale.classList.add('active');
+        cardMale.querySelector('.audio-card-status').textContent = 'ACTIVE';
+        modeName = '👨 MALE AI VOICE';
+        hudAudioModeBadge.textContent = 'AUDIO: 👨 MALE AI VOICE';
+        hudAudioModeBadge.style.color = 'var(--accent-gold)';
+        deckActiveAudioLabel.textContent = '👨 MALE AI';
+        deckActiveAudioLabel.style.color = 'var(--accent-gold)';
+        mainVideoPlayer.muted = false;
+        sliderRate.value = 0.86;
+        valRateText.textContent = '0.86x';
+        voiceEngine.rate = 0.86;
+        sliderPitch.value = 0.84;
+        valPitchText.textContent = '0.84x';
+        voiceEngine.pitch = 0.84;
+        if (customAudio.isLoaded) customAudio.pause();
+      } else if (mode === 'female') {
+        btnAudioFemale.classList.add('active');
+        cardFemale.classList.add('active');
+        cardFemale.querySelector('.audio-card-status').textContent = 'ACTIVE';
+        modeName = '👩 FEMALE AI VOICE';
+        hudAudioModeBadge.textContent = 'AUDIO: 👩 FEMALE AI VOICE';
+        hudAudioModeBadge.style.color = 'var(--accent-cyan)';
+        deckActiveAudioLabel.textContent = '👩 FEMALE AI';
+        deckActiveAudioLabel.style.color = 'var(--accent-cyan)';
+        mainVideoPlayer.muted = false;
+        sliderRate.value = 0.88;
+        valRateText.textContent = '0.88x';
+        voiceEngine.rate = 0.88;
+        sliderPitch.value = 1.06;
+        valPitchText.textContent = '1.06x';
+        voiceEngine.pitch = 1.06;
+        if (customAudio.isLoaded) customAudio.pause();
+      } else if (mode === 'custom') {
+        btnAudioCustom.classList.add('active');
+        cardCustom.classList.add('active');
+        cardCustom.querySelector('.audio-card-status').textContent = 'ACTIVE';
+        modeName = '🎙️ CUSTOM UPLOADED AUDIO';
+        hudAudioModeBadge.textContent = 'AUDIO: 🎙️ CUSTOM AUDIO TRACK';
+        hudAudioModeBadge.style.color = 'var(--accent-purple)';
+        deckActiveAudioLabel.textContent = '🎙️ CUSTOM AUDIO';
+        deckActiveAudioLabel.style.color = 'var(--accent-purple)';
+        voiceEngine.stop();
+        if (!customAudio.isLoaded) {
+          customAudioFileInput.click();
+        } else if (!mainVideoPlayer.paused) {
+          customAudio.play(mainVideoPlayer.currentTime);
+        }
+      } else if (mode === 'native') {
+        btnAudioNative.classList.add('active');
+        cardNative.classList.add('active');
+        cardNative.querySelector('.audio-card-status').textContent = 'ACTIVE';
+        modeName = '🔊 VIDEO NATIVE AUDIO';
+        hudAudioModeBadge.textContent = 'AUDIO: 🔊 VIDEO NATIVE SOUND';
+        hudAudioModeBadge.style.color = 'var(--accent-emerald)';
+        deckActiveAudioLabel.textContent = '🔊 VIDEO AUDIO';
+        deckActiveAudioLabel.style.color = 'var(--accent-emerald)';
+        mainVideoPlayer.muted = false;
+        voiceEngine.stop();
+        if (customAudio.isLoaded) customAudio.pause();
+      }
+
+      showToast(`Active Audio: ${modeName}`);
+    }
+
+    // Attach click events to choice buttons & cards
+    btnAudioMale.addEventListener('click', () => setAudioMode('male'));
+    btnAudioFemale.addEventListener('click', () => setAudioMode('female'));
+    btnAudioCustom.addEventListener('click', () => setAudioMode('custom'));
+    btnAudioNative.addEventListener('click', () => setAudioMode('native'));
+
+    cardMale.addEventListener('click', () => setAudioMode('male'));
+    cardFemale.addEventListener('click', () => setAudioMode('female'));
+    cardCustom.addEventListener('click', () => setAudioMode('custom'));
+    cardNative.addEventListener('click', () => setAudioMode('native'));
+
+    // Audio upload click
+    audioUploadBox.addEventListener('click', () => customAudioFileInput.click());
+    customAudioFileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        customAudio.loadFile(e.target.files[0]);
+      }
+    });
+
+    // -------------------------------------------------------------
+    // VOICE PARAMETERS & AUDITION
+    // -------------------------------------------------------------
+    sliderRate.addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      valRateText.textContent = `${v.toFixed(2)}x`;
+      voiceEngine.rate = v;
+    });
+
+    sliderPitch.addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      valPitchText.textContent = `${v.toFixed(2)}x`;
+      voiceEngine.pitch = v;
+    });
+
+    function populateVoiceSelect() {
+      selectVoice.innerHTML = '<option value="">Auto-Matched System Voice (Default)</option>';
+      voiceEngine.allVoices.forEach((v, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = `${v.name} (${v.lang})${v.default ? ' — System Default' : ''}`;
+        selectVoice.appendChild(opt);
+      });
+    }
+
+    selectVoice.addEventListener('change', (e) => {
+      const val = e.target.value;
+      if (val === '') {
+        voiceEngine.manualVoice = null;
+      } else {
+        voiceEngine.manualVoice = voiceEngine.allVoices[parseInt(val, 10)];
+      }
+    });
+
+    btnAuditionVoice.addEventListener('click', () => {
+      const sampleText = currentAudioMode === 'female'
+        ? "This is the female AI voice narrator for your video. Clear, articulate, and poised."
+        : "This is the deep cinematic male voice narrator for your video. Authoritative, focused, and powerful.";
+      voiceEngine.speak(sampleText, currentAudioMode);
+      showToast(`Auditioning: ${currentAudioMode === 'female' ? '👩 Female' : '👨 Male'} voice`);
+    });
+
+    // Volume Mixer
+    sliderVideoVol.addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      valVideoVolText.textContent = `${Math.round(v * 100)}%`;
+      mainVideoPlayer.volume = v;
+    });
+
+    sliderNarrationVol.addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      valNarrationVolText.textContent = `${Math.round(v * 100)}%`;
+      voiceEngine.volume = v;
+      customAudio.setVolume(v);
+    });
+
+    // -------------------------------------------------------------
+    // SCRIPT CUES LIST & EDITOR
+    // -------------------------------------------------------------
+    function renderCuesList() {
+      cuesContainer.innerHTML = '';
+      SCRIPT_CUES.sort((a, b) => a.time - b.time);
+
+      if (SCRIPT_CUES.length === 0) {
+        cuesContainer.innerHTML = `
+          <div style="text-align:center; padding:2.5rem 1rem; color:var(--text-muted); font-size:0.84rem;">
+            No narration script cues loaded. Click <strong>+ Add Cue</strong>, <strong>📜 Upload Scene Script</strong>, or <strong>⚡ AI Frame Scan</strong> to create narration for your video.
+          </div>
+        `;
+        syncMasterScriptTextarea();
+        return;
+      }
+
+      SCRIPT_CUES.forEach((cue, index) => {
+        const card = document.createElement('div');
+        card.className = 'cue-card';
+        card.id = `cueCard_${cue.id}`;
+        card.innerHTML = `
+          <div class="cue-card-header">
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--accent-gold); font-weight:600;">CUE #${index + 1}</span>
+              <span style="font-size:0.7rem; color:var(--text-muted);">AT TIME:</span>
+              <input class="cue-time-input" type="text" value="${formatTime(cue.time)}" id="cueTimeInput_${cue.id}" title="Enter time in MM:SS (e.g. 00:15)">
+            </div>
+            <div style="display:flex; gap:0.35rem;">
+              <button class="cue-btn" onclick="jumpToCue(${cue.time})">⏱️ Jump to Time</button>
+              <button class="cue-btn" onclick="auditionCue(${cue.id})">🔊 Audition</button>
+              <button class="cue-btn" onclick="deleteCue(${cue.id})" style="color:var(--accent-red);">&times;</button>
+            </div>
+          </div>
+          <div>
+            <textarea class="cue-textarea" id="cueTextInput_${cue.id}" rows="2" placeholder="Spoken voiceover narration for this moment...">${cue.text || ''}</textarea>
+          </div>
+          <div>
+            <input class="cue-subtitle-input" type="text" id="cueSubInput_${cue.id}" value="${(cue.subtitle || '').replace(/"/g, '&quot;')}" placeholder="On-screen subtitle display...">
+          </div>
+        `;
+        cuesContainer.appendChild(card);
+      });
+
+      syncMasterScriptTextarea();
+    }
+
+    window.jumpToCue = function (timeSec) {
+      if (!isVideoLoaded) return;
+      mainVideoPlayer.currentTime = timeSec;
+      if (customAudio.isLoaded) customAudio.seek(timeSec);
+      updateSubtitleForTime(timeSec);
+      showToast(`Jumped to: ${formatTime(timeSec)}`);
+    };
+
+    window.auditionCue = function (cueId) {
+      const cue = SCRIPT_CUES.find(c => c.id === cueId);
+      if (cue) {
+        const input = document.getElementById(`cueTextInput_${cue.id}`);
+        const text = input ? input.value : cue.text;
+        voiceEngine.speak(text, currentAudioMode);
+      }
+    };
+
+    window.deleteCue = function (cueId) {
+      SCRIPT_CUES = SCRIPT_CUES.filter(c => c.id !== cueId);
+      renderCuesList();
+      showToast('Cue removed.');
+    };
+
+    btnAddCue.addEventListener('click', () => {
+      const nextTime = isVideoLoaded ? Math.round(mainVideoPlayer.currentTime) : (SCRIPT_CUES.length ? SCRIPT_CUES[SCRIPT_CUES.length - 1].time + 10 : 0);
+      const newId = Date.now();
+      SCRIPT_CUES.push({
+        id: newId,
+        time: nextTime,
+        text: "",
+        subtitle: ""
+      });
+      renderCuesList();
+      showToast(`+ Added speech cue at ${formatTime(nextTime)}`);
+      // Scroll to bottom
+      cuesContainer.scrollTop = cuesContainer.scrollHeight;
+    });
+
+    // Master Script parser
+    function syncMasterScriptTextarea() {
+      if (!SCRIPT_CUES || SCRIPT_CUES.length === 0) {
+        masterScriptArea.value = "";
+        return;
+      }
+      let txt = "";
+      SCRIPT_CUES.forEach(cue => {
+        txt += `[${formatTime(cue.time)}]\n`;
+        txt += `VOICEOVER: ${cue.text}\n`;
+        txt += `SUBTITLE: ${cue.subtitle || ''}\n\n`;
+      });
+      masterScriptArea.value = txt.trim();
+    }
+
+    // -------------------------------------------------------------
+    // AI FRAME-BY-FRAME VIDEO ANALYSIS & SCRIPT SYNTHESIS ENGINE
+    // -------------------------------------------------------------
+    class VideoFrameAnalyzer {
+      constructor(videoEl) {
+        this.video = videoEl;
+        this.canvas = document.createElement('canvas');
+        this.canvas.width = 160;
+        this.canvas.height = 90;
+        this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
+        this.isScanning = false;
+        this.shouldCancel = false;
+      }
+
+      cancel() {
+        this.shouldCancel = true;
+      }
+
+      async analyzeVideo(onProgress, onComplete) {
+        if (!this.video || !this.video.duration || isNaN(this.video.duration)) {
+          showToast('Please load a video first before starting frame analysis.', true);
+          return;
+        }
+
+        this.isScanning = true;
+        this.shouldCancel = false;
+        const totalDuration = this.video.duration;
+        const savedTime = this.video.currentTime;
+        const wasPaused = this.video.paused;
+        this.video.pause();
+
+        // Sample between 8 and 20 keyframes across the video
+        const sampleCount = Math.min(20, Math.max(8, Math.floor(totalDuration / 2.8)));
+        const sampleInterval = totalDuration / (sampleCount + 1);
+
+        const sampledFrames = [];
+        let prevPixelData = null;
+        let detectedScenes = [];
+
+        for (let i = 0; i < sampleCount; i++) {
+          if (this.shouldCancel) {
+            showToast('Frame analysis cancelled.');
+            break;
+          }
+
+          const targetTime = parseFloat(((i + 1) * sampleInterval).toFixed(2));
+          await this.seekToTime(targetTime);
+
+          // Draw current frame to analysis canvas
+          this.ctx.drawImage(this.video, 0, 0, 160, 90);
+          const frameImgData = this.ctx.getImageData(0, 0, 160, 90);
+          const pixels = frameImgData.data;
+
+          // Compute Luminance & Color Balance
+          let totalLuma = 0;
+          let totalR = 0, totalG = 0, totalB = 0;
+          const pixelCount = pixels.length / 4;
+
+          for (let p = 0; p < pixels.length; p += 4) {
+            const r = pixels[p];
+            const g = pixels[p + 1];
+            const b = pixels[p + 2];
+            totalR += r;
+            totalG += g;
+            totalB += b;
+            totalLuma += (0.299 * r + 0.587 * g + 0.114 * b);
+          }
+
+          const avgLuma = totalLuma / pixelCount;
+          const avgR = totalR / pixelCount;
+          const avgG = totalG / pixelCount;
+          const avgB = totalB / pixelCount;
+
+          // Compute delta difference from previous frame (scene cut detection)
+          let delta = 0;
+          if (prevPixelData) {
+            let diffSum = 0;
+            for (let p = 0; p < pixels.length; p += 4) {
+              diffSum += Math.abs(pixels[p] - prevPixelData[p])
+                       + Math.abs(pixels[p + 1] - prevPixelData[p + 1])
+                       + Math.abs(pixels[p + 2] - prevPixelData[p + 2]);
+            }
+            delta = diffSum / (3 * pixelCount);
+          }
+          prevPixelData = new Uint8ClampedArray(pixels);
+
+          // Determine visual mood
+          let mood = 'Balanced Cinematic';
+          let moodKey = 'balanced';
+          if (avgLuma < 55) {
+            mood = 'Low-Key Moody Noir';
+            moodKey = 'noir';
+          } else if (avgLuma > 160) {
+            mood = 'High-Key Radiant Day';
+            moodKey = 'radiant';
+          } else if (avgR > avgB * 1.3) {
+            mood = 'Golden Hour Warmth';
+            moodKey = 'warm';
+          } else if (avgB > avgR * 1.25) {
+            mood = 'Cool Teal & Shadow';
+            moodKey = 'cool';
+          }
+
+          // Scene Cut threshold
+          const isCut = (i === 0) || (delta > 22) || (targetTime - (sampledFrames[sampledFrames.length - 1]?.time || 0) > 12);
+          const thumbUrl = this.canvas.toDataURL('image/jpeg', 0.65);
+
+          const frameInfo = {
+            index: i + 1,
+            time: targetTime,
+            luma: Math.round(avgLuma),
+            delta: Math.round(delta),
+            isCut: isCut,
+            mood: mood,
+            moodKey: moodKey,
+            thumbUrl: thumbUrl
+          };
+
+          sampledFrames.push(frameInfo);
+
+          if (isCut) {
+            detectedScenes.push(frameInfo);
+          }
+
+          if (onProgress) {
+            onProgress({
+              current: i + 1,
+              total: sampleCount,
+              percent: Math.round(((i + 1) / sampleCount) * 100),
+              frame: frameInfo,
+              detectedScenesCount: detectedScenes.length
+            });
+          }
+
+          await new Promise(r => setTimeout(r, 60));
+        }
+
+        this.video.currentTime = savedTime;
+        if (!wasPaused) this.video.play().catch(() => {});
+        this.isScanning = false;
+
+        if (!this.shouldCancel && onComplete) {
+          const generatedScript = this.synthesizeSceneScript(detectedScenes, sampledFrames, totalDuration);
+          onComplete(generatedScript);
+        }
+      }
+
+      seekToTime(seconds) {
+        return new Promise((resolve) => {
+          const onSeeked = () => {
+            this.video.removeEventListener('seeked', onSeeked);
+            resolve();
+          };
+          this.video.addEventListener('seeked', onSeeked, { once: true });
+          this.video.currentTime = seconds;
+        });
+      }
+
+      synthesizeSceneScript(scenes, allFrames, duration) {
+        if (scenes.length < 2) {
+          const step = duration / 3;
+          scenes = [
+            { time: 1.0, mood: 'Low-Key Moody Noir', moodKey: 'noir', thumbUrl: allFrames[0]?.thumbUrl || '' },
+            { time: parseFloat((step).toFixed(1)), mood: 'Balanced Cinematic', moodKey: 'balanced', thumbUrl: allFrames[Math.floor(allFrames.length/2)]?.thumbUrl || '' },
+            { time: parseFloat((step * 2).toFixed(1)), mood: 'Golden Hour Warmth', moodKey: 'warm', thumbUrl: allFrames[allFrames.length-1]?.thumbUrl || '' }
+          ];
+        }
+
+        const thematicLines = {
+          opening: [
+            "Every frame tells a story before a single word is spoken. The silence sets the stage.",
+            "In the quiet opening light, the atmosphere takes shape. A world waiting to be explored.",
+            "Light and shadow converge in these opening moments. Time begins its relentless march."
+          ],
+          shift: [
+            "Movement shifts the narrative forward. What was once still now gains undeniable momentum.",
+            "A transition in perspective reveals depth previously hidden. The tempo quickens.",
+            "Energy surges across the visual horizon. Every second demands heightened attention."
+          ],
+          climax: [
+            "Here at the core of the sequence, contrast reaches its peak. Focus sharpens into certainty.",
+            "Tension and composition align perfectly. The defining moment of the journey unfolds.",
+            "Clarity cuts through the complexity. This is the pivotal heartbeat of the entire piece."
+          ],
+          resolution: [
+            "As the visual rhythm settles, clarity remains. What began in silence concludes in purpose.",
+            "The final frames linger like a memory made visible. Disciplined, cinematic, and resolved.",
+            "Time passes, but the impression endures. Small moments used with mastery change everything."
+          ]
+        };
+
+        const newCues = [];
+        let scriptText = "";
+
+        scenes.forEach((sc, idx) => {
+          const sceneNum = idx + 1;
+          const time = (idx === 0) ? 1.0 : Math.round(sc.time);
+
+          let linePool = thematicLines.shift;
+          let sceneType = "INTERIOR / CONTINUOUS";
+          if (idx === 0) {
+            linePool = thematicLines.opening;
+            sceneType = "EXTERIOR - ESTABLISHING SHOT";
+          } else if (idx === scenes.length - 1) {
+            linePool = thematicLines.resolution;
+            sceneType = "FINAL SEQUENCE - CADENCE & RESOLVE";
+          } else if (idx === Math.floor(scenes.length / 2)) {
+            linePool = thematicLines.climax;
+            sceneType = "DYNAMIC PEAK - CORE FOCUS";
+          }
+
+          const chosenLine = linePool[idx % linePool.length];
+          const visualDesc = `VISUAL: [${sc.mood}] Detected visual dynamics at ${formatTime(time)}. Luminance: ${sc.luma || 45}%.`;
+
+          newCues.push({
+            id: Date.now() + idx * 10,
+            time: time,
+            text: chosenLine,
+            subtitle: "" // zero default subtitles
+          });
+
+          scriptText += `[SCENE ${sceneNum}: ${formatTime(time)} - ${sceneType}]\n`;
+          scriptText += `${visualDesc}\n`;
+          scriptText += `VOICEOVER: ${chosenLine}\n\n`;
+        });
+
+        return {
+          cues: newCues,
+          masterText: scriptText.trim(),
+          scenes: scenes
+        };
+      }
+    }
+
+    let activeFrameAnalyzer = null;
+
+    function startFrameByFrameAnalysis() {
+      if (!isVideoLoaded || !mainVideoPlayer.duration) {
+        showToast('Please upload or load a video first to analyze its frames.', true);
+        return;
+      }
+
+      dismissWorkflowBanner();
+      if (frameScannerOverlay) {
+        frameScannerOverlay.style.display = 'flex';
+      }
+      if (scannerFilmstrip) {
+        scannerFilmstrip.innerHTML = '';
+      }
+      if (filmstripCount) filmstripCount.textContent = '0 keyframes';
+      if (scannerProgressBar) scannerProgressBar.style.width = '0%';
+      if (scannerStatusText) scannerStatusText.textContent = 'Scanning video frame-by-frame...';
+
+      activeFrameAnalyzer = new VideoFrameAnalyzer(mainVideoPlayer);
+
+      activeFrameAnalyzer.analyzeVideo(
+        // Progress Callback
+        (data) => {
+          if (scannerProgressBar) scannerProgressBar.style.width = `${data.percent}%`;
+          if (scannerStatusText) {
+            scannerStatusText.textContent = `Analyzing Frame ${data.current} of ${data.total} (${data.percent}%)...`;
+          }
+          if (telemetryFrameTime) {
+            telemetryFrameTime.textContent = `Frame ${data.current}/${data.total} (${formatTime(data.frame.time)})`;
+          }
+          if (telemetryMood) {
+            telemetryMood.textContent = `${data.frame.mood} (${data.frame.luma}%)`;
+          }
+          if (telemetryCut) {
+            telemetryCut.textContent = data.frame.isCut
+              ? `⚡ Scene Cut (${data.frame.delta}% delta)`
+              : `Continuous Tracking`;
+          }
+          if (telemetrySceneCount) {
+            telemetrySceneCount.textContent = `${data.detectedScenesCount} Scenes`;
+          }
+
+          // Add thumbnail to filmstrip
+          if (scannerFilmstrip && data.frame.thumbUrl) {
+            const thumbCard = document.createElement('div');
+            thumbCard.className = `scanner-thumb-card ${data.frame.isCut ? 'is-cut' : ''}`;
+            thumbCard.title = `Time: ${formatTime(data.frame.time)} | ${data.frame.mood}`;
+            thumbCard.innerHTML = `
+              <img src="${data.frame.thumbUrl}" alt="Keyframe ${data.current}">
+              <span class="scanner-thumb-badge">${formatTime(data.frame.time)}</span>
+            `;
+            scannerFilmstrip.appendChild(thumbCard);
+            scannerFilmstrip.scrollLeft = scannerFilmstrip.scrollWidth;
+          }
+          if (filmstripCount) filmstripCount.textContent = `${data.current} keyframes`;
+        },
+        // Complete Callback
+        (result) => {
+          setTimeout(() => {
+            if (frameScannerOverlay) frameScannerOverlay.style.display = 'none';
+
+            SCRIPT_CUES = result.cues;
+            renderCuesList();
+            if (masterScriptArea) masterScriptArea.value = result.masterText;
+
+            // Reset video to start
+            mainVideoPlayer.currentTime = 0;
+            if (tabCues) tabCues.click();
+
+            showToast(`✨ AI generated ${result.cues.length} scene-by-scene script cues from video frame analysis!`);
+          }, 400);
+        }
+      );
+    }
+
+    function cancelFrameAnalysis() {
+      if (activeFrameAnalyzer) {
+        activeFrameAnalyzer.cancel();
+      }
+      if (frameScannerOverlay) {
+        frameScannerOverlay.style.display = 'none';
+      }
+    }
+
+    // -------------------------------------------------------------
+    // SCENE-BY-SCENE SCREENPLAY PARSER & MODAL
+    // -------------------------------------------------------------
+    function parseSceneScriptText(raw) {
+      if (!raw || !raw.trim()) return [];
+      const cues = [];
+      const text = raw.trim();
+
+      // Check if JSON
+      if (text.startsWith('[') || text.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(text);
+          const list = Array.isArray(parsed) ? parsed : (parsed.scenes || parsed.cues || []);
+          list.forEach((item, idx) => {
+            const time = parseTimeString(item.time !== undefined ? item.time : (item.timestamp || idx * 10));
+            const voice = item.text || item.voiceover || item.speech || item.line || '';
+            if (voice) {
+              cues.push({
+                id: Date.now() + idx,
+                time: Math.round(time),
+                text: voice.trim(),
+                subtitle: ""
+              });
+            }
+          });
+          if (cues.length) return cues;
+        } catch (e) {
+          // not JSON, proceed
+        }
+      }
+
+      // Split by Scene or Timestamp boundaries
+      const sceneBlocks = text.split(/(?=\[(?:SCENE|\d{1,2}:)|SCENE\s+\d+|INT\.|EXT\.)/i);
+
+      let fallbackTime = 0;
+      const totalDur = (isVideoLoaded && mainVideoPlayer.duration) ? mainVideoPlayer.duration : 120;
+      const step = Math.max(5, Math.floor(totalDur / Math.max(1, sceneBlocks.length)));
+
+      sceneBlocks.forEach((block, idx) => {
+        const trimmed = block.trim();
+        if (!trimmed) return;
+
+        // Try extracting timestamp [MM:SS]
+        const timeMatch = trimmed.match(/\[?(\d{1,2}:\d{2}(?::\d{2})?)\]?/);
+        let timeSec = timeMatch ? parseTimeString(timeMatch[1]) : (idx * step);
+
+        // Extract Voiceover line or speech
+        let voiceText = "";
+        const voMatch = trimmed.match(/(?:VOICEOVER|VOICE|SPEECH|NARRATION|DIALOG):\s*([^\n]+)/i);
+        if (voMatch) {
+          voiceText = voMatch[1].trim();
+        } else {
+          // Filter out scene headers and visual descriptors
+          const lines = trimmed.split('\n')
+            .map(l => l.trim())
+            .filter(l => l && !l.match(/^(?:\[|SCENE|INT\.|EXT\.|VISUAL:|ACTION:|SETTING:)/i));
+          voiceText = lines.join(' ');
+        }
+
+        if (voiceText) {
+          cues.push({
+            id: Date.now() + idx,
+            time: Math.round(timeSec),
+            text: voiceText.replace(/^[“"']+|[”"']+$/g, '').trim(),
+            subtitle: ""
+          });
+        }
+      });
+
+      return cues;
+    }
+
+    function openSceneScriptModal() {
+      dismissWorkflowBanner();
+      if (sceneScriptModal) {
+        sceneScriptModal.style.display = 'flex';
+        updateSceneScriptPreview();
+      }
+    }
+
+    function closeSceneScriptModal() {
+      if (sceneScriptModal) sceneScriptModal.style.display = 'none';
+    }
+
+    function updateSceneScriptPreview() {
+      if (!sceneScriptInputArea || !sceneParsedPreviewContainer) return;
+      const raw = sceneScriptInputArea.value;
+      const parsed = parseSceneScriptText(raw);
+
+      if (sceneParsedCountBadge) {
+        sceneParsedCountBadge.textContent = parsed.length ? `✓ ${parsed.length} Scenes Detected` : `Ready to parse`;
+      }
+
+      sceneParsedPreviewContainer.innerHTML = '';
+      if (!parsed.length) {
+        sceneParsedPreviewContainer.innerHTML = `
+          <div style="font-size:0.75rem; color:var(--text-muted); padding:0.6rem 0;">
+            No scenes detected yet. Paste your scene script or click <strong>Load Sample Scene Template</strong>.
+          </div>
+        `;
+        return;
+      }
+
+      parsed.forEach((cue, idx) => {
+        const item = document.createElement('div');
+        item.className = 'scene-preview-card';
+        item.innerHTML = `
+          <div class="scene-preview-header">
+            <span>SCENE #${idx + 1}</span>
+            <span>AT ${formatTime(cue.time)}</span>
+          </div>
+          <div style="color:#e2e8f0; font-size:0.76rem;">${cue.text}</div>
+        `;
+        sceneParsedPreviewContainer.appendChild(item);
+      });
+    }
+
+    function loadSampleSceneTemplate() {
+      if (!sceneScriptInputArea) return;
+      sceneScriptInputArea.value = `[SCENE 1: 00:00 - INTRODUCTION]
+VISUAL: Opening establishing scene shot for your video.
+VOICE: Enter the opening narration dialogue here.
+
+[SCENE 2: 00:10 - MAIN TOPIC]
+VISUAL: Transition into key topic, demonstration, or storyline.
+VOICE: Describe key points, insights, or narration details here.
+
+[SCENE 3: 00:25 - CONCLUSION]
+VISUAL: Final closing visual with call to action.
+VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
+      updateSceneScriptPreview();
+      showToast('Loaded screenplay structure template.');
+    }
+
+    function applyParsedSceneScript() {
+      if (!sceneScriptInputArea) return;
+      const parsed = parseSceneScriptText(sceneScriptInputArea.value);
+      if (!parsed.length) {
+        showToast('Please enter or paste at least one valid scene before applying.', true);
+        return;
+      }
+
+      SCRIPT_CUES = parsed;
+      renderCuesList();
+      syncMasterScriptTextarea();
+      closeSceneScriptModal();
+      if (tabCues) tabCues.click();
+      showToast(`✓ Applied ${parsed.length} scene-by-scene script cues to video!`);
+    }
+
+    // -------------------------------------------------------------
+    // AI SUBTITLE GENERATION ENGINE (BASED ON AUDIO SCRIPT)
+    // -------------------------------------------------------------
+    function aiDevelopSubtitlesFromAudioScript(source = 'auto') {
+      showToast('🤖 AI analyzing audio script speech timing & phrasing...');
+
+      // Determine speech cadence factor from active voice synthesis rate
+      const speechRate = (voiceEngine && voiceEngine.rate) ? voiceEngine.rate : 0.86;
+      // Natural speech is ~2.5 words/sec at 1.0x rate
+      const wordsPerSec = Math.max(1.4, 2.5 * speechRate);
+
+      let rawItems = [];
+
+      // Check master text or cues
+      const masterText = (masterScriptArea && masterScriptArea.value) ? masterScriptArea.value.trim() : '';
+      const hasCues = SCRIPT_CUES && SCRIPT_CUES.length > 0;
+
+      if (source === 'master' || (!hasCues && masterText)) {
+        // Parse from master text lines
+        const lines = masterText.split('\n')
+          .map(l => l.replace(/^(VOICEOVER:|SUBTITLE:|SPEECH:)\s*/i, '').trim())
+          .filter(l => l.length > 0 && !l.startsWith('['));
+
+        let cursorTime = 1.0;
+        lines.forEach(line => {
+          rawItems.push({ time: cursorTime, text: line });
+          const wordCount = line.split(/\s+/).length;
+          cursorTime += Math.max(2.5, (wordCount / wordsPerSec) + 0.6);
+        });
+      } else {
+        // Use structured Timed Voice Cues from audio script
+        SCRIPT_CUES.sort((a, b) => a.time - b.time);
+        SCRIPT_CUES.forEach(cue => {
+          rawItems.push({
+            time: cue.time,
+            text: cue.text || cue.subtitle || ''
+          });
+        });
+      }
+
+      if (!rawItems.length) {
+        showToast('Please provide audio script lines before generating subtitles.', true);
+        return;
+      }
+
+      const developedSubtitles = [];
+
+      rawItems.forEach(item => {
+        const text = item.text.trim();
+        if (!text) return;
+
+        // Break multi-sentence or long monologue into natural cinema subtitle phrases
+        const sentences = splitIntoSubtitlePhrases(text);
+        let segmentStartTime = item.time;
+
+        sentences.forEach((phrase) => {
+          const words = phrase.split(/\s+/).filter(w => w.length > 0);
+          const punctuationBonus = /[,:;]/.test(phrase) ? 0.35 : (/[.!?]/.test(phrase) ? 0.5 : 0);
+          const rawDuration = (words.length / wordsPerSec) + punctuationBonus;
+          const duration = Math.max(1.8, Math.min(6.5, parseFloat(rawDuration.toFixed(2))));
+          const segmentEndTime = parseFloat((segmentStartTime + duration).toFixed(2));
+
+          developedSubtitles.push({
+            id: Date.now() + developedSubtitles.length + Math.floor(Math.random() * 1000),
+            start: parseFloat(segmentStartTime.toFixed(2)),
+            end: segmentEndTime,
+            text: cleanSubtitleText(phrase)
+          });
+
+          // Natural cadence pause between thoughts (0.25s)
+          segmentStartTime = parseFloat((segmentEndTime + 0.25).toFixed(2));
+        });
+      });
+
+      // Sort chronologically
+      developedSubtitles.sort((a, b) => a.start - b.start);
+
+      SUBTITLES = developedSubtitles;
+      saveSubtitles();
+      renderSubtitlesList();
+      toggleSubtitles(true);
+      applySubStyles();
+      dismissSubtitleBanner();
+
+      // Switch to Subtitle Suite view so user immediately inspects and customizes
+      if (tabSubtitles) tabSubtitles.click();
+
+      showToast(`✨ AI generated ${SUBTITLES.length} functional subtitle cues from audio script!`);
+    }
+
+    function splitIntoSubtitlePhrases(text) {
+      if (text.length <= 48) return [text];
+
+      const rawSentences = text.split(/(?<=[.!?])\s+/);
+      const phrases = [];
+
+      rawSentences.forEach(s => {
+        s = s.trim();
+        if (!s) return;
+        if (s.length <= 50) {
+          phrases.push(s);
+        } else {
+          const clauses = s.split(/(?<=[,;—])\s+/);
+          clauses.forEach(cl => {
+            cl = cl.trim();
+            if (cl.length > 0) phrases.push(cl);
+          });
+        }
+      });
+
+      return phrases.length ? phrases : [text];
+    }
+
+    function cleanSubtitleText(str) {
+      return str
+        .replace(/^[“"']+|[”"']+$/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    // -------------------------------------------------------------
+    // SUBTITLE SUITE LIST & RENDERING
+    // -------------------------------------------------------------
+    function renderSubtitlesList() {
+      if (!subtitlesContainer) return;
+
+      SUBTITLES.sort((a, b) => a.start - b.start);
+      if (subCountReadout) subCountReadout.textContent = `${SUBTITLES.length} cues loaded`;
+      if (hudSubtitlesStatus) hudSubtitlesStatus.textContent = subtitlesEnabled ? `ON (${SUBTITLES.length} CUES)` : 'OFF';
+
+      subtitlesContainer.innerHTML = '';
+      if (SUBTITLES.length === 0) {
+        subtitlesContainer.innerHTML = `
+          <div style="text-align:center; padding:2.5rem 1rem; color:var(--text-muted); font-size:0.84rem;">
+            No subtitles loaded yet. Click <strong>🤖 AI Develop Subtitles from Script</strong> or <strong>📥 Upload .SRT / .VTT</strong> above!
+          </div>
+        `;
+        return;
+      }
+
+      SUBTITLES.forEach((sub, idx) => {
+        const card = document.createElement('div');
+        card.className = 'sub-item-card';
+        card.id = `subCard_${sub.id}`;
+        const dur = (sub.end - sub.start).toFixed(1);
+
+        card.innerHTML = `
+          <div class="sub-item-header">
+            <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+              <span style="font-family:var(--font-mono); font-size:0.74rem; color:var(--accent-gold); font-weight:700;">#${idx + 1}</span>
+              <div class="sub-time-group">
+                <span>IN:</span>
+                <input class="sub-time-input" id="subStartInput_${sub.id}" value="${formatSubCueTime(sub.start)}" title="Start time (MM:SS.s)">
+                <span>OUT:</span>
+                <input class="sub-time-input" id="subEndInput_${sub.id}" value="${formatSubCueTime(sub.end)}" title="End time (MM:SS.s)">
+                <span class="sub-dur-badge">${dur}s</span>
+              </div>
+            </div>
+            <div style="display:flex; gap:0.35rem;">
+              <button class="cue-btn" onclick="jumpToSubTime(${sub.start})" title="Jump video to this subtitle start time">▶ Play</button>
+              <button class="cue-btn" onclick="captureSubStart(${sub.id})" title="Set start time to current video playback time">⏱ Set In</button>
+              <button class="cue-btn" onclick="captureSubEnd(${sub.id})" title="Set end time to current video playback time">⏱ Set Out</button>
+              <button class="cue-btn" onclick="deleteSubLine(${sub.id})" style="color:var(--accent-red);" title="Delete subtitle line">&times;</button>
+            </div>
+          </div>
+          <div>
+            <textarea class="sub-text-input" id="subTextInput_${sub.id}" rows="2" placeholder="Subtitle caption text...">${(sub.text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+          </div>
+        `;
+        subtitlesContainer.appendChild(card);
+      });
+
+      // Bind input changes to update state
+      SUBTITLES.forEach(sub => {
+        const startIn = document.getElementById(`subStartInput_${sub.id}`);
+        const endIn = document.getElementById(`subEndInput_${sub.id}`);
+        const textIn = document.getElementById(`subTextInput_${sub.id}`);
+
+        if (startIn) {
+          startIn.addEventListener('change', () => {
+            sub.start = parseSubCueTime(startIn.value);
+            saveSubtitles();
+            renderSubtitlesList();
+            if (isVideoLoaded) updateSubtitlesForTime(mainVideoPlayer.currentTime);
+          });
+        }
+        if (endIn) {
+          endIn.addEventListener('change', () => {
+            sub.end = parseSubCueTime(endIn.value);
+            saveSubtitles();
+            renderSubtitlesList();
+            if (isVideoLoaded) updateSubtitlesForTime(mainVideoPlayer.currentTime);
+          });
+        }
+        if (textIn) {
+          textIn.addEventListener('input', () => {
+            sub.text = textIn.value;
+            saveSubtitles();
+            if (isVideoLoaded) updateSubtitlesForTime(mainVideoPlayer.currentTime);
+          });
+        }
+      });
+    }
+
+    window.jumpToSubTime = function (startSec) {
+      if (!isVideoLoaded) return;
+      mainVideoPlayer.currentTime = startSec;
+      if (currentAudioMode === 'custom' && customAudio.isLoaded) {
+        customAudio.seek(startSec);
+      }
+      startVideoPlayback();
+      updateSubtitlesForTime(startSec);
+      showToast(`Jumped to subtitle at ${formatTime(startSec)}`);
+    };
+
+    window.captureSubStart = function (subId) {
+      if (!isVideoLoaded) return;
+      const sub = SUBTITLES.find(s => s.id === subId);
+      if (sub) {
+        sub.start = parseFloat(mainVideoPlayer.currentTime.toFixed(1));
+        if (sub.end <= sub.start) sub.end = parseFloat((sub.start + 3.0).toFixed(1));
+        saveSubtitles();
+        renderSubtitlesList();
+        showToast(`Set Subtitle #${SUBTITLES.indexOf(sub) + 1} start to ${formatSubCueTime(sub.start)}`);
+      }
+    };
+
+    window.captureSubEnd = function (subId) {
+      if (!isVideoLoaded) return;
+      const sub = SUBTITLES.find(s => s.id === subId);
+      if (sub) {
+        sub.end = parseFloat(mainVideoPlayer.currentTime.toFixed(1));
+        if (sub.end <= sub.start) sub.start = parseFloat(Math.max(0, sub.end - 1.0).toFixed(1));
+        saveSubtitles();
+        renderSubtitlesList();
+        showToast(`Set Subtitle #${SUBTITLES.indexOf(sub) + 1} end to ${formatSubCueTime(sub.end)}`);
+      }
+    };
+
+    window.deleteSubLine = function (subId) {
+      SUBTITLES = SUBTITLES.filter(s => s.id !== subId);
+      saveSubtitles();
+      renderSubtitlesList();
+      if (isVideoLoaded) updateSubtitlesForTime(mainVideoPlayer.currentTime);
+      showToast('Subtitle cue removed.');
+    };
+
+    // Subtitles Toggle Controller (CC)
+    function toggleSubtitles(forcedState) {
+      if (typeof forcedState === 'boolean') {
+        subtitlesEnabled = forcedState;
+      } else {
+        subtitlesEnabled = !subtitlesEnabled;
+      }
+
+      if (btnToggleCC) {
+        btnToggleCC.classList.toggle('active', subtitlesEnabled);
+      }
+      if (ccBadgeDot) {
+        ccBadgeDot.className = subtitlesEnabled ? 'cc-badge-active' : 'cc-badge-inactive';
+      }
+      if (ccStatusText) {
+        ccStatusText.textContent = subtitlesEnabled ? 'Subtitles: ON' : 'Subtitles: OFF';
+      }
+      if (bannerCCText) {
+        bannerCCText.textContent = subtitlesEnabled ? 'Captions: ON' : 'Captions: OFF';
+      }
+      if (hudSubtitlesStatus) {
+        hudSubtitlesStatus.textContent = subtitlesEnabled ? `ON (${SUBTITLES.length} CUES)` : 'OFF';
+      }
+
+      if (isVideoLoaded) {
+        updateSubtitlesForTime(mainVideoPlayer.currentTime);
+      }
+
+      showToast(`Subtitles & Captions: ${subtitlesEnabled ? 'ENABLED' : 'DISABLED'}`);
+    }
+
+    // Export Subtitles (.SRT & .VTT)
+    function exportSrt() {
+      if (!SUBTITLES.length) {
+        showToast('No subtitles to export.', true);
+        return;
+      }
+      SUBTITLES.sort((a, b) => a.start - b.start);
+      let srt = "";
+      SUBTITLES.forEach((sub, idx) => {
+        srt += `${idx + 1}\n`;
+        srt += `${formatSrtTimestamp(sub.start)} --> ${formatSrtTimestamp(sub.end)}\n`;
+        srt += `${sub.text}\n\n`;
+      });
+      const blob = new Blob([srt], { type: 'text/plain;charset=utf-8' });
+      downloadBlob(blob, 'cinevoice_subtitles.srt');
+      showToast('Downloaded cinevoice_subtitles.srt');
+    }
+
+    function exportVtt() {
+      if (!SUBTITLES.length) {
+        showToast('No subtitles to export.', true);
+        return;
+      }
+      SUBTITLES.sort((a, b) => a.start - b.start);
+      let vtt = "WEBVTT - CINEVOICE STUDIO CAPTIONS\n\n";
+      SUBTITLES.forEach((sub, idx) => {
+        vtt += `${idx + 1}\n`;
+        vtt += `${formatVttTimestamp(sub.start)} --> ${formatVttTimestamp(sub.end)}\n`;
+        vtt += `${sub.text}\n\n`;
+      });
+      const blob = new Blob([vtt], { type: 'text/vtt;charset=utf-8' });
+      downloadBlob(blob, 'cinevoice_subtitles.vtt');
+      showToast('Downloaded cinevoice_subtitles.vtt');
+    }
+
+    // -------------------------------------------------------------
+    // STUDIO DECK TABS & NAVIGATION
+    // -------------------------------------------------------------
+    tabCues.addEventListener('click', () => {
+      tabCues.classList.add('active');
+      tabFullText.classList.remove('active');
+      if (tabSubtitles) tabSubtitles.classList.remove('active');
+      viewCues.style.display = 'flex';
+      viewFullText.style.display = 'none';
+      if (viewSubtitles) viewSubtitles.style.display = 'none';
+      if (rightPanelTitle) rightPanelTitle.textContent = '2. NARRATION SCRIPT FOR YOUR VIDEO';
+    });
+
+    tabFullText.addEventListener('click', () => {
+      tabFullText.classList.add('active');
+      tabCues.classList.remove('active');
+      if (tabSubtitles) tabSubtitles.classList.remove('active');
+      viewCues.style.display = 'none';
+      viewFullText.style.display = 'flex';
+      if (viewSubtitles) viewSubtitles.style.display = 'none';
+      if (rightPanelTitle) rightPanelTitle.textContent = '2. MASTER SCREENPLAY SCRIPT';
+      syncMasterScriptTextarea();
+    });
+
+    if (tabSubtitles) {
+      tabSubtitles.addEventListener('click', () => {
+        tabSubtitles.classList.add('active');
+        tabCues.classList.remove('active');
+        tabFullText.classList.remove('active');
+        viewCues.style.display = 'none';
+        viewFullText.style.display = 'none';
+        if (viewSubtitles) viewSubtitles.style.display = 'flex';
+        if (rightPanelTitle) rightPanelTitle.textContent = '2. 💬 SUBTITLE & CLOSED CAPTION SUITE';
+        renderSubtitlesList();
+      });
+    }
+
+    // Open Subtitle Deck shortcut
+    function openSubtitleSuite() {
+      if (tabSubtitles) tabSubtitles.click();
+      if (deckRightPanel) {
+        deckRightPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    if (btnOpenSubtitlesDeck) btnOpenSubtitlesDeck.addEventListener('click', openSubtitleSuite);
+    if (hudSubtitlesBadge) hudSubtitlesBadge.addEventListener('click', openSubtitleSuite);
+    if (btnBannerOpenStudio) btnBannerOpenStudio.addEventListener('click', openSubtitleSuite);
+
+    // CC Toggle Button listeners
+    if (btnToggleCC) btnToggleCC.addEventListener('click', () => toggleSubtitles());
+    if (btnBannerToggleCC) btnBannerToggleCC.addEventListener('click', () => toggleSubtitles());
+    if (btnBannerDismiss) btnBannerDismiss.addEventListener('click', dismissSubtitleBanner);
+
+    // Subtitle upload buttons
+    if (btnUploadSubFile) btnUploadSubFile.addEventListener('click', () => subtitleFileInput.click());
+    if (btnBannerUploadSub) btnBannerUploadSub.addEventListener('click', () => subtitleFileInput.click());
+
+    subtitleFileInput.addEventListener('change', (e) => {
+      if (!e.target.files || !e.target.files[0]) return;
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target.result;
+        const parsed = parseSrtOrVtt(text);
+        if (parsed.length > 0) {
+          SUBTITLES = parsed;
+          saveSubtitles();
+          renderSubtitlesList();
+          toggleSubtitles(true);
+          dismissSubtitleBanner();
+          openSubtitleSuite();
+          showToast(`✓ Loaded ${parsed.length} subtitles from ${file.name}`);
+        } else {
+          showToast('Could not parse subtitles. Please check SRT/VTT format.', true);
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+
+    // -------------------------------------------------------------
+    // WORKFLOW BANNER & SCENE SCRIPT EVENT LISTENERS
+    // -------------------------------------------------------------
+    if (btnWorkflowDismiss) btnWorkflowDismiss.addEventListener('click', dismissWorkflowBanner);
+    if (btnWorkflowKeepCurrent) btnWorkflowKeepCurrent.addEventListener('click', dismissWorkflowBanner);
+    if (btnWorkflowUploadScript) btnWorkflowUploadScript.addEventListener('click', () => sceneScriptFileInput.click());
+    if (btnWorkflowOpenSceneEditor) btnWorkflowOpenSceneEditor.addEventListener('click', openSceneScriptModal);
+    if (btnWorkflowStartFrameScan) btnWorkflowStartFrameScan.addEventListener('click', startFrameByFrameAnalysis);
+    if (btnWorkflowSubtitlesSuite) btnWorkflowSubtitlesSuite.addEventListener('click', () => {
+      dismissWorkflowBanner();
+      openSubtitleSuite();
+    });
+    if (btnWorkflowAutoSubs) btnWorkflowAutoSubs.addEventListener('click', () => {
+      dismissWorkflowBanner();
+      aiDevelopSubtitlesFromAudioScript('auto');
+    });
+
+    // Frame-by-Frame Scanner Overlay Buttons
+    if (btnCancelFrameScan) btnCancelFrameScan.addEventListener('click', cancelFrameAnalysis);
+
+    // Scene-by-Scene Script Modal Buttons
+    if (btnCloseSceneModal) btnCloseSceneModal.addEventListener('click', closeSceneScriptModal);
+    if (btnCancelSceneModal) btnCancelSceneModal.addEventListener('click', closeSceneScriptModal);
+    if (btnModalUploadFile) btnModalUploadFile.addEventListener('click', () => sceneScriptFileInput.click());
+    if (btnModalLoadTemplate) btnModalLoadTemplate.addEventListener('click', loadSampleSceneTemplate);
+    if (sceneScriptInputArea) sceneScriptInputArea.addEventListener('input', updateSceneScriptPreview);
+    if (btnApplySceneScript) btnApplySceneScript.addEventListener('click', applyParsedSceneScript);
+
+    // Deck script action buttons
+    if (btnDeckUploadSceneScript) btnDeckUploadSceneScript.addEventListener('click', openSceneScriptModal);
+    if (btnDeckStartFrameScan) btnDeckStartFrameScan.addEventListener('click', startFrameByFrameAnalysis);
+    if (btnDeckFullTextUploadScene) btnDeckFullTextUploadScene.addEventListener('click', openSceneScriptModal);
+    if (btnDeckFullTextFrameScan) btnDeckFullTextFrameScan.addEventListener('click', startFrameByFrameAnalysis);
+
+    // Scene Script File Upload Handler (.txt, .json, .csv, .fountain, .srt)
+    if (sceneScriptFileInput) {
+      sceneScriptFileInput.addEventListener('change', (e) => {
+        if (!e.target.files || !e.target.files[0]) return;
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const raw = event.target.result;
+          const parsed = parseSceneScriptText(raw);
+          if (parsed && parsed.length > 0) {
+            SCRIPT_CUES = parsed;
+            renderCuesList();
+            syncMasterScriptTextarea();
+            dismissWorkflowBanner();
+            closeSceneScriptModal();
+            if (tabCues) tabCues.click();
+            showToast(`✓ Imported ${parsed.length} scene script cues from ${file.name}!`);
+          } else {
+            showToast('Could not parse scenes from file. Please check format.', true);
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+      });
+    }
+
+    // AI Generate / Auto-Sync buttons
+    if (btnAutoSyncSubtitles) btnAutoSyncSubtitles.addEventListener('click', () => aiDevelopSubtitlesFromAudioScript('auto'));
+    if (btnBannerAutoSync) btnBannerAutoSync.addEventListener('click', () => aiDevelopSubtitlesFromAudioScript('auto'));
+    const btnAiDevelopSubsBottom = document.getElementById('btnAiDevelopSubsBottom');
+    if (btnAiDevelopSubsBottom) btnAiDevelopSubsBottom.addEventListener('click', () => aiDevelopSubtitlesFromAudioScript('auto'));
+
+    // Add subtitle line button
+    if (btnAddSubLine) {
+      btnAddSubLine.addEventListener('click', () => {
+        const curTime = isVideoLoaded ? parseFloat(mainVideoPlayer.currentTime.toFixed(1)) : (SUBTITLES.length ? SUBTITLES[SUBTITLES.length - 1].end + 0.5 : 0);
+        const newSub = {
+          id: Date.now(),
+          start: curTime,
+          end: parseFloat((curTime + 3.5).toFixed(1)),
+          text: "New subtitle line for your video."
+        };
+        SUBTITLES.push(newSub);
+        saveSubtitles();
+        renderSubtitlesList();
+        showToast(`+ Added subtitle at ${formatSubCueTime(curTime)}`);
+        if (subtitlesContainer) subtitlesContainer.scrollTop = subtitlesContainer.scrollHeight;
+      });
+    }
+
+    // Export buttons
+    if (btnExportSrt) btnExportSrt.addEventListener('click', exportSrt);
+    if (btnExportVtt) btnExportVtt.addEventListener('click', exportVtt);
+    if (btnClearSubs) {
+      btnClearSubs.addEventListener('click', () => {
+        if (confirm('Clear all subtitles?')) {
+          SUBTITLES = [];
+          saveSubtitles();
+          renderSubtitlesList();
+          if (isVideoLoaded) updateSubtitlesForTime(mainVideoPlayer.currentTime);
+          showToast('All subtitles cleared.');
+        }
+      });
+    }
+
+    // Subtitle visual styling dropdown listeners
+    if (selectSubSize) {
+      selectSubSize.addEventListener('change', (e) => {
+        subStyleConfig.size = e.target.value;
+        saveSubStyle();
+        applySubStyles();
+      });
+    }
+    if (selectSubColor) {
+      selectSubColor.addEventListener('change', (e) => {
+        subStyleConfig.color = e.target.value;
+        saveSubStyle();
+        applySubStyles();
+      });
+    }
+    if (selectSubStyle) {
+      selectSubStyle.addEventListener('change', (e) => {
+        subStyleConfig.style = e.target.value;
+        saveSubStyle();
+        applySubStyles();
+      });
+    }
+    if (selectSubPos) {
+      selectSubPos.addEventListener('change', (e) => {
+        subStyleConfig.position = e.target.value;
+        saveSubStyle();
+        applySubStyles();
+      });
+    }
+
+    // Master Script Distribute & Parse
+    btnDistributeMasterText.addEventListener('click', () => {
+      const raw = masterScriptArea.value;
+      const blocks = raw.split(/\[(\d+:\d+|\d+)\]/g);
+
+      if (blocks.length > 1) {
+        const newCues = [];
+        for (let i = 1; i < blocks.length; i += 2) {
+          const time = parseTimeString(blocks[i]);
+          const content = blocks[i + 1] || '';
+          const voMatch = content.match(/VOICEOVER:\s*(.*)/i);
+          const subMatch = content.match(/SUBTITLE:\s*(.*)/i);
+
+          const text = voMatch ? voMatch[1].trim() : content.trim().split('\n')[0];
+          const sub = subMatch ? subMatch[1].trim() : `“${text}”`;
+
+          if (text) {
+            newCues.push({
+              id: Date.now() + i,
+              time: time,
+              text: text,
+              subtitle: sub
+            });
+          }
+        }
+        if (newCues.length) {
+          SCRIPT_CUES = newCues;
+          renderCuesList();
+          tabCues.click();
+          showToast(`✓ Parsed ${newCues.length} speech cues from master script!`);
+          return;
+        }
+      }
+
+      const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      const totalDur = (isVideoLoaded && mainVideoPlayer.duration) ? mainVideoPlayer.duration : 120;
+      const step = Math.max(5, Math.floor(totalDur / (lines.length || 1)));
+
+      SCRIPT_CUES = lines.map((line, idx) => ({
+        id: Date.now() + idx,
+        time: idx * step,
+        text: line,
+        subtitle: ""
+      }));
+
+      renderCuesList();
+      tabCues.click();
+      showToast(`✓ Distributed ${lines.length} lines evenly across video!`);
+    });
+
+    // Save and Apply Script
+    btnApplyScriptLive.addEventListener('click', () => {
+      SCRIPT_CUES.forEach(cue => {
+        const timeInput = document.getElementById(`cueTimeInput_${cue.id}`);
+        const textInput = document.getElementById(`cueTextInput_${cue.id}`);
+        const subInput = document.getElementById(`cueSubInput_${cue.id}`);
+        if (timeInput) cue.time = parseTimeString(timeInput.value);
+        if (textInput) cue.text = textInput.value.trim();
+        if (subInput) cue.subtitle = subInput.value.trim();
+      });
+
+      try {
+        localStorage.setItem('cinevoice_script_cues', JSON.stringify(SCRIPT_CUES));
+      } catch (e) {
+        console.warn('LocalStorage save failed:', e);
+      }
+
+      lastSpokenCueId = null;
+      showToast('✨ Screenplay Script Applied to Video!');
+    });
+
+    btnResetScript.addEventListener('click', () => {
+      if (confirm('Clear all narration script cues?')) {
+        SCRIPT_CUES = [];
+        SUBTITLES = [];
+        localStorage.removeItem('cinevoice_script_cues');
+        localStorage.removeItem('cinevoice_subtitles');
+        renderCuesList();
+        renderSubtitlesList();
+        toggleSubtitles(false);
+        showToast('↺ Narration script cleared.');
+      }
+    });
+
+    // Export JSON
+    btnExportScriptJson.addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(SCRIPT_CUES, null, 2)], { type: 'application/json' });
+      downloadBlob(blob, 'cinevoice_script.json');
+      showToast('Downloaded cinevoice_script.json');
+    });
+
+    // Export Text
+    btnExportScriptTxt.addEventListener('click', () => {
+      let txt = "CINEVOICE STUDIO — VIDEO NARRATION SCRIPT\n===========================================\n\n";
+      SCRIPT_CUES.forEach((c, idx) => {
+        txt += `[${formatTime(c.time)}] CUE #${idx + 1}\n`;
+        txt += `VOICE: ${c.text}\n`;
+        txt += `SUBTITLE: ${c.subtitle}\n\n`;
+      });
+      const blob = new Blob([txt], { type: 'text/plain' });
+      downloadBlob(blob, 'cinevoice_script.txt');
+      showToast('Downloaded cinevoice_script.txt');
+    });
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // -------------------------------------------------------------
+    // VIDEO DROPZONE & FILE INPUT HANDLERS
+    // -------------------------------------------------------------
+    videoDropzone.addEventListener('click', () => videoFileInput.click());
+    btnHeaderUploadVideo.addEventListener('click', () => videoFileInput.click());
+    btnChangeVideo.addEventListener('click', () => videoFileInput.click());
+    btnLoadDemoVideo.addEventListener('click', loadDemoVideo);
+
+    videoFileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        loadVideoFromFile(e.target.files[0]);
+      }
+    });
+
+    videoDropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      videoDropzone.classList.add('dragover');
+    });
+    videoDropzone.addEventListener('dragleave', () => {
+      videoDropzone.classList.remove('dragover');
+    });
+    videoDropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      videoDropzone.classList.remove('dragover');
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        loadVideoFromFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    // Letterbox Toggle
+    btnToggleLetterbox.addEventListener('click', () => {
+      isLetterboxActive = !isLetterboxActive;
+      boxTop.classList.toggle('hidden', !isLetterboxActive);
+      boxBottom.classList.toggle('hidden', !isLetterboxActive);
+      btnToggleLetterbox.textContent = isLetterboxActive ? 'Letterbox: 2.39:1' : 'Letterbox: Off (Full 16:9)';
+      showToast(`Cinematic Letterbox: ${isLetterboxActive ? 'ON' : 'OFF'}`);
+    });
+
+    // Center Trigger Click & Play Pause
+    videoCenterTrigger.addEventListener('click', togglePlay);
+    playPauseBtn.addEventListener('click', togglePlay);
+    mainVideoPlayer.addEventListener('click', togglePlay);
+
+    // Toast helper
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('studioToast');
+      const icon = document.getElementById('toastIcon');
+      const text = document.getElementById('toastMsg');
+
+      toast.style.borderColor = isError ? 'var(--accent-red)' : 'var(--accent-gold)';
+      icon.textContent = isError ? '⚠️' : '🎙️';
+      text.textContent = msg;
+
+      toast.classList.add('show');
+      clearTimeout(toast._timeout);
+      toast._timeout = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 4000);
+    }
+
+    // Initialize UI on load: ZERO default subtitles
+    renderCuesList();
+    renderSubtitlesList();
+    applySubStyles();
+    toggleSubtitles(false);
+    setAudioMode('male');
+  </script>
+</body>
+
+</html>

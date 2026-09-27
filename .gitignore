@@ -1,0 +1,43 @@
+# Large rendered media and audio cache
+*.mp4
+*.wav
+audio_cache/
+THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4
+master_soundtrack.wav
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Editor / scratch files
+.kilo/
+.vscode/
+.idea/
+tempCodeRunnerFile.*
+import socket.py
+input.txt
+output.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini

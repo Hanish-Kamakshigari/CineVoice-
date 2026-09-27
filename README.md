@@ -21,7 +21,18 @@
 - **Cinematic Visual Effects and Typography**: Scene timecode badges, custom typography, drop shadows, and synchronized subtitle overlays.
 - **Flexible CLI Arguments**: Support for `--voice`, `--script`, and custom asset directories for headless batch processing.
 
+### Cloud Video Synthesis API (`server.py`)
+- **FastAPI Asynchronous Engine**: Production-ready REST backend managing background video synthesis jobs.
+- **CORS Architecture**: Pre-configured for cross-origin communication between the frontend (Vercel) and the cloud renderer (Render.com).
+- **Job Lifecycle Endpoints**:
+  - `POST /api/render`: Accepts multi-scene JSON and queues rendering tasks.
+  - `GET /api/status/{job_id}`: Polls render job status and progress.
+  - `GET /api/download/{filename}`: Streams generated 1080p MP4 master files directly to the client.
+  - `GET /api/health`: Health verification probe for cloud infrastructure.
+
 ### Turnkey Scripts and Assets
+- **Dockerized Environment (`Dockerfile`)**: Containerized Linux image packing system FFmpeg and Python libraries for reproducible cloud deployments.
+- **Cloud Infrastructure Blueprints (`render.yaml`, `vercel.json`)**: Zero-configuration templates for Render.com and Vercel.
 - **Windows Quick Launcher**: `Open_Film_And_Download.bat` for one-click setup and launch.
 - **Pre-packaged Scene Artwork**: High-resolution concept art for immediate testing located in `cinematic_film_assets/`.
 
@@ -32,11 +43,14 @@
 ```text
 CineVoice/
 ├── cinematic_film_assets/       # Key scene artwork and audio references
+├── Dockerfile                   # Cloud container definition with system FFmpeg
 ├── index.html                   # Web studio UI and playback engine
-├── render_movie.py              # Core Python rendering pipeline
 ├── Open_Film_And_Download.bat   # Windows launcher helper
+├── render_movie.py              # Core Python rendering pipeline
+├── render.yaml                  # Render.com service configuration blueprint
 ├── requirements.txt             # Python dependencies
-└── .gitignore                   # Ignored files (rendered media and caches)
+├── server.py                    # FastAPI cloud video synthesis service
+└── vercel.json                  # Vercel deployment routing configuration
 ```
 
 ---
@@ -46,7 +60,7 @@ CineVoice/
 ### 1. Prerequisites
 
 - Python 3.10 or higher
-- Modern Web Browser (Chrome, Edge, Firefox)
+- Modern Web Browser (Chrome, Edge, Firefox, Safari)
 
 ### 2. Installation
 
@@ -58,7 +72,7 @@ cd CineVoice-
 pip install -r requirements.txt
 ```
 
-### 3. Launching the Web Studio
+### 3. Launching the Web Studio Locally
 
 You can open `index.html` directly in your browser or run a lightweight local HTTP server:
 
@@ -67,7 +81,15 @@ python -m http.server 8080
 ```
 Then navigate to: `http://localhost:8080/index.html`
 
-### 4. Rendering Videos via CLI
+### 4. Running the Local API Server
+
+Start the FastAPI backend with hot reloading:
+
+```bash
+uvicorn server:app --reload --port 8000
+```
+
+### 5. Rendering Videos via CLI
 
 Render a video using the automated rendering pipeline:
 
@@ -84,7 +106,7 @@ python render_movie.py --script path/to/script.json
 
 ---
 
-## Deployment Guide
+## Cloud Deployment Guide
 
 ### Frontend Deployment (Vercel)
 
@@ -92,22 +114,23 @@ python render_movie.py --script path/to/script.json
 2. Select your repository: `Hanish-Kamakshigari/CineVoice-`.
 3. Set **Framework Preset** to `Other`.
 4. Keep the **Root Directory** as `./` and leave build/output commands empty.
-5. Click **Deploy**. Your studio will be live with high-speed CDN delivery and HTTPS.
+5. Click **Deploy**. Your studio will be live with global edge CDN delivery and HTTPS.
 
 ### Backend Cloud API Deployment (Render.com)
 
 1. Sign in to [Render.com](https://render.com) and click **New +** -> **Web Service**.
 2. Connect your GitHub repository: `Hanish-Kamakshigari/CineVoice-`.
-3. Choose **Docker** as the runtime (Render will automatically detect `Dockerfile`).
-4. Select the **Free** instance type.
-5. Click **Create Web Service**. Render builds the container with system-level FFmpeg and runs `server.py` on the assigned URL.
+3. Render automatically detects the `Dockerfile` and `render.yaml` configuration.
+4. Set the name to `cinevoice-api` and choose the **Free** instance type.
+5. Click **Create Web Service**. Render builds the container with system FFmpeg and exposes `server.py` at your public backend URL.
 
 ---
 
 ## Tech Stack
 
 - **Frontend**: HTML5, Modern Vanilla CSS (Glassmorphism and Cine Dark Theme), Vanilla JavaScript (Web Audio API, HTML5 Canvas).
-- **Backend and Rendering Pipeline**: Python, OpenCV (`cv2`), Edge-TTS, Pillow (`PIL`), NumPy, SciPy, FFmpeg (`imageio-ffmpeg`).
+- **Backend & Cloud API**: FastAPI, Uvicorn, Python, OpenCV (`opencv-python-headless`), Edge-TTS, Pillow (`PIL`), NumPy, SciPy, FFmpeg.
+- **DevOps & Infrastructure**: Docker, Vercel Edge Network, Render.com.
 
 ---
 

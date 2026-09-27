@@ -1852,6 +1852,12 @@
         </svg>
         Cloud Render API
       </button>
+      <button class="btn btn-gold" id="btnHeaderDownloadVideo" style="border-color:var(--accent-emerald); color:#fff; background:linear-gradient(135deg, rgba(16,185,129,0.32), rgba(5,150,105,0.25)); box-shadow:0 0 15px rgba(16,185,129,0.25);" title="Download the currently loaded or rendered video">
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        Download Video
+      </button>
     </div>
   </header>
 
@@ -1892,6 +1898,12 @@
           <span>VIDEO:</span> <strong id="videoFilenameLabel">custom_video.mp4</strong>
         </div>
         <div style="display:flex; gap:0.5rem; align-items:center;">
+          <button class="video-badge" id="btnHudDownloadVideo" style="cursor:pointer; pointer-events:auto; color:var(--accent-emerald); border-color:rgba(16,185,129,0.4); background:rgba(16,185,129,0.15);" title="Download this video">
+            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:2px;">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span>DOWNLOAD</span>
+          </button>
           <div class="video-badge" id="hudSubtitlesBadge" style="cursor:pointer; pointer-events:auto;"
             title="Click to configure subtitles">
             <span>CC:</span> <strong id="hudSubtitlesStatus">OFF (0 CUES)</strong>
@@ -2103,6 +2115,12 @@
                   d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
               </svg>
               Replace Video
+            </button>
+            <button class="pill-btn" id="btnDownloadCurrentVideo" style="border-color:rgba(16,185,129,0.5); color:var(--accent-emerald);" title="Download currently loaded or rendered video">
+              <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Download Video
             </button>
           </div>
         </div>
@@ -2403,6 +2421,7 @@
           <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
             <button class="btn" id="btnExportScriptJson" title="Export script as JSON">Export JSON</button>
             <button class="btn" id="btnExportScriptTxt" title="Export script as text">Export Text</button>
+            <button class="btn" id="btnDeckDownloadVideo" style="border-color:var(--accent-emerald); color:var(--accent-emerald);" title="Download master video file">⬇ Download Video (.mp4)</button>
             <button class="btn" id="btnResetScript">Clear Script</button>
           </div>
           <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
@@ -4811,6 +4830,69 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       cloudRenderModal.style.display = 'none';
       showToast('Loaded rendered master into studio player!');
     });
+
+    // -------------------------------------------------------------
+    // VIDEO DOWNLOAD HANDLERS
+    // -------------------------------------------------------------
+    const btnHeaderDownloadVideo = document.getElementById('btnHeaderDownloadVideo');
+    const btnHudDownloadVideo = document.getElementById('btnHudDownloadVideo');
+    const btnDownloadCurrentVideo = document.getElementById('btnDownloadCurrentVideo');
+    const btnDeckDownloadVideo = document.getElementById('btnDeckDownloadVideo');
+
+    function triggerDirectDownload(url, filename) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    async function downloadCurrentVideo() {
+      const currentSrc = mainVideoPlayer.currentSrc || mainVideoPlayer.src;
+      if (!currentSrc || currentSrc === "" || currentSrc === window.location.href) {
+        if (lastRenderedVideoUrl) {
+          triggerDirectDownload(lastRenderedVideoUrl, 'cinevoice_master_render.mp4');
+          showToast('✓ Downloading rendered master film!');
+          return;
+        }
+        showToast('No video loaded yet! Load a demo video or render via Cloud API first.', true);
+        if (btnOpenCloudRenderModal) btnOpenCloudRenderModal.click();
+        return;
+      }
+
+      let filename = (videoFilenameLabel && videoFilenameLabel.textContent) ? videoFilenameLabel.textContent.trim() : 'cinevoice_video.mp4';
+      if (!filename.toLowerCase().endsWith('.mp4') && !filename.toLowerCase().endsWith('.webm')) {
+        filename += '.mp4';
+      }
+
+      showToast(`Preparing download: ${filename}...`);
+      try {
+        if (currentSrc.startsWith('blob:') || currentSrc.startsWith('data:')) {
+          triggerDirectDownload(currentSrc, filename);
+          showToast(`✓ Downloaded ${filename}`);
+        } else {
+          // Fetch as blob for cross-origin URLs to trigger save dialog on all devices
+          const resp = await fetch(currentSrc);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const blob = await resp.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          triggerDirectDownload(blobUrl, filename);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+          showToast(`✓ Downloaded ${filename}`);
+        }
+      } catch (err) {
+        console.warn('Blob fetch failed, falling back to direct link:', err);
+        triggerDirectDownload(currentSrc, filename);
+        showToast(`✓ Downloading ${filename}`);
+      }
+    }
+
+    if (btnHeaderDownloadVideo) btnHeaderDownloadVideo.addEventListener('click', downloadCurrentVideo);
+    if (btnHudDownloadVideo) btnHudDownloadVideo.addEventListener('click', downloadCurrentVideo);
+    if (btnDownloadCurrentVideo) btnDownloadCurrentVideo.addEventListener('click', downloadCurrentVideo);
+    if (btnDeckDownloadVideo) btnDeckDownloadVideo.addEventListener('click', downloadCurrentVideo);
 
     // Initialize UI on load: ZERO default subtitles
     renderCuesList();

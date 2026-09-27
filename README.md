@@ -13,6 +13,7 @@
 - **Cinematic 16:9 Viewport and Media Player**: Supports direct video playback, drag-and-drop video file upload, and custom cinematic letterboxing (2.39:1 aspect ratio bars).
 - **Interactive Timeline and Audio Waveform Visualizer**: Real-time scrubbing, frame-accurate seeking, and dynamic canvas-based audio waveform visualization.
 - **Render Configuration and CLI Command Generator**: One-click generation of terminal commands and exportable scene configuration JSON for headless execution.
+- **Instant Video and Audio Download Engine**: Direct download options integrated into the top navigation bar, cinema HUD, playback toolbar, and export deck for both local and cloud-rendered 1080p MP4 master videos.
 - **Keyboard Shortcuts**: Built-in hotkeys for play/pause, frame stepping, mute, and fullscreen toggle.
 
 ### Automated Movie Rendering Pipeline (`render_movie.py`)

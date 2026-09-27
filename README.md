@@ -1,6 +1,8 @@
 # CineVoice
 > **AI Video and Voiceover Studio** — Automated script-to-screen cinematic video generation with realistic neural voiceovers, dynamic camera motion, and immersive audio design.
 
+**Live Studio Web Application**: [https://cine-voice-puce.vercel.app/](https://cine-voice-puce.vercel.app/)
+
 ---
 
 ## Features
@@ -110,11 +112,8 @@ python render_movie.py --script path/to/script.json
 
 ### Frontend Deployment (Vercel)
 
-1. Sign in to [Vercel](https://vercel.com) and click **Add New...** -> **Project**.
-2. Select your repository: `Hanish-Kamakshigari/CineVoice-`.
-3. Set **Framework Preset** to `Other`.
-4. Keep the **Root Directory** as `./` and leave build/output commands empty.
-5. Click **Deploy**. Your studio will be live with global edge CDN delivery and HTTPS.
+- **Production URL**: [https://cine-voice-puce.vercel.app/](https://cine-voice-puce.vercel.app/)
+- Automatically deployed from the `main` branch with high-performance edge CDN caching.
 
 ### Backend Cloud API Deployment (Render.com)
 
@@ -122,7 +121,14 @@ python render_movie.py --script path/to/script.json
 2. Connect your GitHub repository: `Hanish-Kamakshigari/CineVoice-`.
 3. Render automatically detects the `Dockerfile` and `render.yaml` configuration.
 4. Set the name to `cinevoice-api` and choose the **Free** instance type.
-5. Click **Create Web Service**. Render builds the container with system FFmpeg and exposes `server.py` at your public backend URL.
+5. Click **Create Web Service**. Render builds the container with system FFmpeg and exposes `server.py` at your public backend URL (e.g. `https://cinevoice-api.onrender.com`).
+
+### Connecting Vercel Frontend to Render Backend
+
+1. Open your live studio at [https://cine-voice-puce.vercel.app/](https://cine-voice-puce.vercel.app/).
+2. Click **Cloud Render API** in the top navigation bar.
+3. Paste your Render service URL into the input field and click **Test Connection**.
+4. Once verified, click **Start Cloud Render** to synthesize full 1080p cinematic short films from any device. The resulting video automatically loads into the studio player with instant download options.
 
 ---
 

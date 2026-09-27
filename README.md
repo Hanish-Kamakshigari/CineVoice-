@@ -84,6 +84,26 @@ python render_movie.py --script path/to/script.json
 
 ---
 
+## Deployment Guide
+
+### Frontend Deployment (Vercel)
+
+1. Sign in to [Vercel](https://vercel.com) and click **Add New...** -> **Project**.
+2. Select your repository: `Hanish-Kamakshigari/CineVoice-`.
+3. Set **Framework Preset** to `Other`.
+4. Keep the **Root Directory** as `./` and leave build/output commands empty.
+5. Click **Deploy**. Your studio will be live with high-speed CDN delivery and HTTPS.
+
+### Backend Cloud API Deployment (Render.com)
+
+1. Sign in to [Render.com](https://render.com) and click **New +** -> **Web Service**.
+2. Connect your GitHub repository: `Hanish-Kamakshigari/CineVoice-`.
+3. Choose **Docker** as the runtime (Render will automatically detect `Dockerfile`).
+4. Select the **Free** instance type.
+5. Click **Create Web Service**. Render builds the container with system-level FFmpeg and runs `server.py` on the assigned URL.
+
+---
+
 ## Tech Stack
 
 - **Frontend**: HTML5, Modern Vanilla CSS (Glassmorphism and Cine Dark Theme), Vanilla JavaScript (Web Audio API, HTML5 Canvas).

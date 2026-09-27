@@ -2,6 +2,7 @@
 *.mp4
 *.wav
 audio_cache/
+rendered_outputs/
 THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4
 master_soundtrack.wav
 

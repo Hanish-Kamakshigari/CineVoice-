@@ -1,15 +1,136 @@
 import os
-import sys
-import math
 import json
+import glob
+import hashlib
 import argparse
 import asyncio
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-import cv2
 import edge_tts
 import imageio_ffmpeg
 from scipy.io import wavfile
+
+# Font candidates across Windows / macOS / Linux. `_load_font` walks these in order
+# and falls back to a size-aware default instead of an 11px bitmap.
+_SERIF_CANDIDATES = [
+    "georgia.ttf", "georgiab.ttf", "times.ttf",
+    "/System/Library/Fonts/Supplemental/Georgia.ttf",
+    "/Library/Fonts/Georgia.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
+    "/usr/share/fonts/TTF/DejaVuSerif.ttf",
+]
+_MONO_CANDIDATES = [
+    "consola.ttf", "cour.ttf",
+    "/System/Library/Fonts/Menlo.ttc",
+    "/Library/Fonts/Courier New.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
+    "/usr/share/fonts/TTF/DejaVuSansMono.ttf",
+]
+
+# Extra directories to probe for bare font filenames (e.g. C:/Windows/Fonts).
+_FONT_DIRS = [
+    "C:/Windows/Fonts",
+    "/usr/share/fonts",
+    "/usr/local/share/fonts",
+    os.path.expanduser("~/.fonts"),
+    os.path.expanduser("~/Library/Fonts"),
+]
+
+_font_cache = {}
+
+
+def _vo_signature_path():
+    return os.path.join("audio_cache", f"vo_signature_{VOICE_TYPE}.txt")
+
+
+def compute_vo_signature():
+    """Hash the voice, TTS settings and every scene's narration text.
+
+    Used to detect that cached voice-over no longer matches the script.
+    """
+    parts = [VOICE_TYPE]
+    if VOICE_TYPE == "female":
+        parts += ["en-US-JennyNeural", "-6%", "+2Hz"]
+    else:
+        parts += ["en-US-ChristopherNeural", "-8%", "-4Hz"]
+    for sc in SCENES:
+        parts.append(f"{sc['id']}\x1f{sc.get('vo') or ''}")
+    blob = "\x1e".join(parts).encode("utf-8")
+    return hashlib.sha256(blob).hexdigest()
+
+
+def vo_cache_is_stale(signature):
+    """True when cached voice-over predates the current narration script."""
+    if FORCE_VOICE:
+        return True
+    path = _vo_signature_path()
+    if not os.path.exists(path):
+        # No signature recorded: force one clean re-synthesis so the cache is
+        # guaranteed to match the script, then future runs can be trusted.
+        return True
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            return fh.read().strip() != signature
+    except OSError:
+        return True
+
+
+def write_vo_signature(signature):
+    try:
+        os.makedirs("audio_cache", exist_ok=True)
+        with open(_vo_signature_path(), "w", encoding="utf-8") as fh:
+            fh.write(signature)
+    except OSError as exc:
+        print(f"WARNING: could not record voice cache signature: {exc}")
+
+
+def _resolve_font_path(name):
+    """Resolve a font filename against the platform font directories."""
+    if os.path.isabs(name):
+        return name if os.path.exists(name) else None
+    if os.path.exists(name):
+        return name
+    for directory in _FONT_DIRS:
+        candidate = os.path.join(directory, os.path.basename(name))
+        if os.path.exists(candidate):
+            return candidate
+    for pattern in (name, os.path.basename(name)):
+        for directory in _FONT_DIRS:
+            for hit in glob.glob(os.path.join(directory, "**", pattern), recursive=True):
+                if os.path.isfile(hit):
+                    return hit
+    return None
+
+
+def _load_font(candidates, size):
+    """Load the first available TTF at `size`, else a size-aware default."""
+    key = (tuple(candidates), size)
+    if key in _font_cache:
+        return _font_cache[key]
+
+    font = None
+    for name in candidates:
+        path = _resolve_font_path(name)
+        if not path:
+            continue
+        try:
+            font = ImageFont.truetype(path, size)
+            break
+        except OSError:
+            continue
+
+    if font is None:
+        print(f"WARNING: no scalable font found for size {size}; using Pillow default.")
+        try:
+            # Pillow >= 10.1 honours the requested size for the default font.
+            font = ImageFont.load_default(size=size)
+        except TypeError:
+            font = ImageFont.load_default()
+
+    _font_cache[key] = font
+    return font
 
 # Constants
 WIDTH = 1920
@@ -180,10 +301,20 @@ async def generate_voiceovers():
         voice_rate = "-8%"
         voice_pitch = "-4Hz"
 
+    # The cache is keyed by voice+scene id only, so editing --script used to leave
+    # the previous narration in place and render the WRONG words. Detect a
+    # narration change and force re-synthesis.
+    signature = compute_vo_signature()
+    stale = vo_cache_is_stale(signature)
+    if stale:
+        print("  Narration script changed since the last render - re-synthesising voice-over.")
+    else:
+        print("  Voice cache matches the current narration script.")
+
     for sc in SCENES:
         if sc["vo"]:
             out_file = f"audio_cache/vo_{VOICE_TYPE}_{sc['id']}.mp3"
-            if FORCE_VOICE or not os.path.exists(out_file):
+            if FORCE_VOICE or stale or not os.path.exists(out_file):
                 print(f"  Generating {VOICE_TYPE} voice for Scene {sc['id']}: {sc['title']}")
                 communicate = edge_tts.Communicate(
                     sc["vo"],
@@ -194,6 +325,9 @@ async def generate_voiceovers():
                 await communicate.save(out_file)
             else:
                 print(f"  Voice file already exists for Scene {sc['id']} ({VOICE_TYPE})")
+
+    # Only record the signature once every scene has been rendered successfully.
+    write_vo_signature(signature)
     print(f"Voice-over generation complete for {VOICE_TYPE} voice.")
 
 def synthesize_soundtrack():
@@ -217,9 +351,13 @@ def synthesize_soundtrack():
     # Helper for synth chord
     def add_chord(t_start, duration, freqs, volume=0.12):
         start_idx = int(t_start * SAMPLE_RATE)
+        if start_idx >= total_samples or duration <= 0:
+            return
         dur_len = int(duration * SAMPLE_RATE)
         if start_idx + dur_len >= total_samples:
             dur_len = total_samples - start_idx
+        if dur_len <= 0:
+            return
         t_arr = np.linspace(0, duration, dur_len)
         env = np.sin(np.pi * np.clip(t_arr / duration, 0, 1)) ** 1.5
         chord = np.zeros(dur_len, dtype=np.float32)
@@ -328,12 +466,23 @@ def synthesize_soundtrack():
 
                 vo_start_time = sc["start"] + sc.get("vo_delay", 0.5)
                 vo_start_idx = int(vo_start_time * SAMPLE_RATE)
-                vo_len = len(vo_data)
+                if vo_start_idx >= total_samples:
+                    print(f"WARNING: scene {sc['id']} starts at {vo_start_time:.1f}s, past the "
+                          f"{TOTAL_SECONDS}s film length - voice-over dropped.")
+                    continue
 
-                if vo_start_idx + vo_len < total_samples:
-                    # Duck background slightly under voice
-                    audio[vo_start_idx:vo_start_idx+vo_len] *= 0.65
-                    audio[vo_start_idx:vo_start_idx+vo_len] += vo_data
+                # Clip instead of discard: a voice-over that overruns the end of the
+                # film used to be dropped in full, silently leaving no narration.
+                vo_len = min(len(vo_data), total_samples - vo_start_idx)
+                if vo_len < len(vo_data):
+                    print(f"WARNING: scene {sc['id']} voice-over truncated by "
+                          f"{(len(vo_data) - vo_len) / SAMPLE_RATE:.2f}s (runs past the film end).")
+                if vo_len <= 0:
+                    continue
+
+                # Duck background slightly under voice
+                audio[vo_start_idx:vo_start_idx+vo_len] *= 0.65
+                audio[vo_start_idx:vo_start_idx+vo_len] += vo_data[:vo_len]
 
     # Final master normalization and soft clipping
     audio = np.tanh(audio * 1.1) * 0.95
@@ -351,25 +500,16 @@ def render_video_frames():
         if img_path and os.path.exists(img_path):
             loaded_images[img_path] = Image.open(img_path).convert("RGB")
         else:
+            # A renamed/missing asset used to yield a silently black frame.
+            print(f"WARNING: missing scene art {img_path!r} for scene {sc['id']} - rendering black.")
             loaded_images[img_path] = Image.new("RGB", (WIDTH, HEIGHT), (5, 7, 10))
 
-    # Font setup
-    try:
-        font_serif = ImageFont.truetype("C:/Windows/Fonts/georgia.ttf", 46)
-        font_badge = ImageFont.truetype("C:/Windows/Fonts/consola.ttf", 24)
-        font_climax_big = ImageFont.truetype("C:/Windows/Fonts/georgiab.ttf", 68)
-        font_climax_sub = ImageFont.truetype("C:/Windows/Fonts/consola.ttf", 26)
-    except:
-        try:
-            font_serif = ImageFont.truetype("georgia.ttf", 46)
-            font_badge = ImageFont.truetype("consola.ttf", 24)
-            font_climax_big = ImageFont.truetype("georgia.ttf", 68)
-            font_climax_sub = ImageFont.truetype("consola.ttf", 26)
-        except:
-            font_serif = ImageFont.load_default()
-            font_badge = ImageFont.load_default()
-            font_climax_big = ImageFont.load_default()
-            font_climax_sub = ImageFont.load_default()
+    # Font setup: search the platform font directories instead of hardcoding Windows
+    # paths, so macOS/Linux get real scalable fonts rather than an 11px bitmap.
+    font_serif = _load_font(_SERIF_CANDIDATES, 46)
+    font_badge = _load_font(_MONO_CANDIDATES, 24)
+    font_climax_big = _load_font(_SERIF_CANDIDATES, 68)
+    font_climax_sub = _load_font(_MONO_CANDIDATES, 26)
 
     # Open video writer via ffmpeg pipe directly for pristine quality and speed
     video_raw_output = "temp_video_stream.mp4"
@@ -464,14 +604,26 @@ def render_video_frames():
                 draw.text((WIDTH//2, sub_y), sub_text, font=font_serif, fill=(255, 255, 255), anchor="mm")
 
         # Write RGB24 directly to ffmpeg pipe
-        proc.stdin.write(frame_img.tobytes())
+        try:
+            proc.stdin.write(frame_img.tobytes())
+        except BrokenPipeError:
+            proc.wait()
+            raise SystemExit(
+                f"ERROR: ffmpeg exited with code {proc.returncode} after {f}/{TOTAL_FRAMES} "
+                "frames. Check that the bundled ffmpeg supports libx264."
+            )
 
         if f % 120 == 0:
             pct = (f / TOTAL_FRAMES) * 100
             print(f"  Rendered {f}/{TOTAL_FRAMES} frames ({pct:.1f}%)...")
 
     proc.stdin.close()
-    proc.wait()
+    returncode = proc.wait()
+    if returncode != 0:
+        raise SystemExit(
+            f"ERROR: ffmpeg frame encoder failed with exit code {returncode}. "
+            "temp_video_stream.mp4 may be incomplete - not muxing."
+        )
     print("Video stream rendering complete.")
 
 def mux_final_mp4():
@@ -492,7 +644,10 @@ def mux_final_mp4():
         OUTPUT_VIDEO
     ]
     import subprocess
-    subprocess.run(cmd, check=True)
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as exc:
+        raise SystemExit(f"ERROR: ffmpeg mux failed with exit code {exc.returncode}.")
 
     # Clean temporary raw stream
     if os.path.exists(video_raw):
@@ -519,17 +674,50 @@ if __name__ == "__main__":
     OUTPUT_VIDEO = args.out
 
     # Load custom script if provided
-    if CUSTOM_SCRIPT_PATH and os.path.exists(CUSTOM_SCRIPT_PATH):
+    if CUSTOM_SCRIPT_PATH:
+        if not os.path.exists(CUSTOM_SCRIPT_PATH):
+            # Silently rendering a silent 2-minute film is worse than failing loudly.
+            parser.error(f"--script file not found: {CUSTOM_SCRIPT_PATH}")
         print(f"Loading custom screenplay script from: {CUSTOM_SCRIPT_PATH}")
-        with open(CUSTOM_SCRIPT_PATH, "r", encoding="utf-8") as sf:
-            custom_data = json.load(sf)
-            for item in custom_data:
-                target = next((s for s in SCENES if s["id"] == item["id"]), None)
-                if target:
-                    if "voScript" in item: target["vo"] = item["voScript"]
-                    elif "vo" in item: target["vo"] = item["vo"]
-                    if "subtitle" in item: target["subtitle"] = item["subtitle"]
-        print("Custom screenplay script loaded into scenes.")
+        custom_data = None
+        # Windows editors (Notepad, PowerShell 5.1) save JSON with a UTF-8 BOM,
+        # which plain utf-8 decoding rejects. Try both.
+        for encoding in ("utf-8-sig", "utf-8"):
+            try:
+                with open(CUSTOM_SCRIPT_PATH, "r", encoding=encoding) as sf:
+                    custom_data = json.load(sf)
+                break
+            except UnicodeDecodeError:
+                continue
+            except json.JSONDecodeError as exc:
+                parser.error(f"--script is not valid JSON ({encoding}): {exc}")
+        if custom_data is None:
+            parser.error(f"--script is not valid UTF-8: {CUSTOM_SCRIPT_PATH}")
+
+        # Accept either a bare list or an object wrapping one.
+        if isinstance(custom_data, dict):
+            custom_data = custom_data.get("scenes") or custom_data.get("cues") or []
+        if not isinstance(custom_data, list):
+            parser.error("--script must be a JSON array of scene objects "
+                         "(or an object with a 'scenes' array).")
+
+        applied = 0
+        for index, item in enumerate(custom_data):
+            if not isinstance(item, dict):
+                print(f"WARNING: skipping non-object script entry at index {index}.")
+                continue
+            scene_id = item.get("id")
+            target = next((s for s in SCENES if s["id"] == scene_id), None)
+            if target is None:
+                print(f"WARNING: script entry {index} references unknown scene id {scene_id!r}.")
+                continue
+            if "voScript" in item: target["vo"] = item["voScript"]
+            elif "vo" in item: target["vo"] = item["vo"]
+            if "subtitle" in item: target["subtitle"] = item["subtitle"]
+            applied += 1
+        if applied == 0:
+            parser.error("--script contained no usable scene entries - nothing would be narrated.")
+        print(f"Custom screenplay script loaded into {applied} scenes.")
 
     print(f"\n=======================================================")
     print(f"  RENDERING FILM: THE LAST 24 HOURS")

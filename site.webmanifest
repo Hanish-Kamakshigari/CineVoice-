@@ -1,6 +1,13 @@
 {
-  "name": "CINEVOICE STUDIO — AI Video & Multi-Audio Narration Suite",
+  "id": "/",
+  "name": "CineVoice Studio — AI Video & Multi-Audio Narration Suite",
   "short_name": "CineVoice",
+  "description": "Browser-based AI video and voiceover studio: scene-by-scene scripting, timed AI narration, frame-based scene detection and SRT/VTT caption tooling.",
+  "start_url": "/",
+  "scope": "/",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["video", "productivity", "multimedia"],
   "icons": [
     {
       "src": "favicon-32x32.png",
@@ -16,9 +23,22 @@
       "src": "android-chrome-512x512.png",
       "sizes": "512x512",
       "type": "image/png"
+    },
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "theme_color": "#07090c",
   "background_color": "#07090c",
-  "display": "standalone"
+  "display": "standalone",
+  "orientation": "landscape"
 }

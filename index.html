@@ -5,6 +5,39 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CINEVOICE STUDIO — AI Video &amp; Voiceover Studio</title>
+  <meta name="description"
+    content="CineVoice Studio is a browser-based AI video and voiceover studio: script a film scene by scene, generate timed narration with system neural voices, auto-detect scene cuts from frames, and author, import and export SRT/VTT captions.">
+  <link rel="canonical" href="https://cine-voice-puce.vercel.app/">
+
+  <!-- Social / link preview -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="CineVoice Studio">
+  <meta property="og:title" content="CineVoice Studio — AI Video &amp; Voiceover Studio">
+  <meta property="og:description"
+    content="Script a film scene by scene, generate timed AI narration, auto-detect scene cuts, and author SRT/VTT captions — all in the browser.">
+  <meta property="og:url" content="https://cine-voice-puce.vercel.app/">
+  <meta property="og:image" content="https://cine-voice-puce.vercel.app/android-chrome-512x512.png">
+  <meta property="og:image:alt" content="CineVoice Studio logo">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="CineVoice Studio — AI Video &amp; Voiceover Studio">
+  <meta name="twitter:description"
+    content="Browser-based AI video and voiceover studio with scene scripting, timed narration and SRT/VTT caption tooling.">
+  <meta name="twitter:image" content="https://cine-voice-puce.vercel.app/android-chrome-512x512.png">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "CineVoice Studio",
+    "url": "https://cine-voice-puce.vercel.app/",
+    "description": "Browser-based AI video and voiceover studio with scene scripting, timed AI narration, frame-based scene detection and SRT/VTT caption tooling.",
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "Any",
+    "browserRequirements": "Requires JavaScript and a browser with system text-to-speech voices for narration.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "license": "https://opensource.org/licenses/MIT"
+  }
+  </script>
 
   <!-- Favicon & Mobile Web App Icons -->
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -51,7 +84,19 @@
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      user-select: none;
+    }
+
+    /* Text the user may reasonably want to copy (errors, tips, values, script). */
+    .selectable,
+    textarea,
+    input[type="text"],
+    .toast-message,
+    .modal-tips,
+    .cue-time-input,
+    .sub-time-input,
+    .cue-subtitle-input {
+      user-select: text;
+      -webkit-user-select: text;
     }
 
     /* Ambient glow background */
@@ -554,7 +599,10 @@
       font-weight: 600;
     }
 
-    /* Big Center Play Button Overlay */
+    /* Big Center Play Button Overlay
+       The full-bleed overlay sits above the HUD, so it must stay click-through:
+       only the round button itself handles clicks, otherwise the HUD download /
+       CC badges are unreachable while the video is paused. */
     .video-center-trigger {
       position: absolute;
       inset: 0;
@@ -564,8 +612,14 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      cursor: pointer;
+      cursor: default;
+      pointer-events: none;
       transition: opacity 0.3s ease;
+    }
+
+    .video-center-trigger .video-pulse-btn {
+      pointer-events: auto;
+      cursor: pointer;
     }
 
     .video-center-trigger.hidden {
@@ -577,6 +631,7 @@
       width: 84px;
       height: 84px;
       border-radius: 50%;
+      border: none;
       background: linear-gradient(135deg, rgba(229, 179, 100, 0.92), rgba(245, 158, 11, 0.92));
       display: flex;
       align-items: center;
@@ -584,10 +639,16 @@
       color: #000;
       box-shadow: 0 0 45px rgba(229, 179, 100, 0.6);
       transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      padding: 0;
     }
 
     .video-center-trigger:hover .video-pulse-btn {
       transform: scale(1.12);
+    }
+
+    .video-center-trigger .video-pulse-btn:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 4px;
     }
 
     /* Player Controls Bar */
@@ -984,6 +1045,27 @@
       box-shadow: 0 0 10px rgba(229, 179, 100, 0.7);
     }
 
+    /* Keyboard focus must stay visible: these controls had `outline: none`
+       with no replacement, so they were invisible to keyboard users (WCAG 2.4.7). */
+    .slider:focus-visible {
+      outline: 2px solid var(--accent-gold);
+      outline-offset: 6px;
+    }
+
+    .slider::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border: none;
+      border-radius: 50%;
+      background: var(--accent-gold);
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(229, 179, 100, 0.7);
+    }
+
+    .slider:focus-visible::-moz-range-thumb {
+      box-shadow: 0 0 0 3px var(--accent-gold), 0 0 10px rgba(229, 179, 100, 0.7);
+    }
+
     .select-dropdown {
       background: rgba(18, 23, 31, 0.95);
       border: 1px solid var(--card-border);
@@ -994,6 +1076,49 @@
       outline: none;
       font-family: var(--font-sans);
       width: 100%;
+    }
+
+    .select-dropdown:focus-visible {
+      border-color: var(--accent-gold);
+      box-shadow: 0 0 0 2px rgba(229, 179, 100, 0.35);
+    }
+
+    /* Screen-reader-only text (labels, descriptions) */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* Keyboard focus ring for anything that suppresses the UA outline */
+    .btn:focus-visible,
+    .pill-btn:focus-visible,
+    .cue-btn:focus-visible,
+    .tab-btn:focus-visible,
+    .choice-btn:focus-visible,
+    .audio-card:focus-visible,
+    .scene-preview-card:focus-visible,
+    .timeline-container:focus-visible,
+    .video-center-trigger:focus-visible,
+    .video-hud-badge:focus-visible,
+    .dropzone:focus-visible,
+    .audio-upload-box:focus-visible {
+      outline: 2px solid var(--accent-gold);
+      outline-offset: 2px;
+    }
+
+    .btn:disabled,
+    .pill-btn:disabled,
+    .cue-btn:disabled,
+    .tab-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
     }
 
     /* Script Editor Deck */
@@ -1336,8 +1461,15 @@
       align-items: center;
       gap: 0.75rem;
       opacity: 0;
+      /* Hidden state must leave the accessibility tree, otherwise screen readers
+         always announce the stale text. */
+      visibility: hidden;
       transform: translateY(-10px);
       pointer-events: none;
+    }
+
+    #studioToast.show {
+      visibility: visible;
     }
 
     /* Video Workflow Banner (Dual Option: Scene-by-Scene Upload & AI Frame Analysis) */
@@ -1820,6 +1952,26 @@
       font-size: 0.74rem;
       font-weight: 600;
     }
+
+    /* Respect the OS "reduce motion" setting: six looping/inf animations here
+       (sound-bounce, bannerSlideUp, scanSweep, pulseGlow, fadeIn, dropzone-pulse). */
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    @media (prefers-contrast: more) {
+      :root {
+        --card-border: rgba(255, 255, 255, 0.45);
+        --text-muted: #c3ccd8;
+      }
+    }
   </style>
 </head>
 
@@ -1869,16 +2021,16 @@
     <input type="file" id="sceneScriptFileInput" accept=".json,.txt,.fountain,.csv,.srt" style="display:none;">
 
     <!-- Cinema Viewport -->
-    <div class="cinema-wrapper" id="cinemaViewport">
+    <div class="cinema-wrapper" id="cinemaViewport" tabindex="-1">
       <div class="letterbox-top" id="boxTop"></div>
       <div class="letterbox-bottom" id="boxBottom"></div>
 
       <!-- Video Upload Dropzone (Shown when no video loaded) -->
-      <div class="video-dropzone" id="videoDropzone">
-        <div class="dropzone-pulse">🎬</div>
+      <div class="video-dropzone" id="videoDropzone" role="button" tabindex="0" aria-label="Upload your video file">
+        <div class="dropzone-pulse" aria-hidden="true">🎬</div>
         <div class="dropzone-title">UPLOAD YOUR VIDEO</div>
-        <div class="dropzone-sub">Drag and drop your video file here or click to browse. Easily upload scene-by-scene scripts, trigger AI frame-by-frame visual analysis, add subtitles, and direct your audio voiceover.</div>
-        <div class="dropzone-tags">
+        <div class="dropzone-sub selectable">Drag and drop your video file here or click to browse. Easily upload scene-by-scene scripts, trigger AI frame-by-frame visual analysis, add subtitles, and direct your audio voiceover.</div>
+        <div class="dropzone-tags" aria-hidden="true">
           <span class="dropzone-tag">MP4</span>
           <span class="dropzone-tag">WEBM</span>
           <span class="dropzone-tag">MOV</span>
@@ -1889,24 +2041,24 @@
       </div>
 
       <!-- HTML5 Video Player Element -->
-      <video id="mainVideoPlayer" playsinline></video>
+      <video id="mainVideoPlayer" playsinline aria-label="Video preview"></video>
 
       <!-- HUD Top Info -->
       <div class="video-hud-top" id="videoHudTop" style="display:none;">
-        <div class="video-badge" id="videoBadge">
-          <span>VIDEO:</span> <strong id="videoFilenameLabel">custom_video.mp4</strong>
-        </div>
+          <div class="video-badge" id="videoBadge">
+            <span>VIDEO:</span> <strong id="videoFilenameLabel">custom_video.mp4</strong>
+          </div>
         <div style="display:flex; gap:0.5rem; align-items:center;">
           <button class="video-badge" id="btnHudDownloadVideo" style="cursor:pointer; pointer-events:auto; color:var(--accent-emerald); border-color:rgba(16,185,129,0.4); background:rgba(16,185,129,0.15);" title="Download this video">
-            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:2px;">
+            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:2px;" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
             <span>DOWNLOAD</span>
           </button>
-          <div class="video-badge" id="hudSubtitlesBadge" style="cursor:pointer; pointer-events:auto;"
-            title="Click to configure subtitles">
+          <button class="video-badge" id="hudSubtitlesBadge" style="cursor:pointer; pointer-events:auto;"
+            title="Click to configure subtitles" aria-pressed="false">
             <span>CC:</span> <strong id="hudSubtitlesStatus">OFF (0 CUES)</strong>
-          </div>
+          </button>
           <div class="audio-mode-badge" id="hudAudioModeBadge">
             AUDIO: 👨 MALE AI VOICE
           </div>
@@ -1915,11 +2067,11 @@
 
       <!-- Center Play Trigger Overlay -->
       <div class="video-center-trigger hidden" id="videoCenterTrigger">
-        <div class="video-pulse-btn">
-          <svg width="34" height="34" fill="currentColor" viewBox="0 0 24 24" style="margin-left:4px;">
+        <button class="video-pulse-btn" id="videoCenterPlayBtn" type="button" aria-label="Play video">
+          <svg width="34" height="34" fill="currentColor" viewBox="0 0 24 24" style="margin-left:4px;" aria-hidden="true">
             <path d="M8 5v14l11-7z" />
           </svg>
-        </div>
+        </button>
       </div>
 
       <!-- Subtitles Display -->
@@ -2061,7 +2213,9 @@
 
     <!-- Timeline & Playback Bar -->
     <div class="player-controls">
-      <div class="timeline-container" id="timelineContainer">
+      <div class="timeline-container" id="timelineContainer" role="slider" tabindex="0"
+           aria-label="Playback position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
+           aria-valuetext="0 seconds of 0 seconds">
         <div class="timeline-bar-wrapper">
           <div class="timeline-progress" id="timelineProgress"></div>
         </div>
@@ -2070,11 +2224,11 @@
       <div class="control-row">
         <!-- Playback Tools -->
         <div class="playback-tools">
-          <button class="btn" id="playPauseBtn" style="padding: 0.5rem 0.9rem;">
-            <svg id="playIcon" width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+          <button class="btn" id="playPauseBtn" style="padding: 0.5rem 0.9rem;" aria-label="Play video" aria-pressed="false">
+            <svg id="playIcon" width="16" height="16" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M8 5v14l11-7z" />
             </svg>
-            <svg id="pauseIcon" width="16" height="16" fill="currentColor" viewBox="0 0 24 24" style="display:none;">
+            <svg id="pauseIcon" width="16" height="16" fill="currentColor" viewBox="0 0 24 24" style="display:none;" aria-hidden="true">
               <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
             </svg>
           </button>
@@ -2100,10 +2254,20 @@
           </div>
 
           <div style="display:flex; align-items:center; gap:0.45rem; flex-wrap:wrap;">
-            <button class="pill-btn" id="btnToggleCC" title="Toggle Closed Captions On/Off">
+            <button class="pill-btn" id="btnToggleCC" title="Toggle Closed Captions On/Off" aria-pressed="false">
               <span class="cc-badge-inactive" id="ccBadgeDot"></span>
               <span style="font-weight:700; font-family:var(--font-mono); letter-spacing:0.04em;">CC</span>
               <span id="ccStatusText">Subtitles: OFF</span>
+            </button>
+            <button class="pill-btn" id="btnToggleLetterbox" title="Toggle 2.39:1 cinematic letterbox bars" aria-pressed="true">
+              <span style="font-weight:700; font-family:var(--font-mono); letter-spacing:0.04em;">2.39:1</span>
+              <span id="letterboxStatusText">Letterbox: ON</span>
+            </button>
+            <button class="pill-btn" id="btnToggleFullscreen" title="Toggle fullscreen (F)" aria-pressed="false">
+              <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 9V4h5M20 9V4h-5M4 15v5h5m11-5v5h-5" />
+              </svg>
+              Fullscreen
             </button>
             <button class="pill-btn" id="btnOpenSubtitlesDeck" title="Open Subtitle Suite">
               💬 Subtitles
@@ -2141,7 +2305,7 @@
         <!-- 4 Audio Source Cards -->
         <div class="audio-cards-grid">
           <!-- Card 1: Male AI Voice -->
-          <div class="audio-card active" id="cardMale" data-mode="male">
+          <div class="audio-card active" id="cardMale" data-mode="male" role="button" tabindex="0" aria-pressed="true">
             <div class="audio-card-head">
               <div class="audio-card-info">
                 <div class="audio-card-icon">👨</div>
@@ -2156,7 +2320,7 @@
           </div>
 
           <!-- Card 2: Female AI Voice -->
-          <div class="audio-card" id="cardFemale" data-mode="female">
+          <div class="audio-card" id="cardFemale" data-mode="female" role="button" tabindex="0" aria-pressed="false">
             <div class="audio-card-head">
               <div class="audio-card-info">
                 <div class="audio-card-icon">👩</div>
@@ -2170,7 +2334,7 @@
           </div>
 
           <!-- Card 3: Custom Audio File Upload -->
-          <div class="audio-card" id="cardCustom" data-mode="custom">
+          <div class="audio-card" id="cardCustom" data-mode="custom" role="button" tabindex="0" aria-pressed="false">
             <div class="audio-card-head">
               <div class="audio-card-info">
                 <div class="audio-card-icon" style="color:var(--accent-cyan);">🎙️</div>
@@ -2185,7 +2349,7 @@
           </div>
 
           <!-- Card 4: Video Original Audio -->
-          <div class="audio-card" id="cardNative" data-mode="native">
+          <div class="audio-card" id="cardNative" data-mode="native" role="button" tabindex="0" aria-pressed="false">
             <div class="audio-card-head">
               <div class="audio-card-info">
                 <div class="audio-card-icon" style="color:var(--accent-emerald);">🔊</div>
@@ -2199,9 +2363,10 @@
           </div>
         </div>
 
-        <!-- Custom Audio Upload Dropzone (Click to upload audio) -->
-        <div class="audio-upload-box" id="audioUploadBox">
-          <div style="font-size:1.5rem; color:var(--accent-gold);">🎙️</div>
+        <!-- Custom Audio Upload Dropzone (click or drag & drop) -->
+        <div class="audio-upload-box" id="audioUploadBox" role="button" tabindex="0"
+             aria-label="Upload custom narration audio file (MP3, WAV or M4A)">
+          <div style="font-size:1.5rem; color:var(--accent-gold);" aria-hidden="true">🎙️</div>
           <div style="font-weight:600; font-size:0.85rem; color:#fff;" id="audioUploadBoxTitle">Upload Custom Narration
             Audio (MP3 / WAV / M4A)</div>
           <div style="font-size:0.72rem; color:var(--text-muted);">Click here or drag &amp; drop your voiceover or
@@ -2233,11 +2398,12 @@
 
           <div class="tuning-row">
             <div class="tuning-labels">
-              <span>SYSTEM SYNTHESIS VOICE</span>
+              <label for="selectVoice">SYSTEM SYNTHESIS VOICE</label>
             </div>
-            <select class="select-dropdown" id="selectVoice">
-              <option value="">Detecting installed system voices...</option>
+            <select class="select-dropdown" id="selectVoice" aria-describedby="voiceSelectHint">
+              <option value="">Loading system voices...</option>
             </select>
+            <p id="voiceSelectHint" class="sr-only">Leave as auto-matched to use the best male or female system voice for the selected audio mode.</p>
           </div>
 
           <div style="display:flex; gap:0.5rem; margin-top:0.2rem;">
@@ -2312,9 +2478,10 @@
 
         <!-- Master Script View -->
         <div id="viewFullText" style="display:none; flex-direction:column; gap:0.85rem;">
-          <p style="font-size:0.75rem; color:var(--text-muted); line-height:1.4;">
+          <p style="font-size:0.75rem; color:var(--text-muted); line-height:1.4;" class="selectable">
             Paste or write your full narrative script here. Format each section as <code>[SCENE 1: 00:05]</code> or click <strong>Distribute Across Video</strong>.
           </p>
+          <label class="sr-only" for="masterScriptArea">Master narration script</label>
           <textarea class="master-script-text" id="masterScriptArea" spellcheck="false"
             placeholder="Write or paste your script here..."></textarea>
           <div style="display:flex; justify-content:flex-end; gap:0.55rem; flex-wrap:wrap;">
@@ -2439,21 +2606,21 @@
   </main>
 
   <!-- Scene-by-Scene Script Importer Modal -->
-  <div class="modal-backdrop" id="sceneScriptModal" style="display:none;">
+  <div class="modal-backdrop" id="sceneScriptModal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="sceneModalTitle">
     <div class="modal-card" style="max-width:780px; width:94%;">
       <div class="modal-header">
         <div style="display:flex; align-items:center; gap:0.65rem;">
-          <span style="font-size:1.4rem;">📜</span>
+          <span style="font-size:1.4rem;" aria-hidden="true">📜</span>
           <div>
-            <div style="font-family:var(--font-serif); font-size:1.1rem; color:#fff; font-weight:700;">SCENE-BY-SCENE SCRIPT IMPORTER</div>
+            <div id="sceneModalTitle" style="font-family:var(--font-serif); font-size:1.1rem; color:#fff; font-weight:700;">SCENE-BY-SCENE SCRIPT IMPORTER</div>
             <div style="font-size:0.75rem; color:var(--text-muted);">Import, format, or paste your screenplay scenes to sync with your video</div>
           </div>
         </div>
-        <button class="modal-close-btn" id="btnCloseSceneModal" title="Close modal">✕</button>
+        <button class="modal-close-btn" id="btnCloseSceneModal" title="Close modal" aria-label="Close scene script importer">✕</button>
       </div>
 
       <div class="modal-body" style="display:flex; flex-direction:column; gap:0.95rem;">
-        <div class="scene-format-tips">
+        <div class="scene-format-tips selectable">
           <div style="font-family:var(--font-mono); font-size:0.72rem; color:var(--accent-gold); margin-bottom:0.25rem;">SUPPORTED SCENE FORMATS:</div>
           <div style="font-size:0.76rem; color:var(--text-muted); line-height:1.45;">
             Paste scene blocks with headers like <code>[SCENE 1: 00:00 - EXT. DAWN]</code>, <code>[00:15] Spoken text...</code>, or upload a <code>.txt</code>, <code>.json</code>, <code>.fountain</code>, <code>.csv</code> file.
@@ -2474,6 +2641,7 @@
           </span>
         </div>
 
+        <label class="sr-only" for="sceneScriptInputArea">Scene-by-scene script</label>
         <textarea class="scene-script-textarea" id="sceneScriptInputArea" spellcheck="false" placeholder="Paste your scene-by-scene script here... Format:
 
 [SCENE 1: 00:00 - Scene Title]
@@ -2502,20 +2670,19 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
   </div>
 
 
-  <!-- Toast Notification -->
-  <div id="studioToast">
-    <div style="font-size:1.2rem;" id="toastIcon">🎙️</div>
-    <div style="font-size:0.84rem; line-height:1.4;" id="toastMsg">Ready</div>
+  <!-- Toast Notification (live region so screen readers announce status changes) -->
+  <div id="studioToast" role="status" aria-live="polite" aria-atomic="true">
+    <div style="font-size:1.2rem;" id="toastIcon" aria-hidden="true">🎙️</div>
+    <div style="font-size:0.84rem; line-height:1.4;" id="toastMsg" class="toast-message selectable">Ready</div>
   </div>
 
   <script>
     // -------------------------------------------------------------
-    // SCRIPT CUES (ZERO DEFAULT SCRIPT - CLEAN STATE)
+    // SCRIPT CUES + SUBTITLES (persisted to localStorage, restored on load)
     // -------------------------------------------------------------
-    const DEFAULT_CUES = [];
     var SCRIPT_CUES = [];
 
-    // NO default subtitles at all: starts completely empty until AI develops or user uploads
+    // No default subtitles at all: starts empty until AI develops or user uploads
     var SUBTITLES = [];
     var subtitlesEnabled = false;
 
@@ -2526,10 +2693,18 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
       position: 'pos-bottom'
     };
 
-    // Ensure zero default script cues or cached subtitles exist on clean load
+    // Restore persisted cues / subtitles / style instead of discarding them
     try {
-      localStorage.removeItem('cinevoice_script_cues');
-      localStorage.removeItem('cinevoice_subtitles');
+      const savedCues = localStorage.getItem('cinevoice_script_cues');
+      if (savedCues) {
+        const parsed = JSON.parse(savedCues);
+        if (Array.isArray(parsed)) SCRIPT_CUES = parsed;
+      }
+      const savedSubs = localStorage.getItem('cinevoice_subtitles');
+      if (savedSubs) {
+        const parsed = JSON.parse(savedSubs);
+        if (Array.isArray(parsed)) SUBTITLES = parsed;
+      }
       const savedStyle = localStorage.getItem('cinevoice_sub_style');
       if (savedStyle) {
         subStyleConfig = Object.assign(subStyleConfig, JSON.parse(savedStyle));
@@ -2538,12 +2713,49 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
       console.warn('LocalStorage load failed:', e);
     }
 
-    function saveSubtitles() {
+    function isStorageQuotaError(e) {
+      return e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22 || e.code === 1014);
+    }
+
+    // Escape a string for safe interpolation into an innerHTML template.
+    function esc(str) {
+      return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    function persistJson(key, value) {
       try {
-        localStorage.setItem('cinevoice_subtitles', JSON.stringify(SUBTITLES));
+        localStorage.setItem(key, JSON.stringify(value));
+        return true;
       } catch (e) {
-        console.warn('LocalStorage subtitle save failed:', e);
+        if (isStorageQuotaError(e)) {
+          showToast('Browser storage is full - export your subtitles to SRT to keep them.', true);
+        } else {
+          console.warn('LocalStorage save failed:', e);
+        }
+        return false;
       }
+    }
+
+    function saveSubtitles() {
+      persistJson('cinevoice_subtitles', SUBTITLES);
+    }
+
+    function saveScriptCues() {
+      persistJson('cinevoice_script_cues', SCRIPT_CUES);
+    }
+
+    // Cue-card fields are committed to SCRIPT_CUES by "Save & Apply", but a
+    // reload before that used to throw the edits away. Persist them as the user
+    // types (debounced) so in-progress edits are never lost.
+    let cueSaveTimer = null;
+    function scheduleCueSave() {
+      if (cueSaveTimer) clearTimeout(cueSaveTimer);
+      cueSaveTimer = setTimeout(() => {
+        cueSaveTimer = null;
+        saveScriptCues();
+      }, 400);
     }
 
     function saveSubStyle() {
@@ -2575,7 +2787,7 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
         if (!this.synth) return;
         const load = () => {
           this.allVoices = this.synth.getVoices() || [];
-          if (!this.allVoices.length) return;
+          if (!this.allVoices.length) return false;
 
           const enVoices = this.allVoices.filter(v => v.lang.startsWith('en'));
           const pool = enVoices.length ? enVoices : this.allVoices;
@@ -2599,37 +2811,101 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
           this.femaleVoice = (matchedF && matchedF !== this.maleVoice) ? matchedF : pool.find(v => v !== this.maleVoice) || pool[0];
 
           populateVoiceSelect();
+          return true;
         };
 
-        load();
+        if (load()) return;
         if (this.synth.onvoiceschanged !== undefined) {
           this.synth.onvoiceschanged = load;
         }
+        // Some browsers never fire voiceschanged; poll briefly, then tell the user.
+        let attempts = 0;
+        const poll = setInterval(() => {
+          if (load() || ++attempts >= 12) {
+            clearInterval(poll);
+            if (!this.allVoices.length) {
+              showToast('No system voices found. Voiceover needs at least one installed text-to-speech voice.', true);
+            }
+          }
+        }, 250);
       }
 
       speak(text, mode = 'male') {
         if (!this.synth || !text) return;
         this.synth.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
+        // Chrome/Windows silently truncates utterances past ~250 chars, so speak
+        // long lines as a queue of sentence-aligned chunks.
+        const chunks = splitForSpeech(text);
+        this._speakQueue = chunks.map(chunk => {
+          const utterance = new SpeechSynthesisUtterance(chunk);
 
-        if (this.manualVoice) {
-          utterance.voice = this.manualVoice;
-        } else if (mode === 'female' && this.femaleVoice) {
-          utterance.voice = this.femaleVoice;
-        } else if (this.maleVoice) {
-          utterance.voice = this.maleVoice;
-        }
+          if (this.manualVoice) {
+            utterance.voice = this.manualVoice;
+          } else if (mode === 'female' && this.femaleVoice) {
+            utterance.voice = this.femaleVoice;
+          } else if (this.maleVoice) {
+            utterance.voice = this.maleVoice;
+          }
 
-        utterance.rate = this.rate;
-        utterance.pitch = (mode === 'female') ? Math.max(1.02, this.pitch) : this.pitch;
-        utterance.volume = this.volume;
+          utterance.rate = this.rate;
+          utterance.pitch = (mode === 'female') ? Math.max(1.02, this.pitch) : this.pitch;
+          utterance.volume = this.volume;
 
-        this.synth.speak(utterance);
+          utterance.onerror = (ev) => {
+            if (ev.error === 'canceled' || ev.error === 'interrupted') return;
+            console.warn('Speech synthesis failed:', ev.error);
+            // Re-arm the cue once so a transient failure is not silently swallowed.
+            if (typeof onSpeakFailure === 'function') onSpeakFailure();
+            showToast(`Voiceover failed: ${ev.error || 'speech engine error'}. Check that system voices are installed.`, true);
+          };
+          return utterance;
+        });
+        this._drainSpeechQueue();
+      }
+
+      _drainSpeechQueue() {
+        const queue = this._speakQueue || [];
+        if (!queue.length || !this.synth) { this._speakQueue = []; return; }
+        const next = queue.shift();
+        next.onend = () => this._drainSpeechQueue();
+        this.synth.speak(next);
       }
 
       stop() {
+        this._speakQueue = [];
         if (this.synth) this.synth.cancel();
       }
+    }
+
+    // Set by checkSpeechCues so a failed utterance can be retried once.
+    let onSpeakFailure = null;
+
+    // Split narration into <=180 char chunks on sentence/clause boundaries.
+    function splitForSpeech(text) {
+      const MAX = 180;
+      const clean = String(text).replace(/\s+/g, ' ').trim();
+      if (clean.length <= MAX) return clean ? [clean] : [];
+
+      const pieces = clean.match(/[^.!?]+[.!?]*\s*/g) || [clean];
+      const chunks = [];
+      let buf = '';
+      pieces.forEach(piece => {
+        if (buf && (buf + piece).length > MAX) {
+          chunks.push(buf.trim());
+          buf = piece;
+        } else {
+          buf += piece;
+        }
+        // A single sentence longer than MAX gets hard-wrapped on word boundaries.
+        while (buf.length > MAX) {
+          let cut = buf.lastIndexOf(' ', MAX);
+          if (cut <= 0) cut = MAX;
+          chunks.push(buf.slice(0, cut).trim());
+          buf = buf.slice(cut);
+        }
+      });
+      if (buf.trim()) chunks.push(buf.trim());
+      return chunks.filter(Boolean);
     }
 
     // -------------------------------------------------------------
@@ -2764,13 +3040,10 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
     const btnDeckFullTextFrameScan = document.getElementById('btnDeckFullTextFrameScan');
 
     // Legacy Banner alias
-    const videoSubBanner = videoWorkflowBanner;
     const btnBannerUploadSub = btnWorkflowSubtitlesSuite;
     const btnBannerAutoSync = btnWorkflowAutoSubs;
     const btnBannerOpenStudio = btnWorkflowSubtitlesSuite;
-    const btnBannerToggleCC = null;
     const btnBannerDismiss = btnWorkflowDismiss;
-    const bannerCCText = null;
 
     // Player toolbar CC & Subtitles buttons
     const btnToggleCC = document.getElementById('btnToggleCC');
@@ -2806,6 +3079,7 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
     const cardCustom = document.getElementById('cardCustom');
     const cardNative = document.getElementById('cardNative');
     const audioUploadBox = document.getElementById('audioUploadBox');
+    const videoCenterPlayBtn = document.getElementById('videoCenterPlayBtn');
 
     // Sliders
     const sliderRate = document.getElementById('sliderRate');
@@ -2838,6 +3112,9 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
     const btnLoadDemoVideo = document.getElementById('btnLoadDemoVideo');
     const btnChangeVideo = document.getElementById('btnChangeVideo');
     const btnToggleLetterbox = document.getElementById('btnToggleLetterbox');
+    const letterboxStatusText = document.getElementById('letterboxStatusText');
+    const btnToggleFullscreen = document.getElementById('btnToggleFullscreen');
+    const videoPlayerFrame = document.getElementById('cinemaViewport');
     const boxTop = document.getElementById('boxTop');
     const boxBottom = document.getElementById('boxBottom');
 
@@ -2846,25 +3123,26 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
     let isVideoLoaded = false;
     let videoBlobUrl = null;
     let lastSpokenCueId = null;
+let spokenCursor = -1;
+let lastCueCheckTime = -1;
+let speakRetries = 0;
     let isLetterboxActive = true;
 
-    // Helper: format seconds to MM:SS
+    // Helper: format seconds to MM:SS, rolling over to HH:MM:SS past an hour
     function formatTime(totalSec) {
       if (!totalSec || isNaN(totalSec)) return "00:00";
-      const mins = Math.floor(totalSec / 60);
+      const hours = Math.floor(totalSec / 3600);
+      const mins = Math.floor((totalSec % 3600) / 60);
       const secs = Math.floor(totalSec % 60);
-      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      const mm = String(mins).padStart(2, '0');
+      const ss = String(secs).padStart(2, '0');
+      return hours > 0 ? `${String(hours).padStart(2, '0')}:${mm}:${ss}` : `${mm}:${ss}`;
     }
 
-    // Helper: parse MM:SS or seconds to float
+    // Parse SS, MM:SS or HH:MM:SS(.mmm) to seconds. Delegates to the single
+    // canonical subtitle parser so the two paths can never disagree.
     function parseTimeString(str) {
-      if (!str) return 0;
-      if (typeof str === 'number') return str;
-      if (str.includes(':')) {
-        const parts = str.split(':');
-        return (parseInt(parts[0], 10) || 0) * 60 + (parseFloat(parts[1]) || 0);
-      }
-      return parseFloat(str) || 0;
+      return parseSubCueTime(str);
     }
 
     // Format seconds to standard SRT timestamp: HH:MM:SS,mmm
@@ -2888,12 +3166,14 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
     }
 
     // Format seconds to user-friendly MM:SS.ms (e.g. 01:23.4)
+    // Rounds in integer tenths so the seconds component can never carry to 60.
     function formatSubCueTime(sec) {
       if (isNaN(sec) || sec < 0) sec = 0;
-      const mins = Math.floor(sec / 60);
-      const s = (sec % 60).toFixed(1);
-      const parts = s.split('.');
-      return `${String(mins).padStart(2, '0')}:${String(parts[0]).padStart(2, '0')}.${parts[1] || '0'}`;
+      const tenths = Math.round(sec * 10);
+      const mins = Math.floor(tenths / 600);
+      const secs = Math.floor(tenths / 10) % 60;
+      const frac = tenths % 10;
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${frac}`;
     }
 
     // Parse MM:SS.ms or SS.ms or HH:MM:SS,mmm to seconds float
@@ -2997,8 +3277,17 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
       if (!file) return;
       if (videoBlobUrl) URL.revokeObjectURL(videoBlobUrl);
       videoBlobUrl = URL.createObjectURL(file);
+
+      // Clear handlers from any previous source (including the demo fallback chain)
+      // BEFORE load(), otherwise a later media error can swap the user's file out.
+      mainVideoPlayer.onloadedmetadata = null;
+      mainVideoPlayer.onerror = null;
       mainVideoPlayer.src = videoBlobUrl;
       mainVideoPlayer.load();
+
+      // Cues and subtitles from a previous video have timings that mean nothing
+      // for this one, so start clean rather than overlaying stale captions.
+      clearScriptAndSubtitles();
 
       mainVideoPlayer.onloadedmetadata = () => {
         isVideoLoaded = true;
@@ -3017,6 +3306,18 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
       mainVideoPlayer.onerror = () => {
         showToast('Error playing video file. Please check format.', true);
       };
+    }
+
+    function clearScriptAndSubtitles() {
+      SCRIPT_CUES = [];
+      SUBTITLES = [];
+      resetSpokenCursor();
+      clearMasterScriptTextarea();
+      persistJson('cinevoice_script_cues', SCRIPT_CUES);
+      saveSubtitles();
+      renderCuesList();
+      renderSubtitlesList();
+      toggleSubtitles(false);
     }
 
     const DEMO_FILM_SCENES = [
@@ -3040,6 +3341,7 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
       const backupPublicUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4";
 
       let hasTriedRemote = false;
+      let loadedSource = null;
 
       function onDemoReady() {
         isVideoLoaded = true;
@@ -3050,21 +3352,30 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
         videoCenterTrigger.classList.remove('hidden');
         totalTimeDisplay.textContent = formatTime(mainVideoPlayer.duration || 120);
 
-        // Load demonstration screenplay cues & synchronized subtitles
-        SCRIPT_CUES = DEMO_FILM_SCENES.map(s => ({ ...s }));
-        SUBTITLES = DEMO_FILM_SCENES.map(s => ({
-          id: s.id,
-          start: s.time,
-          end: Math.min((mainVideoPlayer.duration || 120), s.time + 6.8),
-          text: s.subtitle
-        }));
+        // Only map the demo screenplay onto the demo film itself. The last-resort
+        // fallback is a completely different short, so its timings would be nonsense.
+        if (loadedSource === 'demo') {
+          SCRIPT_CUES = DEMO_FILM_SCENES.map(s => ({ ...s }));
+          SUBTITLES = DEMO_FILM_SCENES.map(s => ({
+            id: s.id,
+            start: s.time,
+            end: Math.min((mainVideoPlayer.duration || 120), s.time + 6.8),
+            text: s.subtitle
+          }));
 
-        renderCuesList();
-        renderSubtitlesList();
-        applySubStyles();
-        toggleSubtitles(true);
+          renderCuesList();
+          renderSubtitlesList();
+          applySubStyles();
+          toggleSubtitles(true);
+          persistJson('cinevoice_script_cues', SCRIPT_CUES);
+          saveSubtitles();
 
-        showToast('✓ Demo video & screenplay loaded! Press Play to start.');
+          showToast('✓ Demo video & screenplay loaded! Press Play to start.');
+        } else {
+          renderCuesList();
+          renderSubtitlesList();
+          showToast('Demo film unavailable - loaded a sample clip instead. Import your own video or screenplay.');
+        }
         showVideoWorkflowBanner("THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4");
       }
 
@@ -3074,14 +3385,17 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
         console.warn('Demo video source failed, trying fallback mirror...');
         if (!hasTriedRemote) {
           hasTriedRemote = true;
+          loadedSource = 'demo';
           mainVideoPlayer.src = remoteFallbackUrl;
           mainVideoPlayer.load();
         } else {
+          loadedSource = 'fallback';
           mainVideoPlayer.src = backupPublicUrl;
           mainVideoPlayer.load();
         }
       };
 
+      loadedSource = 'demo';
       mainVideoPlayer.src = localUrl;
       mainVideoPlayer.load();
     }
@@ -3103,6 +3417,8 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
       mainVideoPlayer.play().then(() => {
         playIcon.style.display = 'none';
         pauseIcon.style.display = 'block';
+        playPauseBtn.setAttribute('aria-label', 'Pause video');
+        playPauseBtn.setAttribute('aria-pressed', 'true');
         videoCenterTrigger.classList.add('hidden');
         soundWave.classList.remove('paused');
 
@@ -3111,6 +3427,7 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
         }
       }).catch(err => {
         console.warn('Playback error:', err);
+        showToast('Playback was blocked by the browser. Press play again.', true);
       });
     }
 
@@ -3118,6 +3435,8 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
       mainVideoPlayer.pause();
       playIcon.style.display = 'block';
       pauseIcon.style.display = 'none';
+      playPauseBtn.setAttribute('aria-label', 'Play video');
+      playPauseBtn.setAttribute('aria-pressed', 'false');
       videoCenterTrigger.classList.remove('hidden');
       soundWave.classList.add('paused');
       voiceEngine.stop();
@@ -3130,6 +3449,8 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
       const dur = mainVideoPlayer.duration || 1;
       currentTimeDisplay.textContent = formatTime(cur);
       timelineProgress.style.width = `${(cur / dur) * 100}%`;
+      timelineContainer.setAttribute('aria-valuenow', String(Math.round((cur / dur) * 100)));
+      timelineContainer.setAttribute('aria-valuetext', `${formatTime(cur)} of ${formatTime(dur)}`);
 
       // Real-time functional subtitle sync
       updateSubtitlesForTime(cur);
@@ -3145,24 +3466,48 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
       videoSubtitleText.textContent = "";
       videoSubtitleText.style.display = 'none';
       highlightActiveSubtitleCard(null);
-      lastSpokenCueId = null;
+      resetSpokenCursor();
     });
+
+    function seekTo(targetTime) {
+      if (!isVideoLoaded) return;
+      const dur = mainVideoPlayer.duration || 0;
+      const clamped = Math.max(0, Math.min(dur || targetTime, targetTime));
+      mainVideoPlayer.currentTime = clamped;
+      if (currentAudioMode === 'custom' && customAudio.isLoaded) {
+        customAudio.seek(clamped);
+      }
+      voiceEngine.stop();
+      resetSpokenCursor();
+      updateSubtitlesForTime(clamped);
+    }
 
     // Timeline Scrubbing
     timelineContainer.addEventListener('click', (e) => {
       if (!isVideoLoaded) return;
       const rect = timelineContainer.getBoundingClientRect();
       const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      const targetTime = pct * (mainVideoPlayer.duration || 0);
-      mainVideoPlayer.currentTime = targetTime;
+      seekTo(pct * (mainVideoPlayer.duration || 0));
+    });
 
-      if (currentAudioMode === 'custom' && customAudio.isLoaded) {
-        customAudio.seek(targetTime);
+    // Keyboard seeking on the timeline slider: arrows, PageUp/Down, Home/End.
+    timelineContainer.addEventListener('keydown', (e) => {
+      if (!isVideoLoaded) return;
+      const dur = mainVideoPlayer.duration || 0;
+      const cur = mainVideoPlayer.currentTime;
+      const step = e.shiftKey ? 10 : 5;
+      let target = null;
+      switch (e.key) {
+        case 'ArrowRight': case 'ArrowUp':   target = cur + step; break;
+        case 'ArrowLeft':  case 'ArrowDown': target = cur - step; break;
+        case 'PageUp':   target = cur + 30; break;
+        case 'PageDown': target = cur - 30; break;
+        case 'Home':     target = 0; break;
+        case 'End':      target = dur; break;
+        default: return;
       }
-
-      voiceEngine.stop();
-      lastSpokenCueId = null;
-      updateSubtitlesForTime(targetTime);
+      e.preventDefault();
+      seekTo(target);
     });
 
     // Real-time functional subtitle rendering based on playback time
@@ -3187,51 +3532,78 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
     }
 
     function highlightActiveSubtitleCard(activeId) {
-      document.querySelectorAll('.sub-item-card').forEach(card => {
-        if (activeId && card.id === `subCard_${activeId}`) {
-          card.classList.add('active-playing');
-        } else {
-          card.classList.remove('active-playing');
-        }
-      });
+      if (activeId === lastHighlightedSubId) return;
+      const prev = lastHighlightedSubId != null ? subCardIndex.get(lastHighlightedSubId) : null;
+      if (prev) prev.classList.remove('active-playing');
+      const next = activeId != null ? subCardIndex.get(activeId) : null;
+      if (next) next.classList.add('active-playing');
+      lastHighlightedSubId = activeId;
     }
 
     // Check speech cues against current video playback time
     function checkSpeechCues(currentTime) {
-      const activeCue = SCRIPT_CUES
-        .filter(c => currentTime >= c.time && currentTime < c.time + 10)
-        .sort((a, b) => b.time - a.time)[0];
+      if (!SCRIPT_CUES.length) return;
+      // Rewind on any backward jump so programmatic seeks re-arm from the right cue.
+      if (currentTime < lastCueCheckTime) resetSpokenCursor();
+      lastCueCheckTime = currentTime;
 
-      if (activeCue) {
-        if (lastSpokenCueId !== activeCue.id && !mainVideoPlayer.paused) {
-          lastSpokenCueId = activeCue.id;
-          voiceEngine.speak(activeCue.text, currentAudioMode);
-        }
+      // Walk a monotonic cursor instead of a 10s window: cues closer together than
+      // the old window used to cancel each other mid-sentence.
+      while (spokenCursor + 1 < SCRIPT_CUES.length && currentTime >= SCRIPT_CUES[spokenCursor + 1].time) {
+        spokenCursor++;
+      }
+      const activeCue = SCRIPT_CUES[spokenCursor];
+      if (currentTime < activeCue.time) return;
+      if (activeCue.id !== lastSpokenCueId && !mainVideoPlayer.paused) {
+        lastSpokenCueId = activeCue.id;
+        speakRetries = 0;
+        onSpeakFailure = () => {
+          // One retry only, so a permanently broken engine cannot spin the cue.
+          if (speakRetries++ < 1 && lastSpokenCueId === activeCue.id) {
+            lastSpokenCueId = null;
+          }
+          onSpeakFailure = null;
+        };
+        voiceEngine.speak(activeCue.text, currentAudioMode);
       }
     }
 
-    function updateSubtitleForTime(time) {
-      updateSubtitlesForTime(time);
+    function resetSpokenCursor() {
+      spokenCursor = -1;
+      lastSpokenCueId = null;
+      lastCueCheckTime = -1;
+      speakRetries = 0;
+      onSpeakFailure = null;
     }
 
     // -------------------------------------------------------------
     // AUDIO MODE SELECTION (MALE / FEMALE / CUSTOM / NATIVE)
     // -------------------------------------------------------------
-    function setAudioMode(mode) {
+    function setAudioMode(mode, silent) {
       currentAudioMode = mode;
 
       // Update button & card states
-      [btnAudioMale, btnAudioFemale, btnAudioCustom, btnAudioNative].forEach(b => b.classList.remove('active'));
+      [btnAudioMale, btnAudioFemale, btnAudioCustom, btnAudioNative].forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed', 'false');
+      });
       [cardMale, cardFemale, cardCustom, cardNative].forEach(c => {
         c.classList.remove('active');
+        c.setAttribute('aria-pressed', 'false');
         const st = c.querySelector('.audio-card-status');
         if (st) st.textContent = 'SELECT';
       });
 
+      const markActive = (btn, card) => {
+        btn.classList.add('active');
+        btn.setAttribute('aria-pressed', 'true');
+        card.classList.add('active');
+        card.setAttribute('aria-pressed', 'true');
+      };
+
       let modeName = '';
       if (mode === 'male') {
-        btnAudioMale.classList.add('active');
-        cardMale.classList.add('active');
+        markActive(btnAudioMale, cardMale);
         cardMale.querySelector('.audio-card-status').textContent = 'ACTIVE';
         modeName = '👨 MALE AI VOICE';
         hudAudioModeBadge.textContent = 'AUDIO: 👨 MALE AI VOICE';
@@ -3247,8 +3619,7 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
         voiceEngine.pitch = 0.84;
         if (customAudio.isLoaded) customAudio.pause();
       } else if (mode === 'female') {
-        btnAudioFemale.classList.add('active');
-        cardFemale.classList.add('active');
+        markActive(btnAudioFemale, cardFemale);
         cardFemale.querySelector('.audio-card-status').textContent = 'ACTIVE';
         modeName = '👩 FEMALE AI VOICE';
         hudAudioModeBadge.textContent = 'AUDIO: 👩 FEMALE AI VOICE';
@@ -3264,8 +3635,7 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
         voiceEngine.pitch = 1.06;
         if (customAudio.isLoaded) customAudio.pause();
       } else if (mode === 'custom') {
-        btnAudioCustom.classList.add('active');
-        cardCustom.classList.add('active');
+        markActive(btnAudioCustom, cardCustom);
         cardCustom.querySelector('.audio-card-status').textContent = 'ACTIVE';
         modeName = '🎙️ CUSTOM UPLOADED AUDIO';
         hudAudioModeBadge.textContent = 'AUDIO: 🎙️ CUSTOM AUDIO TRACK';
@@ -3279,8 +3649,7 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
           customAudio.play(mainVideoPlayer.currentTime);
         }
       } else if (mode === 'native') {
-        btnAudioNative.classList.add('active');
-        cardNative.classList.add('active');
+        markActive(btnAudioNative, cardNative);
         cardNative.querySelector('.audio-card-status').textContent = 'ACTIVE';
         modeName = '🔊 VIDEO NATIVE AUDIO';
         hudAudioModeBadge.textContent = 'AUDIO: 🔊 VIDEO NATIVE SOUND';
@@ -3292,7 +3661,12 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
         if (customAudio.isLoaded) customAudio.pause();
       }
 
-      showToast(`Active Audio: ${modeName}`);
+      if (!silent) showToast(`Active Audio: ${modeName}`);
+    }
+
+    // Initial state without a toast (the app is not "switching" to male on load).
+    function applyAudioModeSilently(mode) {
+      setAudioMode(mode, true);
     }
 
     // Attach click events to choice buttons & cards
@@ -3301,13 +3675,50 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
     btnAudioCustom.addEventListener('click', () => setAudioMode('custom'));
     btnAudioNative.addEventListener('click', () => setAudioMode('native'));
 
-    cardMale.addEventListener('click', () => setAudioMode('male'));
-    cardFemale.addEventListener('click', () => setAudioMode('female'));
-    cardCustom.addEventListener('click', () => setAudioMode('custom'));
-    cardNative.addEventListener('click', () => setAudioMode('native'));
+    const audioCards = [
+      [cardMale, 'male'], [cardFemale, 'female'],
+      [cardCustom, 'custom'], [cardNative, 'native']
+    ];
+    audioCards.forEach(([card, mode]) => {
+      card.addEventListener('click', () => setAudioMode(mode));
+      // Keyboard activation: the cards are role="button" so Enter/Space must work.
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+          e.preventDefault();
+          setAudioMode(mode);
+        }
+      });
+    });
 
-    // Audio upload click
+    // Make role="button" divs behave like buttons for Enter/Space.
+    function activateOnKey(el, handler) {
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+          e.preventDefault();
+          handler();
+        }
+      });
+    }
+    activateOnKey(videoDropzone, () => videoFileInput.click());
+    activateOnKey(audioUploadBox, () => customAudioFileInput.click());
+
+    // Audio upload: click, keyboard, and the drag & drop the copy already promises.
     audioUploadBox.addEventListener('click', () => customAudioFileInput.click());
+    ['dragenter', 'dragover'].forEach(evt => audioUploadBox.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      audioUploadBox.classList.add('dragover');
+    }));
+    ['dragleave', 'drop'].forEach(evt => audioUploadBox.addEventListener(evt, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      audioUploadBox.classList.remove('dragover');
+    }));
+    audioUploadBox.addEventListener('drop', (e) => {
+      const file = e.dataTransfer?.files?.[0];
+      if (file) customAudio.loadFile(file);
+    });
+
     customAudioFileInput.addEventListener('change', (e) => {
       if (e.target.files && e.target.files[0]) {
         customAudio.loadFile(e.target.files[0]);
@@ -3330,6 +3741,11 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
     });
 
     function populateVoiceSelect() {
+      // Repopulating must not discard a voice the user already picked.
+      const previousIndex = voiceEngine.manualVoice
+        ? voiceEngine.allVoices.indexOf(voiceEngine.manualVoice)
+        : -1;
+
       selectVoice.innerHTML = '<option value="">Auto-Matched System Voice (Default)</option>';
       voiceEngine.allVoices.forEach((v, idx) => {
         const opt = document.createElement('option');
@@ -3337,6 +3753,8 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
         opt.textContent = `${v.name} (${v.lang})${v.default ? ' — System Default' : ''}`;
         selectVoice.appendChild(opt);
       });
+
+      if (previousIndex >= 0) selectVoice.value = String(previousIndex);
     }
 
     selectVoice.addEventListener('change', (e) => {
@@ -3391,26 +3809,59 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
         const card = document.createElement('div');
         card.className = 'cue-card';
         card.id = `cueCard_${cue.id}`;
+        // All interpolations are escaped: cue.text/cue.subtitle originate from
+        // user-pasted or imported script files.
         card.innerHTML = `
           <div class="cue-card-header">
             <div style="display:flex; align-items:center; gap:0.5rem;">
               <span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--accent-gold); font-weight:600;">CUE #${index + 1}</span>
               <span style="font-size:0.7rem; color:var(--text-muted);">AT TIME:</span>
-              <input class="cue-time-input" type="text" value="${formatTime(cue.time)}" id="cueTimeInput_${cue.id}" title="Enter time in MM:SS (e.g. 00:15)">
+              <input class="cue-time-input" type="text" value="${esc(formatTime(cue.time))}" id="cueTimeInput_${cue.id}" title="Enter time in MM:SS (e.g. 00:15)">
             </div>
             <div style="display:flex; gap:0.35rem;">
-              <button class="cue-btn" onclick="jumpToCue(${cue.time})">⏱️ Jump to Time</button>
-              <button class="cue-btn" onclick="auditionCue(${cue.id})">🔊 Audition</button>
-              <button class="cue-btn" onclick="deleteCue(${cue.id})" style="color:var(--accent-red);">&times;</button>
+              <button class="cue-btn" type="button" data-act="jump">⏱️ Jump to Time</button>
+              <button class="cue-btn" type="button" data-act="audition">🔊 Audition</button>
+              <button class="cue-btn" type="button" data-act="delete" aria-label="Delete cue ${index + 1}" style="color:var(--accent-red);">&times;</button>
             </div>
           </div>
           <div>
-            <textarea class="cue-textarea" id="cueTextInput_${cue.id}" rows="2" placeholder="Spoken voiceover narration for this moment...">${cue.text || ''}</textarea>
+            <textarea class="cue-textarea" id="cueTextInput_${cue.id}" rows="2" placeholder="Spoken voiceover narration for this moment...">${esc(cue.text || '')}</textarea>
           </div>
           <div>
-            <input class="cue-subtitle-input" type="text" id="cueSubInput_${cue.id}" value="${(cue.subtitle || '').replace(/"/g, '&quot;')}" placeholder="On-screen subtitle display...">
+            <input class="cue-subtitle-input" type="text" id="cueSubInput_${cue.id}" value="${esc(cue.subtitle || '')}" placeholder="On-screen subtitle display...">
           </div>
         `;
+        card.querySelector('[data-act="jump"]').addEventListener('click', () => jumpToCue(cue.time));
+        card.querySelector('[data-act="audition"]').addEventListener('click', () => auditionCue(cue.id));
+        card.querySelector('[data-act="delete"]').addEventListener('click', () => deleteCue(cue.id));
+
+        // Mirror field edits into the cue so they persist and survive a reload.
+        const timeField = card.querySelector('.cue-time-input');
+        const textField = card.querySelector('.cue-textarea');
+        const subField = card.querySelector('.cue-subtitle-input');
+
+        if (timeField) {
+          timeField.addEventListener('input', () => {
+            const parsed = parseTimeString(timeField.value);
+            if (Number.isFinite(parsed)) {
+              cue.time = parsed;
+              resetSpokenCursor();
+            }
+            scheduleCueSave();
+          });
+        }
+        if (textField) {
+          textField.addEventListener('input', () => {
+            cue.text = textField.value;
+            scheduleCueSave();
+          });
+        }
+        if (subField) {
+          subField.addEventListener('input', () => {
+            cue.subtitle = subField.value;
+            scheduleCueSave();
+          });
+        }
         cuesContainer.appendChild(card);
       });
 
@@ -3421,7 +3872,7 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
       if (!isVideoLoaded) return;
       mainVideoPlayer.currentTime = timeSec;
       if (customAudio.isLoaded) customAudio.seek(timeSec);
-      updateSubtitleForTime(timeSec);
+      updateSubtitlesForTime(timeSec);
       showToast(`Jumped to: ${formatTime(timeSec)}`);
     };
 
@@ -3436,6 +3887,9 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
 
     window.deleteCue = function (cueId) {
       SCRIPT_CUES = SCRIPT_CUES.filter(c => c.id !== cueId);
+      if (cueSaveTimer) { clearTimeout(cueSaveTimer); cueSaveTimer = null; }
+      saveScriptCues();
+      resetSpokenCursor();
       renderCuesList();
       showToast('Cue removed.');
     };
@@ -3449,6 +3903,9 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
         text: "",
         subtitle: ""
       });
+      if (cueSaveTimer) { clearTimeout(cueSaveTimer); cueSaveTimer = null; }
+      saveScriptCues();
+      resetSpokenCursor();
       renderCuesList();
       showToast(`+ Added speech cue at ${formatTime(nextTime)}`);
       // Scroll to bottom
@@ -3456,7 +3913,17 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
     });
 
     // Master Script parser
-    function syncMasterScriptTextarea() {
+    // The textarea is the user's source of truth once they have typed in it, so a
+    // cue-list re-render must never silently clobber a handwritten script.
+    let masterScriptDirty = false;
+
+    function markMasterScriptDirty() {
+      masterScriptDirty = true;
+    }
+
+    function syncMasterScriptTextarea(force) {
+      if (!masterScriptArea) return;
+      if (masterScriptDirty && !force) return;
       if (!SCRIPT_CUES || SCRIPT_CUES.length === 0) {
         masterScriptArea.value = "";
         return;
@@ -3469,6 +3936,17 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
       });
       masterScriptArea.value = txt.trim();
     }
+
+    // Explicit clears (new video, "Clear Script") must also wipe the textarea.
+    // Without this the dirty flag would keep the old script on screen, so
+    // distributing would silently resurrect the cues the user just deleted.
+    function clearMasterScriptTextarea() {
+      masterScriptDirty = false;
+      if (masterScriptArea) masterScriptArea.value = "";
+    }
+
+    masterScriptArea.addEventListener('input', () => markMasterScriptDirty());
+    masterScriptArea.addEventListener('change', () => markMasterScriptDirty());
 
     // -------------------------------------------------------------
     // AI FRAME-BY-FRAME VIDEO ANALYSIS & SCRIPT SYNTHESIS ENGINE
@@ -3496,10 +3974,11 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
 
         this.isScanning = true;
         this.shouldCancel = false;
-        const totalDuration = this.video.duration;
         const savedTime = this.video.currentTime;
         const wasPaused = this.video.paused;
+        try {
         this.video.pause();
+        const totalDuration = this.video.duration;
 
         // Sample between 8 and 20 keyframes across the video
         const sampleCount = Math.min(20, Math.max(8, Math.floor(totalDuration / 2.8)));
@@ -3573,8 +4052,13 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
             moodKey = 'cool';
           }
 
-          // Scene Cut threshold
-          const isCut = (i === 0) || (delta > 22) || (targetTime - (sampledFrames[sampledFrames.length - 1]?.time || 0) > 12);
+          // Scene cut detection. `delta` is the mean absolute per-channel difference
+          // between two downscaled 8-bit frames, so a real cut lands well above ~22.
+          // A cut also has to be at least a couple of sample intervals away, which keeps
+          // the detector from firing on every frame of long (>4min) videos.
+          const prevTime = sampledFrames.length ? sampledFrames[sampledFrames.length - 1].time : 0;
+          const minCutGap = sampleInterval * 1.5;
+          const isCut = (i === 0) || (delta > 22 && targetTime - prevTime > minCutGap);
           const thumbUrl = this.canvas.toDataURL('image/jpeg', 0.65);
 
           const frameInfo = {
@@ -3607,15 +4091,20 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
           await new Promise(r => setTimeout(r, 60));
         }
 
-        this.video.currentTime = savedTime;
-        if (!wasPaused) this.video.play().catch(() => {});
-        this.isScanning = false;
-
         if (!this.shouldCancel && onComplete) {
           const generatedScript = this.synthesizeSceneScript(detectedScenes, sampledFrames, totalDuration);
           onComplete(generatedScript);
         }
+      } finally {
+        this.isScanning = false;
+        try {
+          this.video.currentTime = savedTime;
+          if (!wasPaused) this.video.play().catch(() => {});
+        } catch (e) {
+          console.warn('Frame analysis restore failed:', e);
+        }
       }
+    }
 
       seekToTime(seconds) {
         return new Promise((resolve) => {
@@ -3705,12 +4194,29 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
     }
 
     let activeFrameAnalyzer = null;
+    // Monotonic token: every new scan (or cancel) bumps it, so a stale analyzer's
+    // callbacks become no-ops instead of clobbering SCRIPT_CUES non-deterministically.
+    let frameScanToken = 0;
+
+    function setFrameScanTriggersDisabled(disabled) {
+      [btnWorkflowStartFrameScan, btnDeckStartFrameScan, btnDeckFullTextFrameScan,
+       btnApplyScriptLive, btnLoadSceneTemplate, btnDistributeMasterText]
+        .forEach(b => { if (b) b.disabled = disabled; });
+    }
 
     function startFrameByFrameAnalysis() {
       if (!isVideoLoaded || !mainVideoPlayer.duration) {
         showToast('Please upload or load a video first to analyze its frames.', true);
         return;
       }
+      if (activeFrameAnalyzer && activeFrameAnalyzer.isScanning) {
+        showToast('A frame scan is already running - cancel it first.');
+        return;
+      }
+
+      // Invalidate any previous analyzer before starting a new one.
+      if (activeFrameAnalyzer) activeFrameAnalyzer.cancel();
+      const token = ++frameScanToken;
 
       dismissWorkflowBanner();
       if (frameScannerOverlay) {
@@ -3722,12 +4228,15 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
       if (filmstripCount) filmstripCount.textContent = '0 keyframes';
       if (scannerProgressBar) scannerProgressBar.style.width = '0%';
       if (scannerStatusText) scannerStatusText.textContent = 'Scanning video frame-by-frame...';
+      setFrameScanTriggersDisabled(true);
 
-      activeFrameAnalyzer = new VideoFrameAnalyzer(mainVideoPlayer);
+      const analyzer = new VideoFrameAnalyzer(mainVideoPlayer);
+      activeFrameAnalyzer = analyzer;
 
-      activeFrameAnalyzer.analyzeVideo(
+      analyzer.analyzeVideo(
         // Progress Callback
         (data) => {
+          if (token !== frameScanToken) return;
           if (scannerProgressBar) scannerProgressBar.style.width = `${data.percent}%`;
           if (scannerStatusText) {
             scannerStatusText.textContent = `Analyzing Frame ${data.current} of ${data.total} (${data.percent}%)...`;
@@ -3752,10 +4261,13 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
             const thumbCard = document.createElement('div');
             thumbCard.className = `scanner-thumb-card ${data.frame.isCut ? 'is-cut' : ''}`;
             thumbCard.title = `Time: ${formatTime(data.frame.time)} | ${data.frame.mood}`;
-            thumbCard.innerHTML = `
-              <img src="${data.frame.thumbUrl}" alt="Keyframe ${data.current}">
-              <span class="scanner-thumb-badge">${formatTime(data.frame.time)}</span>
-            `;
+            const img = document.createElement('img');
+            img.src = data.frame.thumbUrl;
+            img.alt = `Keyframe ${data.current}`;
+            const badge = document.createElement('span');
+            badge.className = 'scanner-thumb-badge';
+            badge.textContent = formatTime(data.frame.time);
+            thumbCard.append(img, badge);
             scannerFilmstrip.appendChild(thumbCard);
             scannerFilmstrip.scrollLeft = scannerFilmstrip.scrollWidth;
           }
@@ -3764,10 +4276,15 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
         // Complete Callback
         (result) => {
           setTimeout(() => {
+            if (token !== frameScanToken) return;
             if (frameScannerOverlay) frameScannerOverlay.style.display = 'none';
+            setFrameScanTriggersDisabled(false);
 
             SCRIPT_CUES = result.cues;
+            saveScriptCues();
+            resetSpokenCursor();
             renderCuesList();
+            markMasterScriptDirty();
             if (masterScriptArea) masterScriptArea.value = result.masterText;
 
             // Reset video to start
@@ -3777,13 +4294,20 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
             showToast(`✨ AI generated ${result.cues.length} scene-by-scene script cues from video frame analysis!`);
           }, 400);
         }
-      );
+      ).catch(() => {
+        if (token !== frameScanToken) return;
+        if (frameScannerOverlay) frameScannerOverlay.style.display = 'none';
+        setFrameScanTriggersDisabled(false);
+      });
     }
 
     function cancelFrameAnalysis() {
+      frameScanToken++;
       if (activeFrameAnalyzer) {
         activeFrameAnalyzer.cancel();
       }
+      activeFrameAnalyzer = null;
+      setFrameScanTriggersDisabled(false);
       if (frameScannerOverlay) {
         frameScannerOverlay.style.display = 'none';
       }
@@ -3861,16 +4385,50 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
       return cues;
     }
 
+    const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    let sceneModalReturnFocus = null;
+
     function openSceneScriptModal() {
       dismissWorkflowBanner();
       if (sceneScriptModal) {
+        sceneModalReturnFocus = document.activeElement;
         sceneScriptModal.style.display = 'flex';
         updateSceneScriptPreview();
+        // Move focus into the dialog so keyboard and screen-reader users land here.
+        (sceneScriptInputArea || sceneScriptModal.querySelector('button'))?.focus();
       }
     }
 
     function closeSceneScriptModal() {
       if (sceneScriptModal) sceneScriptModal.style.display = 'none';
+      // Return focus to whatever opened the dialog.
+      if (sceneModalReturnFocus && typeof sceneModalReturnFocus.focus === 'function') {
+        sceneModalReturnFocus.focus();
+      }
+      sceneModalReturnFocus = null;
+    }
+
+    // Escape closes the dialog; Tab is trapped inside it.
+    function trapSceneModalFocus(e) {
+      if (!sceneScriptModal || sceneScriptModal.style.display === 'none') return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeSceneScriptModal();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const focusables = [...sceneScriptModal.querySelectorAll(FOCUSABLE_SELECTOR)]
+        .filter(el => el.offsetParent !== null);
+      if (!focusables.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
 
     function updateSceneScriptPreview() {
@@ -3895,13 +4453,22 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
       parsed.forEach((cue, idx) => {
         const item = document.createElement('div');
         item.className = 'scene-preview-card';
-        item.innerHTML = `
-          <div class="scene-preview-header">
-            <span>SCENE #${idx + 1}</span>
-            <span>AT ${formatTime(cue.time)}</span>
-          </div>
-          <div style="color:#e2e8f0; font-size:0.76rem;">${cue.text}</div>
-        `;
+
+        const header = document.createElement('div');
+        header.className = 'scene-preview-header';
+        const label = document.createElement('span');
+        label.textContent = `SCENE #${idx + 1}`;
+        const at = document.createElement('span');
+        at.textContent = `AT ${formatTime(cue.time)}`;
+        header.append(label, at);
+
+        // textContent, never innerHTML: cue.text comes from user-pasted / imported scripts.
+        const body = document.createElement('div');
+        body.style.color = '#e2e8f0';
+        body.style.fontSize = '0.76rem';
+        body.textContent = cue.text;
+
+        item.append(header, body);
         sceneParsedPreviewContainer.appendChild(item);
       });
     }
@@ -4062,12 +4629,33 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
     // -------------------------------------------------------------
     // SUBTITLE SUITE LIST & RENDERING
     // -------------------------------------------------------------
+    // Cache of subtitle id -> card element, rebuilt on every full render, so the
+    // timeupdate highlighter never runs a document-wide querySelectorAll.
+    let subCardIndex = new Map();
+    let lastHighlightedSubId = null;
+
+    // Update a single subtitle row in place. Used instead of a full re-render so
+    // that editing a time field never deletes the input that has focus.
+    function refreshSubRow(sub) {
+      const card = subCardIndex.get(sub.id);
+      if (!card) return;
+      const startIn = card.querySelector('.sub-start-input');
+      const endIn = card.querySelector('.sub-end-input');
+      const badge = card.querySelector('.sub-dur-badge');
+      if (startIn) startIn.value = formatSubCueTime(sub.start);
+      if (endIn) endIn.value = formatSubCueTime(sub.end);
+      if (badge) badge.textContent = `${(sub.end - sub.start).toFixed(1)}s`;
+    }
+
     function renderSubtitlesList() {
       if (!subtitlesContainer) return;
 
       SUBTITLES.sort((a, b) => a.start - b.start);
       if (subCountReadout) subCountReadout.textContent = `${SUBTITLES.length} cues loaded`;
       if (hudSubtitlesStatus) hudSubtitlesStatus.textContent = subtitlesEnabled ? `ON (${SUBTITLES.length} CUES)` : 'OFF';
+
+      subCardIndex = new Map();
+      lastHighlightedSubId = null;
 
       subtitlesContainer.innerHTML = '';
       if (SUBTITLES.length === 0) {
@@ -4079,68 +4667,70 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
         return;
       }
 
+      const frag = document.createDocumentFragment();
       SUBTITLES.forEach((sub, idx) => {
         const card = document.createElement('div');
         card.className = 'sub-item-card';
         card.id = `subCard_${sub.id}`;
         const dur = (sub.end - sub.start).toFixed(1);
 
+        // sub.text originates from imported SRT/VTT or the script editor: escape it.
         card.innerHTML = `
           <div class="sub-item-header">
             <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
               <span style="font-family:var(--font-mono); font-size:0.74rem; color:var(--accent-gold); font-weight:700;">#${idx + 1}</span>
               <div class="sub-time-group">
                 <span>IN:</span>
-                <input class="sub-time-input" id="subStartInput_${sub.id}" value="${formatSubCueTime(sub.start)}" title="Start time (MM:SS.s)">
+                <input class="sub-time-input sub-start-input" id="subStartInput_${sub.id}" value="${esc(formatSubCueTime(sub.start))}" title="Start time (MM:SS.s)">
                 <span>OUT:</span>
-                <input class="sub-time-input" id="subEndInput_${sub.id}" value="${formatSubCueTime(sub.end)}" title="End time (MM:SS.s)">
+                <input class="sub-time-input sub-end-input" id="subEndInput_${sub.id}" value="${esc(formatSubCueTime(sub.end))}" title="End time (MM:SS.s)">
                 <span class="sub-dur-badge">${dur}s</span>
               </div>
             </div>
             <div style="display:flex; gap:0.35rem;">
-              <button class="cue-btn" onclick="jumpToSubTime(${sub.start})" title="Jump video to this subtitle start time">▶ Play</button>
-              <button class="cue-btn" onclick="captureSubStart(${sub.id})" title="Set start time to current video playback time">⏱ Set In</button>
-              <button class="cue-btn" onclick="captureSubEnd(${sub.id})" title="Set end time to current video playback time">⏱ Set Out</button>
-              <button class="cue-btn" onclick="deleteSubLine(${sub.id})" style="color:var(--accent-red);" title="Delete subtitle line">&times;</button>
+              <button class="cue-btn" type="button" data-act="play" title="Jump video to this subtitle start time">▶ Play</button>
+              <button class="cue-btn" type="button" data-act="setin" title="Set start time to current video playback time">⏱ Set In</button>
+              <button class="cue-btn" type="button" data-act="setout" title="Set end time to current video playback time">⏱ Set Out</button>
+              <button class="cue-btn" type="button" data-act="delete" aria-label="Delete subtitle ${idx + 1}" style="color:var(--accent-red);" title="Delete subtitle line">&times;</button>
             </div>
           </div>
           <div>
-            <textarea class="sub-text-input" id="subTextInput_${sub.id}" rows="2" placeholder="Subtitle caption text...">${(sub.text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+            <textarea class="sub-text-input" id="subTextInput_${sub.id}" rows="2" placeholder="Subtitle caption text...">${esc(sub.text || '')}</textarea>
           </div>
         `;
-        subtitlesContainer.appendChild(card);
-      });
 
-      // Bind input changes to update state
-      SUBTITLES.forEach(sub => {
-        const startIn = document.getElementById(`subStartInput_${sub.id}`);
-        const endIn = document.getElementById(`subEndInput_${sub.id}`);
-        const textIn = document.getElementById(`subTextInput_${sub.id}`);
+        const startIn = card.querySelector('.sub-start-input');
+        const endIn = card.querySelector('.sub-end-input');
+        const textIn = card.querySelector('.sub-text-input');
 
-        if (startIn) {
-          startIn.addEventListener('change', () => {
-            sub.start = parseSubCueTime(startIn.value);
-            saveSubtitles();
-            renderSubtitlesList();
-            if (isVideoLoaded) updateSubtitlesForTime(mainVideoPlayer.currentTime);
-          });
-        }
-        if (endIn) {
-          endIn.addEventListener('change', () => {
-            sub.end = parseSubCueTime(endIn.value);
-            saveSubtitles();
-            renderSubtitlesList();
-            if (isVideoLoaded) updateSubtitlesForTime(mainVideoPlayer.currentTime);
-          });
-        }
-        if (textIn) {
-          textIn.addEventListener('input', () => {
-            sub.text = textIn.value;
-            saveSubtitles();
-            if (isVideoLoaded) updateSubtitlesForTime(mainVideoPlayer.currentTime);
-          });
-        }
+        startIn.addEventListener('change', () => {
+          sub.start = parseSubCueTime(startIn.value);
+          if (sub.end <= sub.start) sub.end = parseFloat((sub.start + 1.0).toFixed(1));
+          saveSubtitles();
+          refreshSubRow(sub);
+          if (isVideoLoaded) updateSubtitlesForTime(mainVideoPlayer.currentTime);
+        });
+        endIn.addEventListener('change', () => {
+          sub.end = parseSubCueTime(endIn.value);
+          if (sub.end <= sub.start) sub.start = parseFloat(Math.max(0, sub.end - 1.0).toFixed(1));
+          saveSubtitles();
+          refreshSubRow(sub);
+          if (isVideoLoaded) updateSubtitlesForTime(mainVideoPlayer.currentTime);
+        });
+        textIn.addEventListener('input', () => {
+          sub.text = textIn.value;
+          saveSubtitles();
+        });
+
+        card.querySelector('[data-act="play"]').addEventListener('click', () => jumpToSubTime(sub.start));
+        card.querySelector('[data-act="setin"]').addEventListener('click', () => captureSubStart(sub.id));
+        card.querySelector('[data-act="setout"]').addEventListener('click', () => captureSubEnd(sub.id));
+        card.querySelector('[data-act="delete"]').addEventListener('click', () => deleteSubLine(sub.id));
+
+        subCardIndex.set(sub.id, card);
+        frag.appendChild(card);
       });
+      subtitlesContainer.appendChild(frag);
     }
 
     window.jumpToSubTime = function (startSec) {
@@ -4161,7 +4751,7 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
         sub.start = parseFloat(mainVideoPlayer.currentTime.toFixed(1));
         if (sub.end <= sub.start) sub.end = parseFloat((sub.start + 3.0).toFixed(1));
         saveSubtitles();
-        renderSubtitlesList();
+        refreshSubRow(sub);
         showToast(`Set Subtitle #${SUBTITLES.indexOf(sub) + 1} start to ${formatSubCueTime(sub.start)}`);
       }
     };
@@ -4173,7 +4763,7 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
         sub.end = parseFloat(mainVideoPlayer.currentTime.toFixed(1));
         if (sub.end <= sub.start) sub.start = parseFloat(Math.max(0, sub.end - 1.0).toFixed(1));
         saveSubtitles();
-        renderSubtitlesList();
+        refreshSubRow(sub);
         showToast(`Set Subtitle #${SUBTITLES.indexOf(sub) + 1} end to ${formatSubCueTime(sub.end)}`);
       }
     };
@@ -4187,7 +4777,7 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
     };
 
     // Subtitles Toggle Controller (CC)
-    function toggleSubtitles(forcedState) {
+    function toggleSubtitles(forcedState, silent) {
       if (typeof forcedState === 'boolean') {
         subtitlesEnabled = forcedState;
       } else {
@@ -4196,6 +4786,7 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
 
       if (btnToggleCC) {
         btnToggleCC.classList.toggle('active', subtitlesEnabled);
+        btnToggleCC.setAttribute('aria-pressed', String(subtitlesEnabled));
       }
       if (ccBadgeDot) {
         ccBadgeDot.className = subtitlesEnabled ? 'cc-badge-active' : 'cc-badge-inactive';
@@ -4203,8 +4794,8 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       if (ccStatusText) {
         ccStatusText.textContent = subtitlesEnabled ? 'Subtitles: ON' : 'Subtitles: OFF';
       }
-      if (bannerCCText) {
-        bannerCCText.textContent = subtitlesEnabled ? 'Captions: ON' : 'Captions: OFF';
+      if (hudSubtitlesBadge) {
+        hudSubtitlesBadge.setAttribute('aria-pressed', String(subtitlesEnabled));
       }
       if (hudSubtitlesStatus) {
         hudSubtitlesStatus.textContent = subtitlesEnabled ? `ON (${SUBTITLES.length} CUES)` : 'OFF';
@@ -4214,7 +4805,19 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
         updateSubtitlesForTime(mainVideoPlayer.currentTime);
       }
 
-      showToast(`Subtitles & Captions: ${subtitlesEnabled ? 'ENABLED' : 'DISABLED'}`);
+      if (!silent) showToast(`Subtitles & Captions: ${subtitlesEnabled ? 'ENABLED' : 'DISABLED'}`);
+    }
+
+    // Collapse subtitle text to a single SRT-safe line. A blank line inside a cue
+    // desynchronises every index that follows it, and a literal "-->" splits the
+    // cue when the file is re-imported.
+    function sanitizeSubtitleText(text) {
+      return String(text || '')
+        .replace(/\r\n/g, '\n')
+        .split('\n')
+        .map(line => line.replace(/-->/g, '\u2192').trim())
+        .filter(Boolean)
+        .join(' ');
     }
 
     // Export Subtitles (.SRT & .VTT)
@@ -4228,9 +4831,9 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       SUBTITLES.forEach((sub, idx) => {
         srt += `${idx + 1}\n`;
         srt += `${formatSrtTimestamp(sub.start)} --> ${formatSrtTimestamp(sub.end)}\n`;
-        srt += `${sub.text}\n\n`;
+        srt += `${sanitizeSubtitleText(sub.text)}\n\n`;
       });
-      const blob = new Blob([srt], { type: 'text/plain;charset=utf-8' });
+      const blob = new Blob(['\uFEFF' + srt], { type: 'text/plain;charset=utf-8' });
       downloadBlob(blob, 'cinevoice_subtitles.srt');
       showToast('Downloaded cinevoice_subtitles.srt');
     }
@@ -4245,7 +4848,7 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       SUBTITLES.forEach((sub, idx) => {
         vtt += `${idx + 1}\n`;
         vtt += `${formatVttTimestamp(sub.start)} --> ${formatVttTimestamp(sub.end)}\n`;
-        vtt += `${sub.text}\n\n`;
+        vtt += `${sanitizeSubtitleText(sub.text)}\n\n`;
       });
       const blob = new Blob([vtt], { type: 'text/vtt;charset=utf-8' });
       downloadBlob(blob, 'cinevoice_subtitles.vtt');
@@ -4303,7 +4906,6 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
 
     // CC Toggle Button listeners
     if (btnToggleCC) btnToggleCC.addEventListener('click', () => toggleSubtitles());
-    if (btnBannerToggleCC) btnBannerToggleCC.addEventListener('click', () => toggleSubtitles());
     if (btnBannerDismiss) btnBannerDismiss.addEventListener('click', dismissSubtitleBanner);
 
     // Subtitle upload buttons
@@ -4358,7 +4960,15 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
     if (btnCancelSceneModal) btnCancelSceneModal.addEventListener('click', closeSceneScriptModal);
     if (btnModalUploadFile) btnModalUploadFile.addEventListener('click', () => sceneScriptFileInput.click());
     if (btnModalLoadTemplate) btnModalLoadTemplate.addEventListener('click', loadSampleSceneTemplate);
-    if (sceneScriptInputArea) sceneScriptInputArea.addEventListener('input', updateSceneScriptPreview);
+    if (sceneScriptInputArea) {
+      // Reparsing + rebuilding a card per scene on every keystroke is unusable for
+      // a long screenplay, so coalesce rapid input.
+      let scenePreviewTimer = null;
+      sceneScriptInputArea.addEventListener('input', () => {
+        clearTimeout(scenePreviewTimer);
+        scenePreviewTimer = setTimeout(updateSceneScriptPreview, 200);
+      });
+    }
     if (btnApplySceneScript) btnApplySceneScript.addEventListener('click', applyParsedSceneScript);
 
     // Deck script action buttons
@@ -4487,51 +5097,55 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
             });
           }
         }
-        if (newCues.length) {
-          SCRIPT_CUES = newCues;
-          renderCuesList();
-          tabCues.click();
-          showToast(`✓ Parsed ${newCues.length} speech cues from master script!`);
-          return;
-        }
+      if (newCues.length) {
+        SCRIPT_CUES = newCues;
+        saveScriptCues();
+        resetSpokenCursor();
+        renderCuesList();
+        tabCues.click();
+        showToast(`✓ Parsed ${newCues.length} speech cues from master script!`);
+        return;
       }
+    }
 
-      const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-      const totalDur = (isVideoLoaded && mainVideoPlayer.duration) ? mainVideoPlayer.duration : 120;
-      const step = Math.max(5, Math.floor(totalDur / (lines.length || 1)));
+    const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if (!lines.length) {
+      showToast('Nothing to distribute - the master script is empty.', true);
+      return;
+    }
+    const totalDur = (isVideoLoaded && mainVideoPlayer.duration) ? mainVideoPlayer.duration : 120;
+    const step = Math.max(5, Math.floor(totalDur / lines.length));
 
-      SCRIPT_CUES = lines.map((line, idx) => ({
-        id: Date.now() + idx,
-        time: idx * step,
-        text: line,
-        subtitle: ""
-      }));
+    SCRIPT_CUES = lines.map((line, idx) => ({
+      id: Date.now() + idx,
+      time: idx * step,
+      text: line,
+      subtitle: ""
+    }));
 
-      renderCuesList();
-      tabCues.click();
-      showToast(`✓ Distributed ${lines.length} lines evenly across video!`);
+    saveScriptCues();
+    resetSpokenCursor();
+    renderCuesList();
+    tabCues.click();
+    showToast(`✓ Distributed ${lines.length} lines evenly across video!`);
+  });
+
+  // Save and Apply Script
+  btnApplyScriptLive.addEventListener('click', () => {
+    SCRIPT_CUES.forEach(cue => {
+      const timeInput = document.getElementById(`cueTimeInput_${cue.id}`);
+      const textInput = document.getElementById(`cueTextInput_${cue.id}`);
+      const subInput = document.getElementById(`cueSubInput_${cue.id}`);
+      if (timeInput) cue.time = parseTimeString(timeInput.value);
+      if (textInput) cue.text = textInput.value.trim();
+      if (subInput) cue.subtitle = subInput.value.trim();
     });
 
-    // Save and Apply Script
-    btnApplyScriptLive.addEventListener('click', () => {
-      SCRIPT_CUES.forEach(cue => {
-        const timeInput = document.getElementById(`cueTimeInput_${cue.id}`);
-        const textInput = document.getElementById(`cueTextInput_${cue.id}`);
-        const subInput = document.getElementById(`cueSubInput_${cue.id}`);
-        if (timeInput) cue.time = parseTimeString(timeInput.value);
-        if (textInput) cue.text = textInput.value.trim();
-        if (subInput) cue.subtitle = subInput.value.trim();
-      });
-
-      try {
-        localStorage.setItem('cinevoice_script_cues', JSON.stringify(SCRIPT_CUES));
-      } catch (e) {
-        console.warn('LocalStorage save failed:', e);
-      }
-
-      lastSpokenCueId = null;
-      showToast('✨ Screenplay Script Applied to Video!');
-    });
+    if (cueSaveTimer) { clearTimeout(cueSaveTimer); cueSaveTimer = null; }
+    saveScriptCues();
+    resetSpokenCursor();
+    showToast('✨ Screenplay Script Applied to Video!');
+  });
 
     btnResetScript.addEventListener('click', () => {
       if (confirm('Clear all narration script cues?')) {
@@ -4539,6 +5153,9 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
         SUBTITLES = [];
         localStorage.removeItem('cinevoice_script_cues');
         localStorage.removeItem('cinevoice_subtitles');
+        if (cueSaveTimer) { clearTimeout(cueSaveTimer); cueSaveTimer = null; }
+        resetSpokenCursor();
+        clearMasterScriptTextarea();
         renderCuesList();
         renderSubtitlesList();
         toggleSubtitles(false);
@@ -4606,19 +5223,42 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       }
     });
 
-    // Letterbox Toggle (if button present)
+    // Letterbox Toggle (2.39:1 bars)
     if (btnToggleLetterbox) {
+      btnToggleLetterbox.setAttribute('aria-pressed', String(isLetterboxActive));
+      if (letterboxStatusText) letterboxStatusText.textContent = `Letterbox: ${isLetterboxActive ? 'ON' : 'OFF'}`;
       btnToggleLetterbox.addEventListener('click', () => {
         isLetterboxActive = !isLetterboxActive;
         boxTop.classList.toggle('hidden', !isLetterboxActive);
         boxBottom.classList.toggle('hidden', !isLetterboxActive);
-        btnToggleLetterbox.textContent = isLetterboxActive ? 'Letterbox: 2.39:1' : 'Letterbox: Off (Full 16:9)';
+        btnToggleLetterbox.setAttribute('aria-pressed', String(isLetterboxActive));
+        if (letterboxStatusText) letterboxStatusText.textContent = `Letterbox: ${isLetterboxActive ? 'ON' : 'OFF'}`;
         showToast(`Cinematic Letterbox: ${isLetterboxActive ? 'ON' : 'OFF'}`);
       });
     }
 
+    // Fullscreen Toggle
+    function toggleFullscreen() {
+      const target = videoPlayerFrame || mainVideoPlayer;
+      if (!document.fullscreenElement) {
+        (target.requestFullscreen ? target.requestFullscreen() : target.webkitRequestFullscreen?.())
+          ?.catch?.(err => console.warn('Fullscreen request failed:', err));
+      } else {
+        (document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen?.());
+      }
+    }
+
+    if (btnToggleFullscreen) {
+      btnToggleFullscreen.addEventListener('click', toggleFullscreen);
+      document.addEventListener('fullscreenchange', () => {
+        btnToggleFullscreen.setAttribute('aria-pressed', String(!!document.fullscreenElement));
+      });
+    }
+
     // Center Trigger Click & Play Pause
-    videoCenterTrigger.addEventListener('click', togglePlay);
+    // The overlay itself is click-through (it covers the HUD), so only the round
+    // button handles clicks.
+    if (videoCenterPlayBtn) videoCenterPlayBtn.addEventListener('click', togglePlay);
     playPauseBtn.addEventListener('click', togglePlay);
     mainVideoPlayer.addEventListener('click', togglePlay);
 
@@ -4651,10 +5291,25 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;
-      a.target = '_blank';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+    }
+
+    // Last resort when a blob fetch is impossible. `download` is ignored for
+    // cross-origin URLs, so open a tab and say so plainly rather than claiming
+    // the file was saved.
+    function triggerExternalOpen(url, filename) {
+      const sameOrigin = (() => {
+        try { return new URL(url, window.location.href).origin === window.location.origin; }
+        catch (e) { return false; }
+      })();
+      if (sameOrigin) {
+        triggerDirectDownload(url, filename);
+        return true;
+      }
+      const w = window.open(url, '_blank', 'noopener');
+      return !!w;
     }
 
     async function downloadCurrentVideo() {
@@ -4670,24 +5325,27 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       }
 
       showToast(`Preparing download: ${filename}...`);
+      if (currentSrc.startsWith('blob:') || currentSrc.startsWith('data:')) {
+        triggerDirectDownload(currentSrc, filename);
+        showToast(`✓ Downloaded ${filename}`);
+        return;
+      }
+
       try {
-        if (currentSrc.startsWith('blob:') || currentSrc.startsWith('data:')) {
-          triggerDirectDownload(currentSrc, filename);
-          showToast(`✓ Downloaded ${filename}`);
-        } else {
-          // Fetch as blob for cross-origin URLs to trigger save dialog on all devices
-          const resp = await fetch(currentSrc);
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-          const blob = await resp.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          triggerDirectDownload(blobUrl, filename);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-          showToast(`✓ Downloaded ${filename}`);
-        }
+        const resp = await fetch(currentSrc);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        triggerDirectDownload(blobUrl, filename);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+        showToast(`✓ Downloaded ${filename}`);
       } catch (err) {
         console.warn('Blob fetch failed, falling back to direct link:', err);
-        triggerDirectDownload(currentSrc, filename);
-        showToast(`✓ Downloading ${filename}`);
+        const opened = triggerExternalOpen(currentSrc, filename);
+        showToast(opened
+          ? `This source can't be saved directly - opened ${filename} in a new tab, use your browser's save command.`
+          : `Couldn't open ${filename}. Pop-up blocked - copy the video URL from the player instead.`,
+          !opened);
       }
     }
 
@@ -4696,12 +5354,105 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
     if (btnDownloadCurrentVideo) btnDownloadCurrentVideo.addEventListener('click', downloadCurrentVideo);
     if (btnDeckDownloadVideo) btnDeckDownloadVideo.addEventListener('click', downloadCurrentVideo);
 
-    // Initialize UI on load: ZERO default subtitles
+    // -------------------------------------------------------------
+    // KEYBOARD SHORTCUTS
+    // Space/K play-pause · ←/→ seek 5s (Shift 10s) · ↑/↓ volume · M mute
+    // C captions · F fullscreen · L letterbox · / focus timeline · ? help
+    // -------------------------------------------------------------
+    function isTypingTarget(el) {
+      if (!el) return false;
+      const tag = el.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+    }
+
+    function toggleMute() {
+      mainVideoPlayer.muted = !mainVideoPlayer.muted;
+      showToast(mainVideoPlayer.muted ? '🔇 Muted' : '🔊 Unmuted');
+    }
+
+    document.addEventListener('keydown', (e) => {
+      // Modal handles its own Escape / Tab trap.
+      if (sceneScriptModal && sceneScriptModal.style.display !== 'none') {
+        trapSceneModalFocus(e);
+        if (e.defaultPrevented) return;
+      }
+
+      // Never hijack typing. Shift/Ctrl/Alt combinations belong to the browser.
+      if (isTypingTarget(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+
+      const dur = mainVideoPlayer.duration || 0;
+      const cur = mainVideoPlayer.currentTime || 0;
+
+      switch (e.key) {
+        case ' ':
+        case 'Spacebar':
+          e.preventDefault();
+          togglePlay();
+          break;
+        case 'k':
+        case 'K':
+          e.preventDefault();
+          togglePlay();
+          break;
+        case 'ArrowRight':
+          if (e.target === timelineContainer) return;
+          e.preventDefault();
+          seekTo(cur + (e.shiftKey ? 10 : 5));
+          break;
+        case 'ArrowLeft':
+          if (e.target === timelineContainer) return;
+          e.preventDefault();
+          seekTo(cur - (e.shiftKey ? 10 : 5));
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          sliderVideoVol.value = String(Math.min(1, sliderVideoVol.valueAsNumber + 0.05));
+          sliderVideoVol.dispatchEvent(new Event('input'));
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          sliderVideoVol.value = String(Math.max(0, sliderVideoVol.valueAsNumber - 0.05));
+          sliderVideoVol.dispatchEvent(new Event('input'));
+          break;
+        case 'm':
+        case 'M':
+          e.preventDefault();
+          toggleMute();
+          break;
+        case 'c':
+        case 'C':
+          e.preventDefault();
+          toggleSubtitles();
+          break;
+        case 'f':
+        case 'F':
+          e.preventDefault();
+          toggleFullscreen();
+          break;
+        case 'l':
+        case 'L':
+          e.preventDefault();
+          if (btnToggleLetterbox) btnToggleLetterbox.click();
+          break;
+        case '/':
+          e.preventDefault();
+          timelineContainer.focus();
+          break;
+        case '?':
+          e.preventDefault();
+          showToast('Shortcuts: Space play/pause · ←/→ seek · ↑/↓ volume · M mute · C captions · F fullscreen · L letterbox · / timeline');
+          break;
+        default:
+          return;
+      }
+    });
+
+    // Initialize UI: restore persisted cues/subtitles/styles, no spurious toasts
     renderCuesList();
     renderSubtitlesList();
     applySubStyles();
-    toggleSubtitles(false);
-    setAudioMode('male');
+    toggleSubtitles(subtitlesEnabled, true);
+    applyAudioModeSilently('male');
   </script>
 </body>
 

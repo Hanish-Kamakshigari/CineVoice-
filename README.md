@@ -62,7 +62,8 @@ CineVoice/
 ├── android-chrome-192x192.png / android-chrome-512x512.png
 ├── master_soundtrack.wav                     # Reference soundtrack
 ├── THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4 # Pre-rendered demonstration film
-├── Open_Film_And_Download.bat                # Windows helper: copy the film to Downloads
+├── Open_Film_And_Download.bat                # Windows launcher: copy the film to Downloads and open the studio
+├── LICENSE                                   # MIT license text
 └── audio_cache/                              # Generated voice-over cache (git-ignored)
 ```
 
@@ -73,7 +74,7 @@ CineVoice/
 ### 1. Web Studio Application
 Open `index.html` directly in a modern browser, or deploy the repository as static files to Vercel or any static host.
 
-> `Open_Film_And_Download.bat` opens `http://localhost:8080/`, so run a local server first (for example `python -m http.server 8080`) if you want that launcher to work.
+> **Windows:** double-click `Open_Film_And_Download.bat`. It copies the film to your Downloads folder, then starts a local web server on `http://localhost:8080` (bound to `127.0.0.1` only) and opens the studio. If Python is not installed it opens `index.html` straight from disk instead, which works because the studio is a single self-contained file.
 
 ### 2. Local Rendering Pipeline
 

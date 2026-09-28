@@ -5,6 +5,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CINEVOICE STUDIO — AI Video &amp; Voiceover Studio</title>
+
+  <!-- Favicon & Mobile Web App Icons -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="manifest" href="site.webmanifest">
+  <meta name="theme-color" content="#07090c">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -1820,7 +1829,9 @@
   <!-- Header -->
   <header>
     <div class="brand">
-      <div class="brand-icon">🎬</div>
+      <div class="brand-icon">
+        <img src="favicon.svg" alt="CineVoice Studio Logo" width="26" height="26" style="display: block; border-radius: 6px;">
+      </div>
       <div class="title-group">
         <h1>CINEVOICE STUDIO</h1>
         <span>AI VIDEO &amp; MULTI-AUDIO NARRATION SUITE</span>
@@ -1845,12 +1856,6 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 18h16" />
         </svg>
         Letterbox: 2.39:1
-      </button>
-      <button class="btn btn-gold" id="btnOpenCloudRenderModal" style="background:linear-gradient(135deg, rgba(56,189,248,0.28), rgba(168,85,247,0.22)); border-color:var(--accent-cyan); color:#fff; box-shadow:0 0 15px rgba(56,189,248,0.25);">
-        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z" />
-        </svg>
-        Cloud Render API
       </button>
       <button class="btn btn-gold" id="btnHeaderDownloadVideo" style="border-color:var(--accent-emerald); color:#fff; background:linear-gradient(135deg, rgba(16,185,129,0.32), rgba(5,150,105,0.25)); box-shadow:0 0 15px rgba(16,185,129,0.25);" title="Download the currently loaded or rendered video">
         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2499,74 +2504,9 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
           ✨ Apply Scene Script to Video
         </button>
       </div>
-  <!-- Cloud Render API Modal -->
-  <div class="modal-backdrop" id="cloudRenderModal" style="display:none;">
-    <div class="modal-card" style="max-width:680px; width:94%;">
-      <div class="modal-header">
-        <div style="display:flex; align-items:center; gap:0.65rem;">
-          <span style="font-size:1.4rem;">☁️</span>
-          <div>
-            <div style="font-family:var(--font-serif); font-size:1.1rem; color:#fff; font-weight:700;">CLOUD VIDEO SYNTHESIS API</div>
-            <div style="font-size:0.75rem; color:var(--text-muted);">Connect Vercel to your Render.com backend to synthesize 1080p videos from any device</div>
-          </div>
-        </div>
-        <button class="modal-close-btn" id="btnCloseCloudRenderModal" title="Close modal">✕</button>
-      </div>
-
-      <div class="modal-body" style="display:flex; flex-direction:column; gap:1.1rem;">
-        <div>
-          <label style="font-family:var(--font-mono); font-size:0.75rem; color:var(--accent-gold); display:block; margin-bottom:0.4rem;">
-            RENDER BACKEND API URL:
-          </label>
-          <div style="display:flex; gap:0.5rem;">
-            <input type="text" id="renderApiUrlInput" placeholder="https://cinevoice-api.onrender.com"
-              style="flex:1; background:rgba(8,11,16,0.95); border:1px solid var(--card-border); border-radius:8px; padding:0.6rem 0.9rem; color:#fff; font-family:var(--font-mono); font-size:0.82rem; outline:none;">
-            <button class="btn" id="btnTestApiConnection" style="padding:0.6rem 1rem; font-size:0.8rem;">
-              Test Connection
-            </button>
-          </div>
-          <div id="apiConnectionStatus" style="font-size:0.74rem; font-family:var(--font-mono); margin-top:0.4rem; color:var(--text-muted);">
-            Status: Enter your Render backend URL (e.g. https://cinevoice-api.onrender.com or https://cinevoice-.onrender.com)
-          </div>
-        </div>
-
-        <div style="background:rgba(0,0,0,0.35); border:1px solid var(--card-border); border-radius:10px; padding:0.9rem; display:flex; flex-direction:column; gap:0.6rem;">
-          <div style="font-size:0.78rem; font-weight:600; color:#fff;">RENDER CONFIGURATION:</div>
-          <div style="display:flex; gap:1.5rem; flex-wrap:wrap; font-size:0.75rem; color:var(--text-muted);">
-            <div>Narrator Voice: <strong id="cloudRenderVoiceLabel" style="color:var(--accent-gold);">MALE</strong></div>
-            <div>Resolution: <strong style="color:#fff;">1080p @ 24fps</strong></div>
-            <div>Screenplay Cues: <strong id="cloudRenderCuesCount" style="color:var(--accent-cyan);">0 scenes</strong></div>
-          </div>
-        </div>
-
-        <!-- Render Progress Display -->
-        <div id="cloudRenderProgressBox" style="display:none; background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.3); border-radius:10px; padding:1rem; flex-direction:column; gap:0.5rem;">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span id="cloudProgressTitle" style="font-family:var(--font-mono); font-size:0.78rem; color:var(--accent-cyan); font-weight:600;">Synthesizing on Cloud...</span>
-            <span id="cloudProgressBadge" style="font-family:var(--font-mono); font-size:0.72rem; color:#fff; background:rgba(56,189,248,0.25); padding:0.2rem 0.55rem; border-radius:9999px;">QUEUED</span>
-          </div>
-          <p id="cloudProgressDesc" style="font-size:0.75rem; color:var(--text-muted);">
-            Sending multi-scene screenplay to Render cloud container. Generating neural voiceovers and composing cinematic frames...
-          </p>
-          <div id="cloudRenderResultActions" style="display:none; gap:0.6rem; margin-top:0.5rem; flex-wrap:wrap;">
-            <a id="cloudDownloadLink" href="#" target="_blank" class="btn btn-gold" style="padding:0.45rem 1rem; font-size:0.78rem; text-decoration:none;">
-              Download Rendered MP4
-            </a>
-            <button class="btn" id="btnLoadRenderedToPlayer" style="padding:0.45rem 1rem; font-size:0.78rem;">
-              Play in Studio Viewport
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--card-border); padding-top:0.85rem; margin-top:0.35rem;">
-        <button class="btn" id="btnCancelCloudRenderModal">Close</button>
-        <button class="btn btn-gold" id="btnStartCloudRender" style="padding:0.55rem 1.4rem; background:linear-gradient(135deg, rgba(56,189,248,0.35), rgba(168,85,247,0.3)); border-color:var(--accent-cyan);">
-          Start Cloud Render
-        </button>
-      </div>
     </div>
   </div>
+
 
   <!-- Toast Notification -->
   <div id="studioToast">
@@ -4653,185 +4593,6 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
     }
 
     // -------------------------------------------------------------
-    // CLOUD RENDER API INTEGRATION (VERCEL -> RENDER BACKEND)
-    // -------------------------------------------------------------
-    const cloudRenderModal = document.getElementById('cloudRenderModal');
-    const btnOpenCloudRenderModal = document.getElementById('btnOpenCloudRenderModal');
-    const btnCloseCloudRenderModal = document.getElementById('btnCloseCloudRenderModal');
-    const btnCancelCloudRenderModal = document.getElementById('btnCancelCloudRenderModal');
-    const renderApiUrlInput = document.getElementById('renderApiUrlInput');
-    const btnTestApiConnection = document.getElementById('btnTestApiConnection');
-    const apiConnectionStatus = document.getElementById('apiConnectionStatus');
-    const cloudRenderVoiceLabel = document.getElementById('cloudRenderVoiceLabel');
-    const cloudRenderCuesCount = document.getElementById('cloudRenderCuesCount');
-    const btnStartCloudRender = document.getElementById('btnStartCloudRender');
-    const cloudRenderProgressBox = document.getElementById('cloudRenderProgressBox');
-    const cloudProgressTitle = document.getElementById('cloudProgressTitle');
-    const cloudProgressBadge = document.getElementById('cloudProgressBadge');
-    const cloudProgressDesc = document.getElementById('cloudProgressDesc');
-    const cloudRenderResultActions = document.getElementById('cloudRenderResultActions');
-    const cloudDownloadLink = document.getElementById('cloudDownloadLink');
-    const btnLoadRenderedToPlayer = document.getElementById('btnLoadRenderedToPlayer');
-
-    // Load saved API URL or default
-    const savedApiUrl = localStorage.getItem('cinevoice_render_api_url') || '';
-    if (savedApiUrl) renderApiUrlInput.value = savedApiUrl;
-
-    renderApiUrlInput.addEventListener('change', () => {
-      localStorage.setItem('cinevoice_render_api_url', renderApiUrlInput.value.trim());
-    });
-
-    btnOpenCloudRenderModal.addEventListener('click', () => {
-      cloudRenderModal.style.display = 'flex';
-      cloudRenderVoiceLabel.textContent = (currentAudioMode || 'MALE').toUpperCase();
-      cloudRenderCuesCount.textContent = `${(SCRIPT_CUES || []).length} cues`;
-    });
-
-    [btnCloseCloudRenderModal, btnCancelCloudRenderModal].forEach(btn => {
-      btn.addEventListener('click', () => {
-        cloudRenderModal.style.display = 'none';
-      });
-    });
-
-    function cleanApiUrl(url) {
-      return (url || '').trim().replace(/\/+$/, '');
-    }
-
-    btnTestApiConnection.addEventListener('click', async () => {
-      const baseUrl = cleanApiUrl(renderApiUrlInput.value);
-      if (!baseUrl) {
-        apiConnectionStatus.innerHTML = '<span style="color:var(--accent-red)">⚠️ Please enter a backend URL</span>';
-        return;
-      }
-      localStorage.setItem('cinevoice_render_api_url', baseUrl);
-      apiConnectionStatus.innerHTML = '<span style="color:var(--accent-cyan)">Connecting to cloud API...</span>';
-
-      try {
-        const res = await fetch(`${baseUrl}/api/health`, { method: 'GET' });
-        if (res.ok) {
-          const data = await res.json();
-          apiConnectionStatus.innerHTML = `<span style="color:var(--accent-emerald)">✓ Connected! Server Status: ${data.status} (v${data.version})</span>`;
-          showToast('✓ Connected to Render Cloud Backend!');
-        } else {
-          apiConnectionStatus.innerHTML = `<span style="color:var(--accent-amber)">⚠️ Server responded with HTTP ${res.status}</span>`;
-        }
-      } catch (err) {
-        apiConnectionStatus.innerHTML = `<span style="color:var(--accent-red)">✕ Connection failed: ${err.message}. If deploying on Render, note the container may be booting.</span>`;
-      }
-    });
-
-    let currentRenderPollTimer = null;
-    let lastRenderedVideoUrl = null;
-
-    btnStartCloudRender.addEventListener('click', async () => {
-      const baseUrl = cleanApiUrl(renderApiUrlInput.value);
-      if (!baseUrl) {
-        showToast('Please enter your Render API URL first!', true);
-        renderApiUrlInput.focus();
-        return;
-      }
-
-      localStorage.setItem('cinevoice_render_api_url', baseUrl);
-      cloudRenderProgressBox.style.display = 'flex';
-      cloudRenderResultActions.style.display = 'none';
-      cloudProgressTitle.textContent = 'Queueing Render on Cloud...';
-      cloudProgressBadge.textContent = 'STARTING';
-      cloudProgressBadge.style.background = 'rgba(56,189,248,0.25)';
-      cloudProgressBadge.style.color = '#fff';
-      cloudProgressDesc.textContent = 'Formatting script cues and sending synthesis request...';
-      btnStartCloudRender.disabled = true;
-
-      const scenesPayload = (SCRIPT_CUES || []).map((cue, idx) => ({
-        id: idx + 1,
-        vo: cue.text || '',
-        subtitle: cue.subtitle || cue.text || ''
-      }));
-
-      try {
-        const response = await fetch(`${baseUrl}/api/render`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            voice: currentAudioMode === 'female' ? 'female' : 'male',
-            scenes: scenesPayload.length ? scenesPayload : null
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-        }
-
-        const data = await response.json();
-        const jobId = data.job_id;
-        cloudProgressTitle.textContent = `Rendering Job [${jobId}] In Progress...`;
-        cloudProgressBadge.textContent = 'PROCESSING';
-        cloudProgressBadge.style.background = 'rgba(229,179,100,0.3)';
-        cloudProgressBadge.style.color = 'var(--accent-gold)';
-        cloudProgressDesc.textContent = 'Neural voice synthesis and OpenCV 1080p frame composition running on Render container...';
-
-        // Poll job status
-        clearInterval(currentRenderPollTimer);
-        currentRenderPollTimer = setInterval(async () => {
-          try {
-            const statusRes = await fetch(`${baseUrl}/api/status/${jobId}`);
-            if (!statusRes.ok) return;
-            const statusData = await statusRes.json();
-
-            if (statusData.status === 'completed') {
-              clearInterval(currentRenderPollTimer);
-              btnStartCloudRender.disabled = false;
-              cloudProgressTitle.textContent = '✓ Synthesis & Composition Complete!';
-              cloudProgressBadge.textContent = 'READY';
-              cloudProgressBadge.style.background = 'rgba(16,185,129,0.25)';
-              cloudProgressBadge.style.color = 'var(--accent-emerald)';
-              cloudProgressDesc.textContent = 'Master 1080p video generated and ready for instant playback or download!';
-
-              const videoUrl = `${baseUrl}${statusData.video_url}`;
-              lastRenderedVideoUrl = videoUrl;
-              cloudDownloadLink.href = videoUrl;
-              cloudDownloadLink.setAttribute('download', statusData.video_file || 'rendered_film.mp4');
-              cloudRenderResultActions.style.display = 'flex';
-
-              showToast('Master film rendered successfully!');
-            } else if (statusData.status === 'failed') {
-              clearInterval(currentRenderPollTimer);
-              btnStartCloudRender.disabled = false;
-              cloudProgressTitle.textContent = '✕ Render Failed';
-              cloudProgressBadge.textContent = 'ERROR';
-              cloudProgressBadge.style.background = 'rgba(239,68,68,0.25)';
-              cloudProgressBadge.style.color = 'var(--accent-red)';
-              cloudProgressDesc.textContent = statusData.error || 'Unknown rendering error occurred on server.';
-              showToast('Render failed on cloud backend', true);
-            }
-          } catch (pollErr) {
-            console.warn('Status poll error:', pollErr);
-          }
-        }, 3000);
-
-      } catch (err) {
-        btnStartCloudRender.disabled = false;
-        cloudProgressTitle.textContent = '✕ Connection / Request Failed';
-        cloudProgressBadge.textContent = 'FAILED';
-        cloudProgressBadge.style.background = 'rgba(239,68,68,0.25)';
-        cloudProgressBadge.style.color = 'var(--accent-red)';
-        cloudProgressDesc.textContent = err.message;
-        showToast(`Cloud render error: ${err.message}`, true);
-      }
-    });
-
-    btnLoadRenderedToPlayer.addEventListener('click', () => {
-      if (!lastRenderedVideoUrl) return;
-      mainVideoPlayer.src = lastRenderedVideoUrl;
-      mainVideoPlayer.classList.add('active');
-      videoDropzone.style.display = 'none';
-      videoHudTop.style.display = 'flex';
-      videoFilenameLabel.textContent = 'cloud_master_render.mp4';
-      isVideoLoaded = true;
-      cloudRenderModal.style.display = 'none';
-      showToast('Loaded rendered master into studio player!');
-    });
-
-    // -------------------------------------------------------------
     // VIDEO DOWNLOAD HANDLERS
     // -------------------------------------------------------------
     const btnHeaderDownloadVideo = document.getElementById('btnHeaderDownloadVideo');
@@ -4852,13 +4613,7 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
     async function downloadCurrentVideo() {
       const currentSrc = mainVideoPlayer.currentSrc || mainVideoPlayer.src;
       if (!currentSrc || currentSrc === "" || currentSrc === window.location.href) {
-        if (lastRenderedVideoUrl) {
-          triggerDirectDownload(lastRenderedVideoUrl, 'cinevoice_master_render.mp4');
-          showToast('✓ Downloading rendered master film!');
-          return;
-        }
-        showToast('No video loaded yet! Load a demo video or render via Cloud API first.', true);
-        if (btnOpenCloudRenderModal) btnOpenCloudRenderModal.click();
+        showToast('No video loaded yet! Load the demo video or upload your own video first.', true);
         return;
       }
 

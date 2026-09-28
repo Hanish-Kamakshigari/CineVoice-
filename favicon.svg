@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#151b26" />
+      <stop offset="50%" stop-color="#0b0e14" />
+      <stop offset="100%" stop-color="#05070a" />
+    </linearGradient>
+
+    <!-- Border Glow Gradient -->
+    <linearGradient id="goldBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde68a" />
+      <stop offset="35%" stop-color="#e5b364" />
+      <stop offset="70%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#b45309" />
+    </linearGradient>
+
+    <!-- Clapper Gold Stripes -->
+    <linearGradient id="goldStripe" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="25%" stop-color="#fde68a" />
+      <stop offset="65%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+
+    <!-- Voice Wave Glow Gradient -->
+    <linearGradient id="voiceWave" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="20%" stop-color="#fef08a" />
+      <stop offset="60%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#b45309" />
+    </linearGradient>
+
+    <radialGradient id="centerGlow" cx="50%" cy="54%" r="48%">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.22" />
+      <stop offset="60%" stop-color="#e5b364" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#f59e0b" stop-opacity="0" />
+    </radialGradient>
+
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Base Rounded Container (Squircle) -->
+  <rect x="24" y="24" width="464" height="464" rx="108" fill="url(#bgGrad)" stroke="url(#goldBorder)" stroke-width="12" />
+
+  <!-- Ambient Golden Center Glow -->
+  <circle cx="256" cy="272" r="170" fill="url(#centerGlow)" />
+
+  <!-- CINEMA CLAPPER + VOICE EQUALIZER -->
+  <g transform="translate(0, 12)">
+    <!-- Clapper Body (Lower Half) -->
+    <g id="clapper-base">
+      <path d="M 106 195 L 406 195 A 12 12 0 0 1 418 207 L 418 350 A 24 24 0 0 1 394 374 L 118 374 A 24 24 0 0 1 94 350 L 94 207 A 12 12 0 0 1 106 195 Z"
+            fill="#0c1017" stroke="url(#goldBorder)" stroke-width="5" />
+
+      <!-- Inner Clapper Frame Border -->
+      <path d="M 112 210 L 400 210 L 400 354 A 12 12 0 0 1 388 366 L 124 366 A 12 12 0 0 1 112 354 Z"
+            fill="none" stroke="#e5b364" stroke-opacity="0.28" stroke-width="2" stroke-dasharray="5 4" />
+
+      <!-- Dynamic Voice Equalizer Waveform Bars inside Clapper -->
+      <g filter="url(#glow)">
+        <!-- Bar 1 -->
+        <rect x="146" y="276" width="18" height="46" rx="9" fill="url(#voiceWave)" />
+        <!-- Bar 2 -->
+        <rect x="178" y="248" width="18" height="78" rx="9" fill="url(#voiceWave)" />
+        <!-- Bar 3 -->
+        <rect x="210" y="226" width="18" height="106" rx="9" fill="url(#voiceWave)" />
+        <!-- Bar 4 (Center peak) -->
+        <rect x="244" y="210" width="24" height="126" rx="12" fill="url(#voiceWave)" />
+        <!-- Bar 5 -->
+        <rect x="284" y="226" width="18" height="106" rx="9" fill="url(#voiceWave)" />
+        <!-- Bar 6 -->
+        <rect x="316" y="248" width="18" height="78" rx="9" fill="url(#voiceWave)" />
+        <!-- Bar 7 -->
+        <rect x="348" y="276" width="18" height="46" rx="9" fill="url(#voiceWave)" />
+      </g>
+
+      <!-- Baseline Soundwave Axis -->
+      <line x1="130" y1="346" x2="382" y2="346" stroke="#f59e0b" stroke-opacity="0.45" stroke-width="3" stroke-linecap="round" />
+    </g>
+
+    <!-- Clapper Stick (Top Arm, angled open 14 degrees) -->
+    <g transform="rotate(-14 96 192)">
+      <!-- Arm Shadow -->
+      <rect x="94" y="142" width="316" height="46" rx="8" fill="#000000" opacity="0.45" />
+      
+      <!-- Arm Base (Dark Obsidian) -->
+      <rect x="94" y="138" width="316" height="46" rx="8" fill="#131924" stroke="url(#goldBorder)" stroke-width="4" />
+
+      <!-- Diagonal Gold Clapper Stripes -->
+      <g clip-path="url(#clapperArmClip)">
+        <clipPath id="clapperArmClip">
+          <rect x="94" y="138" width="316" height="46" rx="8" />
+        </clipPath>
+        <polygon points="120,136 155,136 130,186 95,186" fill="url(#goldStripe)" />
+        <polygon points="185,136 220,136 195,186 160,186" fill="url(#goldStripe)" />
+        <polygon points="250,136 285,136 260,186 225,186" fill="url(#goldStripe)" />
+        <polygon points="315,136 350,136 325,186 290,186" fill="url(#goldStripe)" />
+        <polygon points="380,136 415,136 390,186 355,186" fill="url(#goldStripe)" />
+      </g>
+    </g>
+
+    <!-- Metallic Pivot Hinge / Bolt -->
+    <circle cx="96" cy="192" r="11" fill="#fde68a" stroke="#78350f" stroke-width="2.5" />
+    <circle cx="96" cy="192" r="4.5" fill="#1e293b" />
+
+    <!-- "REC" Glowing Cinema Dot in top right of clapper base -->
+    <circle cx="396" cy="224" r="5" fill="#ef4444" />
+    <circle cx="396" cy="224" r="9" fill="#ef4444" opacity="0.4" />
+  </g>
+</svg>

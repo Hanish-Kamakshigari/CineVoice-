@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: cinevoice-render-api
-    runtime: docker
-    plan: free
-    region: oregon
-    envVars:
-      - key: PORT
-        value: 10000

@@ -1,5 +1,3 @@
-import math
-import os
 from PIL import Image, ImageDraw, ImageFilter
 
 def create_svg():
@@ -330,31 +328,56 @@ def main():
         resized.save(filename, format="PNG")
 
     print("3. Generating favicon.ico (multi-resolution 16, 32, 48)...")
-    ico_img_16 = master.resize((16, 16), Image.Resampling.LANCZOS)
-    ico_img_32 = master.resize((32, 32), Image.Resampling.LANCZOS)
-    ico_img_48 = master.resize((48, 48), Image.Resampling.LANCZOS)
-
-    ico_img_32.save("favicon.ico", format="ICO", sizes=[(16, 16), (32, 32), (48, 48)])
+    # Save from the 1024px master: Pillow's ICO writer silently drops any size
+    # larger than the source image, so exporting the 32px variant first produced
+    # a two-entry ICO with no 48px frame. Downsampling from the master keeps all
+    # three entries crisp.
+    master.save("favicon.ico", format="ICO", sizes=[(16, 16), (32, 32), (48, 48)])
 
     print("4. Generating site.webmanifest...")
     manifest = '''{
-  "name": "CINEVOICE STUDIO",
+  "id": "/",
+  "name": "CineVoice Studio — AI Video & Multi-Audio Narration Suite",
   "short_name": "CineVoice",
+  "description": "Browser-based AI video and voiceover studio: scene-by-scene scripting, timed AI narration, frame-based scene detection and SRT/VTT caption tooling.",
+  "start_url": "/",
+  "scope": "/",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["video", "productivity", "multimedia"],
   "icons": [
     {
-      "src": "/android-chrome-192x192.png",
+      "src": "favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "android-chrome-192x192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/android-chrome-512x512.png",
+      "src": "android-chrome-512x512.png",
       "sizes": "512x512",
       "type": "image/png"
+    },
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "theme_color": "#07090c",
   "background_color": "#07090c",
-  "display": "standalone"
+  "display": "standalone",
+  "orientation": "landscape"
 }
 '''
     with open("site.webmanifest", "w", encoding="utf-8") as f:

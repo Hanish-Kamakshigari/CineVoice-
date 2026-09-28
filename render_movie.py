@@ -5,7 +5,7 @@ import hashlib
 import argparse
 import asyncio
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont
 import edge_tts
 import imageio_ffmpeg
 from scipy.io import wavfile
@@ -653,10 +653,10 @@ def mux_final_mp4():
     if os.path.exists(video_raw):
         os.remove(video_raw)
 
-    print(f"\n=======================================================")
+    print("\n=======================================================")
     print(f"SUCCESS! Master Film Exported: {OUTPUT_VIDEO}")
     print(f"File Size: {os.path.getsize(OUTPUT_VIDEO) / (1024*1024):.2f} MB")
-    print(f"=======================================================\n")
+    print("=======================================================\n")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Render 'The Last 24 Hours' Cinematic Film with custom voice and script.")
@@ -719,12 +719,12 @@ if __name__ == "__main__":
             parser.error("--script contained no usable scene entries - nothing would be narrated.")
         print(f"Custom screenplay script loaded into {applied} scenes.")
 
-    print(f"\n=======================================================")
-    print(f"  RENDERING FILM: THE LAST 24 HOURS")
+    print("\n=======================================================")
+    print("  RENDERING FILM: THE LAST 24 HOURS")
     print(f"  Narrator Voice: {VOICE_TYPE.upper()} ('{'en-US-ChristopherNeural' if VOICE_TYPE=='male' else 'en-US-JennyNeural'}')")
     if CUSTOM_AUDIO_PATH: print(f"  Custom Audio:   {CUSTOM_AUDIO_PATH}")
     if CUSTOM_SCRIPT_PATH: print(f"  Custom Script:  {CUSTOM_SCRIPT_PATH}")
-    print(f"=======================================================\n")
+    print("=======================================================\n")
 
     asyncio.run(generate_voiceovers())
     synthesize_soundtrack()

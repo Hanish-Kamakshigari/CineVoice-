@@ -3276,7 +3276,6 @@ let speakRetries = 0;
       if (videoWorkflowBanner) videoWorkflowBanner.style.display = 'none';
     }
 
-    const showSubtitlePromptBanner = showVideoWorkflowBanner;
     const dismissSubtitleBanner = dismissWorkflowBanner;
 
     // -------------------------------------------------------------
@@ -3877,31 +3876,31 @@ let speakRetries = 0;
       syncMasterScriptTextarea();
     }
 
-    window.jumpToCue = function (timeSec) {
+    function jumpToCue(timeSec) {
       if (!isVideoLoaded) return;
       mainVideoPlayer.currentTime = timeSec;
       if (customAudio.isLoaded) customAudio.seek(timeSec);
       updateSubtitlesForTime(timeSec);
       showToast(`Jumped to: ${formatTime(timeSec)}`);
-    };
+    }
 
-    window.auditionCue = function (cueId) {
+    function auditionCue(cueId) {
       const cue = SCRIPT_CUES.find(c => c.id === cueId);
       if (cue) {
         const input = document.getElementById(`cueTextInput_${cue.id}`);
         const text = input ? input.value : cue.text;
         voiceEngine.speak(text, currentAudioMode);
       }
-    };
+    }
 
-    window.deleteCue = function (cueId) {
+    function deleteCue(cueId) {
       SCRIPT_CUES = SCRIPT_CUES.filter(c => c.id !== cueId);
       if (cueSaveTimer) { clearTimeout(cueSaveTimer); cueSaveTimer = null; }
       saveScriptCues();
       resetSpokenCursor();
       renderCuesList();
       showToast('Cue removed.');
-    };
+    }
 
     btnAddCue.addEventListener('click', () => {
       const nextTime = isVideoLoaded ? Math.round(mainVideoPlayer.currentTime) : (SCRIPT_CUES.length ? SCRIPT_CUES[SCRIPT_CUES.length - 1].time + 10 : 0);
@@ -4013,7 +4012,7 @@ let speakRetries = 0;
 
           // Compute Luminance & Color Balance
           let totalLuma = 0;
-          let totalR = 0, totalG = 0, totalB = 0;
+          let totalR = 0, totalB = 0;
           const pixelCount = pixels.length / 4;
 
           for (let p = 0; p < pixels.length; p += 4) {
@@ -4021,14 +4020,12 @@ let speakRetries = 0;
             const g = pixels[p + 1];
             const b = pixels[p + 2];
             totalR += r;
-            totalG += g;
             totalB += b;
             totalLuma += (0.299 * r + 0.587 * g + 0.114 * b);
           }
 
           const avgLuma = totalLuma / pixelCount;
           const avgR = totalR / pixelCount;
-          const avgG = totalG / pixelCount;
           const avgB = totalB / pixelCount;
 
           // Compute delta difference from previous frame (scene cut detection)
@@ -4348,7 +4345,7 @@ let speakRetries = 0;
             }
           });
           if (cues.length) return cues;
-        } catch (e) {
+        } catch {
           // not JSON, proceed
         }
       }
@@ -4356,7 +4353,6 @@ let speakRetries = 0;
       // Split by Scene or Timestamp boundaries
       const sceneBlocks = text.split(/(?=\[(?:SCENE|\d{1,2}:)|SCENE\s+\d+|INT\.|EXT\.)/i);
 
-      let fallbackTime = 0;
       const totalDur = (isVideoLoaded && mainVideoPlayer.duration) ? mainVideoPlayer.duration : 120;
       const step = Math.max(5, Math.floor(totalDur / Math.max(1, sceneBlocks.length)));
 
@@ -4742,7 +4738,7 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       subtitlesContainer.appendChild(frag);
     }
 
-    window.jumpToSubTime = function (startSec) {
+    function jumpToSubTime(startSec) {
       if (!isVideoLoaded) return;
       mainVideoPlayer.currentTime = startSec;
       if (currentAudioMode === 'custom' && customAudio.isLoaded) {
@@ -4751,9 +4747,9 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       startVideoPlayback();
       updateSubtitlesForTime(startSec);
       showToast(`Jumped to subtitle at ${formatTime(startSec)}`);
-    };
+    }
 
-    window.captureSubStart = function (subId) {
+    function captureSubStart(subId) {
       if (!isVideoLoaded) return;
       const sub = SUBTITLES.find(s => s.id === subId);
       if (sub) {
@@ -4763,9 +4759,9 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
         refreshSubRow(sub);
         showToast(`Set Subtitle #${SUBTITLES.indexOf(sub) + 1} start to ${formatSubCueTime(sub.start)}`);
       }
-    };
+    }
 
-    window.captureSubEnd = function (subId) {
+    function captureSubEnd(subId) {
       if (!isVideoLoaded) return;
       const sub = SUBTITLES.find(s => s.id === subId);
       if (sub) {
@@ -4775,15 +4771,15 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
         refreshSubRow(sub);
         showToast(`Set Subtitle #${SUBTITLES.indexOf(sub) + 1} end to ${formatSubCueTime(sub.end)}`);
       }
-    };
+    }
 
-    window.deleteSubLine = function (subId) {
+    function deleteSubLine(subId) {
       SUBTITLES = SUBTITLES.filter(s => s.id !== subId);
       saveSubtitles();
       renderSubtitlesList();
       if (isVideoLoaded) updateSubtitlesForTime(mainVideoPlayer.currentTime);
       showToast('Subtitle cue removed.');
-    };
+    }
 
     // Subtitles Toggle Controller (CC)
     function toggleSubtitles(forcedState, silent) {
@@ -5335,7 +5331,7 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
     function triggerExternalOpen(url, filename) {
       const sameOrigin = (() => {
         try { return new URL(url, window.location.href).origin === window.location.origin; }
-        catch (e) { return false; }
+        catch { return false; }
       })();
       if (sameOrigin) {
         triggerDirectDownload(url, filename);
@@ -5413,7 +5409,6 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       // Never hijack typing. Shift/Ctrl/Alt combinations belong to the browser.
       if (isTypingTarget(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
 
-      const dur = mainVideoPlayer.duration || 0;
       const cur = mainVideoPlayer.currentTime || 0;
 
       switch (e.key) {

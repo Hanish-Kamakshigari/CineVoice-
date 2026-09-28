@@ -4200,7 +4200,7 @@ let speakRetries = 0;
 
     function setFrameScanTriggersDisabled(disabled) {
       [btnWorkflowStartFrameScan, btnDeckStartFrameScan, btnDeckFullTextFrameScan,
-       btnApplyScriptLive, btnLoadSceneTemplate, btnDistributeMasterText]
+       btnApplyScriptLive, btnModalLoadTemplate, btnDistributeMasterText]
         .forEach(b => { if (b) b.disabled = disabled; });
     }
 

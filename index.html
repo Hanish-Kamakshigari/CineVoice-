@@ -4821,6 +4821,18 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       if (!silent) showToast(`Subtitles & Captions: ${subtitlesEnabled ? 'ENABLED' : 'DISABLED'}`);
     }
 
+    // Subtitle files are commonly uploaded one scene at a time, so an import has
+    // to merge rather than replace. Incoming cues win wherever they overlap an
+    // existing cue, which also makes re-uploading a corrected scene behave
+    // sensibly instead of duplicating it.
+    function mergeSubtitles(existing, incoming) {
+      if (!existing || !existing.length) return incoming.slice();
+      if (!incoming || !incoming.length) return existing.slice();
+      const overlaps = (e) => incoming.some(n => n.start < e.end && e.start < n.end);
+      const kept = existing.filter(e => !overlaps(e));
+      return kept.concat(incoming).sort((a, b) => a.start - b.start);
+    }
+
     // Collapse subtitle text to a single SRT-safe line. A blank line inside a cue
     // desynchronises every index that follows it, and a literal "-->" splits the
     // cue when the file is re-imported.
@@ -4933,13 +4945,15 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
         const text = event.target.result;
         const parsed = parseSrtOrVtt(text);
         if (parsed.length > 0) {
-          SUBTITLES = parsed;
+          const before = SUBTITLES.length;
+          SUBTITLES = mergeSubtitles(SUBTITLES, parsed);
           saveSubtitles();
           renderSubtitlesList();
           toggleSubtitles(true);
           dismissSubtitleBanner();
           openSubtitleSuite();
-          showToast(`✓ Loaded ${parsed.length} subtitles from ${file.name}`);
+          const added = SUBTITLES.length - before;
+          showToast(`\u{1F4E5} Loaded ${parsed.length} subtitles from ${file.name} (${added >= 0 ? '+' : ''}${added}, ${SUBTITLES.length} total)`);
         } else {
           showToast('Could not parse subtitles. Please check SRT/VTT format.', true);
         }

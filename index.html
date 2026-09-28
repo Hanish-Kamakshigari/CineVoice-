@@ -345,13 +345,17 @@
     }
 
     /* Subtitles on Video */
+    /* Sits above the paused centre scrim (z-index 11) on purpose: that scrim
+       covers the whole player with a 30% black wash and a 4px backdrop blur,
+       which made captions unreadable in the default paused state. This layer is
+       pointer-events: none, so the play button underneath still receives clicks. */
     .video-subtitles-overlay {
       position: absolute;
       bottom: 9%;
       left: 5%;
       right: 5%;
       text-align: center;
-      z-index: 10;
+      z-index: 12;
       pointer-events: none;
       transition: all 0.25s ease;
     }

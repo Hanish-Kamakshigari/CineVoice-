@@ -1851,12 +1851,6 @@
         </svg>
         Load Demo Video
       </button>
-      <button class="btn" id="btnToggleLetterbox">
-        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 18h16" />
-        </svg>
-        Letterbox: 2.39:1
-      </button>
       <button class="btn btn-gold" id="btnHeaderDownloadVideo" style="border-color:var(--accent-emerald); color:#fff; background:linear-gradient(135deg, rgba(16,185,129,0.32), rgba(5,150,105,0.25)); box-shadow:0 0 15px rgba(16,185,129,0.25);" title="Download the currently loaded or rendered video">
         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -3025,20 +3019,71 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
       };
     }
 
+    const DEMO_FILM_SCENES = [
+      { id: 1, time: 1, text: "Every day, eight billion people receive the exact same deposit: 24 hours.", subtitle: "Every day, eight billion people receive the exact same deposit: 24 hours." },
+      { id: 2, time: 9, text: "Some build empires. Others let it slip through their fingers before noon.", subtitle: "Some build empires. Others let it slip through their fingers before noon." },
+      { id: 3, time: 18, text: "The modern enemy of human potential isn't lack of talent. It's the silent addiction to distraction.", subtitle: "The modern enemy of human potential isn't lack of talent. It's distraction." },
+      { id: 4, time: 29, text: "Just five minutes turns into five hours. Another day surrendered to the algorithm.", subtitle: "Just five minutes turns into five hours. Another day surrendered to the algorithm." },
+      { id: 5, time: 42, text: "Look closely at the mirror. You can make excuses, or you can make progress.", subtitle: "Look closely at the mirror. You can make excuses, or you can make progress." },
+      { id: 6, time: 54, text: "This is where the reset begins. Clear the noise. Define your single most vital mission.", subtitle: "This is where the reset begins. Clear the noise. Define your mission." },
+      { id: 7, time: 64, text: "Discipline is choosing what you want most over what you want right now.", subtitle: "Discipline is choosing what you want most over what you want right now." },
+      { id: 8, time: 76, text: "Protect your focus ruthlessly. Deep work is the superpower of the modern era.", subtitle: "Protect your focus ruthlessly. Deep work is the superpower of the modern era." },
+      { id: 9, time: 86, text: "Small, relentless daily actions compound into undeniable greatness.", subtitle: "Small, relentless daily actions compound into undeniable greatness." },
+      { id: 10, time: 98, text: "The finish line belongs to those who showed up when nobody was watching.", subtitle: "The finish line belongs to those who showed up when nobody was watching." },
+      { id: 11, time: 109, text: "Don't wait for time to change your life. Use your time to change your life.", subtitle: "Don't wait for time to change your life. Use your time to change your life." }
+    ];
+
     function loadDemoVideo() {
-      mainVideoPlayer.src = "THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4";
-      mainVideoPlayer.load();
-      mainVideoPlayer.onloadedmetadata = () => {
+      showToast('Loading demonstration film...');
+      const localUrl = "THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4";
+      const remoteFallbackUrl = "https://raw.githubusercontent.com/Hanish-Kamakshigari/CineVoice-/main/THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4";
+      const backupPublicUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4";
+
+      let hasTriedRemote = false;
+
+      function onDemoReady() {
         isVideoLoaded = true;
         mainVideoPlayer.classList.add('active');
         videoDropzone.style.display = 'none';
         videoHudTop.style.display = 'flex';
         videoFilenameLabel.textContent = "THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4";
         videoCenterTrigger.classList.remove('hidden');
-        totalTimeDisplay.textContent = formatTime(mainVideoPlayer.duration);
-        showToast('✓ Demo video loaded successfully.');
+        totalTimeDisplay.textContent = formatTime(mainVideoPlayer.duration || 120);
+
+        // Load demonstration screenplay cues & synchronized subtitles
+        SCRIPT_CUES = DEMO_FILM_SCENES.map(s => ({ ...s }));
+        SUBTITLES = DEMO_FILM_SCENES.map(s => ({
+          id: s.id,
+          start: s.time,
+          end: Math.min((mainVideoPlayer.duration || 120), s.time + 6.8),
+          text: s.subtitle
+        }));
+
+        renderCuesList();
+        renderSubtitlesList();
+        applySubStyles();
+        toggleSubtitles(true);
+
+        showToast('✓ Demo video & screenplay loaded! Press Play to start.');
         showVideoWorkflowBanner("THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4");
+      }
+
+      mainVideoPlayer.onloadedmetadata = onDemoReady;
+
+      mainVideoPlayer.onerror = () => {
+        console.warn('Demo video source failed, trying fallback mirror...');
+        if (!hasTriedRemote) {
+          hasTriedRemote = true;
+          mainVideoPlayer.src = remoteFallbackUrl;
+          mainVideoPlayer.load();
+        } else {
+          mainVideoPlayer.src = backupPublicUrl;
+          mainVideoPlayer.load();
+        }
       };
+
+      mainVideoPlayer.src = localUrl;
+      mainVideoPlayer.load();
     }
 
     // Video Play / Pause
@@ -4561,14 +4606,16 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       }
     });
 
-    // Letterbox Toggle
-    btnToggleLetterbox.addEventListener('click', () => {
-      isLetterboxActive = !isLetterboxActive;
-      boxTop.classList.toggle('hidden', !isLetterboxActive);
-      boxBottom.classList.toggle('hidden', !isLetterboxActive);
-      btnToggleLetterbox.textContent = isLetterboxActive ? 'Letterbox: 2.39:1' : 'Letterbox: Off (Full 16:9)';
-      showToast(`Cinematic Letterbox: ${isLetterboxActive ? 'ON' : 'OFF'}`);
-    });
+    // Letterbox Toggle (if button present)
+    if (btnToggleLetterbox) {
+      btnToggleLetterbox.addEventListener('click', () => {
+        isLetterboxActive = !isLetterboxActive;
+        boxTop.classList.toggle('hidden', !isLetterboxActive);
+        boxBottom.classList.toggle('hidden', !isLetterboxActive);
+        btnToggleLetterbox.textContent = isLetterboxActive ? 'Letterbox: 2.39:1' : 'Letterbox: Off (Full 16:9)';
+        showToast(`Cinematic Letterbox: ${isLetterboxActive ? 'ON' : 'OFF'}`);
+      });
+    }
 
     // Center Trigger Click & Play Pause
     videoCenterTrigger.addEventListener('click', togglePlay);

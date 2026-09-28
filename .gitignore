@@ -1,10 +1,12 @@
-# Large rendered media and audio cache
-*.mp4
-*.wav
-audio_cache/
+# Rendered outputs and temporary cache
 rendered_outputs/
-THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4
-master_soundtrack.wav
+audio_cache/
+*.wav
+!master_soundtrack.wav
+
+# Video files (allow the demo master video)
+*.mp4
+!THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4
 
 # Python artifacts
 __pycache__/

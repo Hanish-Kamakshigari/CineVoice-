@@ -380,7 +380,10 @@ def main():
   "orientation": "landscape"
 }
 '''
-    with open("site.webmanifest", "w", encoding="utf-8") as f:
+    # newline="" keeps the LF endings baked into the template. Without it
+    # Python's text mode rewrites every \n as \r\n on Windows, so re-running the
+    # generator produced a byte-level diff even though the content was identical.
+    with open("site.webmanifest", "w", encoding="utf-8", newline="") as f:
         f.write(manifest)
 
     print("All favicon assets generated successfully!")

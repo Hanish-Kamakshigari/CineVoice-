@@ -2705,6 +2705,11 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
         const parsed = JSON.parse(savedSubs);
         if (Array.isArray(parsed)) SUBTITLES = parsed;
       }
+      // Restore the captions on/off state too. Without this, saved subtitles
+      // reappeared in the deck while the overlay stayed off, so they looked
+      // like they had failed to apply after every reload.
+      const savedSubsEnabled = localStorage.getItem('cinevoice_subtitles_enabled');
+      if (savedSubsEnabled !== null) subtitlesEnabled = savedSubsEnabled === 'true';
       const savedStyle = localStorage.getItem('cinevoice_sub_style');
       if (savedStyle) {
         subStyleConfig = Object.assign(subStyleConfig, JSON.parse(savedStyle));
@@ -4805,6 +4810,14 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
         updateSubtitlesForTime(mainVideoPlayer.currentTime);
       }
 
+      // Remember the caption state so a reload does not silently switch
+      // captions off while the subtitle data is still loaded.
+      try {
+        localStorage.setItem('cinevoice_subtitles_enabled', String(subtitlesEnabled));
+      } catch (e) {
+        console.warn('LocalStorage caption-state save failed:', e);
+      }
+
       if (!silent) showToast(`Subtitles & Captions: ${subtitlesEnabled ? 'ENABLED' : 'DISABLED'}`);
     }
 
@@ -5036,6 +5049,9 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
           SUBTITLES = [];
           saveSubtitles();
           renderSubtitlesList();
+          // Captions off too, so the persisted caption flag cannot claim
+          // "on" with an empty subtitle list.
+          toggleSubtitles(false, true);
           if (isVideoLoaded) updateSubtitlesForTime(mainVideoPlayer.currentTime);
           showToast('All subtitles cleared.');
         }
@@ -5158,8 +5174,7 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
         clearMasterScriptTextarea();
         renderCuesList();
         renderSubtitlesList();
-        toggleSubtitles(false);
-        showToast('↺ Narration script cleared.');
+        toggleSubtitles(false);        showToast('↺ Narration script cleared.');
       }
     });
 

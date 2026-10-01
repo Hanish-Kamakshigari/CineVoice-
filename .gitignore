@@ -1,6 +1,7 @@
 # Rendered outputs and temporary cache
 rendered_outputs/
 audio_cache/
+.cinevoice-editor/
 *.wav
 !master_soundtrack.wav
 

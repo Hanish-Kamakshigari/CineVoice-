@@ -18,6 +18,7 @@ A single self-contained file — no build step, no bundler, no framework.
 - **Subtitle Suite**: On-screen caption overlay, SRT/VTT/`.txt`/`.sub` import, SRT and VTT export, live subtitle line capture while playing, and auto-sync of subtitles from existing cues.
 - **Export Deck**: Narration script as JSON or plain text, plus SRT and VTT subtitle files.
 - **Direct Download**: Download the current video from the header, the cinema HUD, the playback toolbar, or the export deck.
+- **Narration-Led Editor**: Open `editor.html` through the local editor server to trim and reorder source ranges, add real narration clips with waveforms, duck music under speech, preview the synchronized output, and export a new MP4.
 - **Automatic Persistence**: Cues, subtitles, and subtitle styling are saved to `localStorage` and restored on reload, with a clear warning if storage quota is exceeded.
 - **Keyboard Shortcuts** (press `?` in the app for a reminder):
 
@@ -94,6 +95,17 @@ Optional arguments:
 | `--out path/to/output.mp4` | Output filename |
 
 Scene IDs in `--script` must match the scene definitions in `render_movie.py`. Unrecognised IDs and malformed entries are reported as warnings; a script that matches no scene is a hard error rather than a silent render.
+
+### 3. Narration-Led Video Editor
+
+The editor uses a small loopback-only local server because a static browser page cannot safely upload local media or run FFmpeg:
+
+```bash
+pip install -r requirements.txt
+python editor_server.py
+```
+
+Open [http://127.0.0.1:8080/editor.html](http://127.0.0.1:8080/editor.html). Upload a video, add one or more source ranges to the output timeline, upload or generate narration, optionally add music, then export the synchronized MP4. Runtime uploads and exports are stored in `.cinevoice-editor/` and are not committed.
 
 ---
 

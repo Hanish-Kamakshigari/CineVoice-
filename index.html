@@ -2682,7 +2682,7 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
 
   <script>
     // -------------------------------------------------------------
-    // SCRIPT CUES + SUBTITLES (persisted to localStorage, restored on load)
+    // SCRIPT CUES + SUBTITLES (persisted per video in versioned localStorage)
     // -------------------------------------------------------------
     var SCRIPT_CUES = [];
 
@@ -2697,29 +2697,125 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
       position: 'pos-bottom'
     };
 
-    // Restore persisted cues / subtitles / style instead of discarding them
-    try {
-      const savedCues = localStorage.getItem('cinevoice_script_cues');
-      if (savedCues) {
-        const parsed = JSON.parse(savedCues);
-        if (Array.isArray(parsed)) SCRIPT_CUES = parsed;
+    const PROJECT_STORAGE_VERSION = 1;
+    const PROJECT_STORAGE_PREFIX = 'cinevoice_project_v1:';
+    const LEGACY_STORAGE_KEYS = ['cinevoice_script_cues', 'cinevoice_subtitles', 'cinevoice_subtitles_enabled', 'cinevoice_sub_style'];
+    let activeVideoIdentity = null;
+    let legacyProject = null;
+
+    function defaultSubStyle() {
+      return { size: 'size-md', color: 'color-white', style: 'style-none', position: 'pos-bottom' };
+    }
+
+    function validCue(cue) {
+      return cue && Number.isFinite(Number(cue.time)) && typeof cue.text === 'string';
+    }
+
+    function validSubtitle(cue) {
+      return cue && Number.isFinite(Number(cue.start)) && Number.isFinite(Number(cue.end)) &&
+        Number(cue.end) >= Number(cue.start) && typeof cue.text === 'string';
+    }
+
+    function validateProject(value) {
+      if (!value || typeof value !== 'object') return null;
+      const style = defaultSubStyle();
+      const candidateStyle = value.subStyleConfig && typeof value.subStyleConfig === 'object' ? value.subStyleConfig : {};
+      Object.keys(style).forEach(key => {
+        if (typeof candidateStyle[key] === 'string') style[key] = candidateStyle[key];
+      });
+      const allowed = {
+        size: ['size-sm', 'size-md', 'size-lg', 'size-xl'],
+        color: ['color-white', 'color-gold', 'color-yellow', 'color-cyan'],
+        style: ['style-none', 'style-box', 'style-blur'],
+        position: ['pos-bottom', 'pos-lower', 'pos-top']
+      };
+      Object.keys(allowed).forEach(key => {
+        if (!allowed[key].includes(style[key])) style[key] = defaultSubStyle()[key];
+      });
+      return {
+        version: PROJECT_STORAGE_VERSION,
+        scriptCues: Array.isArray(value.scriptCues) ? value.scriptCues.filter(validCue).map(c => ({ ...c, time: Number(c.time) })) : [],
+        subtitles: Array.isArray(value.subtitles) ? value.subtitles.filter(validSubtitle).map(c => ({ ...c, start: Number(c.start), end: Number(c.end) })) : [],
+        subtitlesEnabled: value.subtitlesEnabled === true,
+        subStyleConfig: style
+      };
+    }
+
+    function projectStorageKey(videoIdentity) {
+      return PROJECT_STORAGE_PREFIX + encodeURIComponent(videoIdentity);
+    }
+
+    function readProject(videoIdentity) {
+      try {
+        const raw = localStorage.getItem(projectStorageKey(videoIdentity));
+        return raw ? validateProject(JSON.parse(raw)) : null;
+      } catch (e) {
+        console.warn('Video project load failed:', e);
+        return null;
       }
-      const savedSubs = localStorage.getItem('cinevoice_subtitles');
-      if (savedSubs) {
-        const parsed = JSON.parse(savedSubs);
-        if (Array.isArray(parsed)) SUBTITLES = parsed;
+    }
+
+    function readLegacyProject() {
+      try {
+        const readJson = key => {
+          try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { return null; }
+        };
+        const cues = readJson('cinevoice_script_cues');
+        const subtitles = readJson('cinevoice_subtitles');
+        const style = readJson('cinevoice_sub_style');
+        const enabled = localStorage.getItem('cinevoice_subtitles_enabled');
+        if (!Array.isArray(cues) && !Array.isArray(subtitles) && !style && enabled === null) return null;
+        return validateProject({ scriptCues: cues, subtitles, subStyleConfig: style, subtitlesEnabled: enabled === 'true' });
+      } catch (e) {
+        console.warn('Legacy localStorage migration read failed:', e);
+        return null;
       }
-      // Restore the captions on/off state too. Without this, saved subtitles
-      // reappeared in the deck while the overlay stayed off, so they looked
-      // like they had failed to apply after every reload.
-      const savedSubsEnabled = localStorage.getItem('cinevoice_subtitles_enabled');
-      if (savedSubsEnabled !== null) subtitlesEnabled = savedSubsEnabled === 'true';
-      const savedStyle = localStorage.getItem('cinevoice_sub_style');
-      if (savedStyle) {
-        subStyleConfig = Object.assign(subStyleConfig, JSON.parse(savedStyle));
+    }
+
+    function projectSnapshot() {
+      return validateProject({ scriptCues: SCRIPT_CUES, subtitles: SUBTITLES, subtitlesEnabled, subStyleConfig: subStyleConfig });
+    }
+
+    function persistProject() {
+      if (!activeVideoIdentity) return false;
+      try {
+        localStorage.setItem(projectStorageKey(activeVideoIdentity), JSON.stringify(projectSnapshot()));
+        return true;
+      } catch (e) {
+        if (isStorageQuotaError(e)) showToast('Browser storage is full - export your subtitles to SRT to keep them.', true);
+        else console.warn('Video project save failed:', e);
+        return false;
       }
-    } catch (e) {
-      console.warn('LocalStorage load failed:', e);
+    }
+
+    function removeLegacyStorage() {
+      LEGACY_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
+    }
+
+    // Load the project for a video, never the project belonging to the prior video.
+    // Legacy global keys are adopted once, on the first video opened, then removed.
+    function activateVideoProject(videoIdentity) {
+      if (activeVideoIdentity) persistProject();
+      if (!legacyProject) legacyProject = readLegacyProject();
+      activeVideoIdentity = videoIdentity;
+      const stored = readProject(videoIdentity);
+      const project = stored || legacyProject || validateProject({});
+      const hadProject = Boolean(stored || legacyProject);
+      SCRIPT_CUES = project.scriptCues;
+      SUBTITLES = project.subtitles;
+      subtitlesEnabled = project.subtitlesEnabled;
+      subStyleConfig = project.subStyleConfig;
+      if (!stored && legacyProject && persistProject()) {
+        legacyProject = null;
+        try { removeLegacyStorage(); } catch (e) { console.warn('Legacy localStorage cleanup failed:', e); }
+      }
+      resetSpokenCursor();
+      if (typeof clearMasterScriptTextarea === 'function') clearMasterScriptTextarea();
+      if (typeof renderCuesList === 'function') renderCuesList();
+      if (typeof renderSubtitlesList === 'function') renderSubtitlesList();
+      if (typeof applySubStyles === 'function') applySubStyles();
+      if (typeof toggleSubtitles === 'function') toggleSubtitles(subtitlesEnabled, true);
+      return hadProject;
     }
 
     function isStorageQuotaError(e) {
@@ -2733,26 +2829,12 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
       }[c]));
     }
 
-    function persistJson(key, value) {
-      try {
-        localStorage.setItem(key, JSON.stringify(value));
-        return true;
-      } catch (e) {
-        if (isStorageQuotaError(e)) {
-          showToast('Browser storage is full - export your subtitles to SRT to keep them.', true);
-        } else {
-          console.warn('LocalStorage save failed:', e);
-        }
-        return false;
-      }
-    }
-
     function saveSubtitles() {
-      persistJson('cinevoice_subtitles', SUBTITLES);
+      persistProject();
     }
 
     function saveScriptCues() {
-      persistJson('cinevoice_script_cues', SCRIPT_CUES);
+      persistProject();
     }
 
     // Cue-card fields are committed to SCRIPT_CUES by "Save & Apply", but a
@@ -2768,11 +2850,7 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
     }
 
     function saveSubStyle() {
-      try {
-        localStorage.setItem('cinevoice_sub_style', JSON.stringify(subStyleConfig));
-      } catch (e) {
-        console.warn('LocalStorage subtitle style save failed:', e);
-      }
+      persistProject();
     }
 
     // -------------------------------------------------------------
@@ -3293,9 +3371,10 @@ let speakRetries = 0;
       mainVideoPlayer.src = videoBlobUrl;
       mainVideoPlayer.load();
 
-      // Cues and subtitles from a previous video have timings that mean nothing
-      // for this one, so start clean rather than overlaying stale captions.
-      clearScriptAndSubtitles();
+      // A file's metadata makes a stable identity for this browser. Switching
+      // videos loads that video's project (or safe empty defaults), never stale
+      // cues from the previous source.
+      activateVideoProject(`file:${file.name}|${file.size}|${file.lastModified || 0}|${file.type || ''}`);
 
       mainVideoPlayer.onloadedmetadata = () => {
         isVideoLoaded = true;
@@ -3321,7 +3400,7 @@ let speakRetries = 0;
       SUBTITLES = [];
       resetSpokenCursor();
       clearMasterScriptTextarea();
-      persistJson('cinevoice_script_cues', SCRIPT_CUES);
+      saveScriptCues();
       saveSubtitles();
       renderCuesList();
       renderSubtitlesList();
@@ -3362,21 +3441,28 @@ let speakRetries = 0;
 
         // Only map the demo screenplay onto the demo film itself. The last-resort
         // fallback is a completely different short, so its timings would be nonsense.
-        if (loadedSource === 'demo') {
-          SCRIPT_CUES = DEMO_FILM_SCENES.map(s => ({ ...s }));
-          SUBTITLES = DEMO_FILM_SCENES.map(s => ({
-            id: s.id,
-            start: s.time,
-            end: Math.min((mainVideoPlayer.duration || 120), s.time + 6.8),
-            text: s.subtitle
-          }));
+        const projectIdentity = loadedSource === 'demo'
+          ? 'demo:THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4'
+          : 'demo-fallback:TearsOfSteel.mp4';
+         const hadProject = activateVideoProject(projectIdentity);
+         if (loadedSource === 'demo') {
+            if (!hadProject && !SCRIPT_CUES.length && !SUBTITLES.length) {
+              SCRIPT_CUES = DEMO_FILM_SCENES.map(s => ({ ...s }));
+              SUBTITLES = DEMO_FILM_SCENES.map(s => ({
+               id: s.id,
+               start: s.time,
+               end: Math.min((mainVideoPlayer.duration || 120), s.time + 6.8),
+                text: s.subtitle
+              }));
+              subtitlesEnabled = true;
+            }
 
-          renderCuesList();
-          renderSubtitlesList();
-          applySubStyles();
-          toggleSubtitles(true);
-          persistJson('cinevoice_script_cues', SCRIPT_CUES);
-          saveSubtitles();
+           renderCuesList();
+           renderSubtitlesList();
+           applySubStyles();
+           toggleSubtitles(subtitlesEnabled);
+            saveScriptCues();
+           saveSubtitles();
 
           showToast('✓ Demo video & screenplay loaded! Press Play to start.');
         } else {
@@ -4813,9 +4899,9 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       // Remember the caption state so a reload does not silently switch
       // captions off while the subtitle data is still loaded.
       try {
-        localStorage.setItem('cinevoice_subtitles_enabled', String(subtitlesEnabled));
+        persistProject();
       } catch (e) {
-        console.warn('LocalStorage caption-state save failed:', e);
+        console.warn('Video project caption-state save failed:', e);
       }
 
       if (!silent) showToast(`Subtitles & Captions: ${subtitlesEnabled ? 'ENABLED' : 'DISABLED'}`);
@@ -5181,8 +5267,8 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       if (confirm('Clear all narration script cues?')) {
         SCRIPT_CUES = [];
         SUBTITLES = [];
-        localStorage.removeItem('cinevoice_script_cues');
-        localStorage.removeItem('cinevoice_subtitles');
+        saveScriptCues();
+        saveSubtitles();
         if (cueSaveTimer) { clearTimeout(cueSaveTimer); cueSaveTimer = null; }
         resetSpokenCursor();
         clearMasterScriptTextarea();

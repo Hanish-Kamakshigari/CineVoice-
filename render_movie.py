@@ -4,6 +4,9 @@ import glob
 import hashlib
 import argparse
 import asyncio
+import shutil
+import subprocess
+import tempfile
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import edge_tts
@@ -40,9 +43,24 @@ _FONT_DIRS = [
 
 _font_cache = {}
 
+# Repository-owned inputs and generated cache files do not depend on the
+# directory from which the script was launched. CLI paths remain caller-based.
+REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
+TEMP_RENDER_DIR = None
+
+
+def _repo_path(*parts):
+    return os.path.join(REPO_ROOT, *parts)
+
+
+def _temp_render_path(name):
+    if not TEMP_RENDER_DIR:
+        raise RuntimeError("render temporary directory has not been initialized")
+    return os.path.join(TEMP_RENDER_DIR, name)
+
 
 def _vo_signature_path():
-    return os.path.join("audio_cache", f"vo_signature_{VOICE_TYPE}.txt")
+    return _repo_path("audio_cache", f"vo_signature_{VOICE_TYPE}.txt")
 
 
 def compute_vo_signature():
@@ -79,7 +97,7 @@ def vo_cache_is_stale(signature):
 
 def write_vo_signature(signature):
     try:
-        os.makedirs("audio_cache", exist_ok=True)
+        os.makedirs(AUDIO_CACHE_DIR, exist_ok=True)
         with open(_vo_signature_path(), "w", encoding="utf-8") as fh:
             fh.write(signature)
     except OSError as exc:
@@ -139,8 +157,10 @@ FPS = 24
 TOTAL_SECONDS = 120
 TOTAL_FRAMES = TOTAL_SECONDS * FPS # 2880 frames
 SAMPLE_RATE = 44100
-ASSETS_DIR = "cinematic_film_assets"
-OUTPUT_VIDEO = "THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4"
+ASSETS_DIR = _repo_path("cinematic_film_assets")
+OUTPUT_VIDEO = _repo_path("THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4")
+AUDIO_CACHE_DIR = _repo_path("audio_cache")
+MASTER_SOUNDTRACK = _repo_path("master_soundtrack.wav")
 
 # Global Config
 VOICE_TYPE = "male" # "male" or "female"
@@ -290,7 +310,7 @@ async def generate_voiceovers():
         return
 
     print(f"[1/4] Generating Neural AI Voice-Over audio files ({VOICE_TYPE.upper()} voice)...")
-    os.makedirs("audio_cache", exist_ok=True)
+    os.makedirs(AUDIO_CACHE_DIR, exist_ok=True)
 
     if VOICE_TYPE == "female":
         voice_name = "en-US-JennyNeural"
@@ -313,7 +333,7 @@ async def generate_voiceovers():
 
     for sc in SCENES:
         if sc["vo"]:
-            out_file = f"audio_cache/vo_{VOICE_TYPE}_{sc['id']}.mp3"
+            out_file = os.path.join(AUDIO_CACHE_DIR, f"vo_{VOICE_TYPE}_{sc['id']}.mp3")
             if FORCE_VOICE or stale or not os.path.exists(out_file):
                 print(f"  Generating {VOICE_TYPE} voice for Scene {sc['id']}: {sc['title']}")
                 communicate = edge_tts.Communicate(
@@ -434,8 +454,7 @@ def synthesize_soundtrack():
 
     if CUSTOM_AUDIO_PATH and os.path.exists(CUSTOM_AUDIO_PATH):
         print(f"  Overlaying custom narration audio from: {CUSTOM_AUDIO_PATH}")
-        custom_wav = "audio_cache/custom_master_vo.wav"
-        import subprocess
+        custom_wav = os.path.join(AUDIO_CACHE_DIR, "custom_master_vo.wav")
         subprocess.run([ffmpeg_exe, "-y", "-i", CUSTOM_AUDIO_PATH, "-ac", "1", "-ar", str(SAMPLE_RATE), custom_wav, "-loglevel", "quiet"], check=True)
         rate, vo_data = wavfile.read(custom_wav)
         vo_data = vo_data.astype(np.float32)
@@ -447,14 +466,13 @@ def synthesize_soundtrack():
         audio[:mix_len] += vo_data[:mix_len]
     else:
         for sc in SCENES:
-            vo_path = f"audio_cache/vo_{VOICE_TYPE}_{sc['id']}.mp3"
+            vo_path = os.path.join(AUDIO_CACHE_DIR, f"vo_{VOICE_TYPE}_{sc['id']}.mp3")
             if not os.path.exists(vo_path):
                 # Fallback to legacy path if exists
-                vo_path = f"audio_cache/vo_{sc['id']}.mp3"
+                vo_path = os.path.join(AUDIO_CACHE_DIR, f"vo_{sc['id']}.mp3")
             if os.path.exists(vo_path):
-                wav_path = f"audio_cache/vo_{VOICE_TYPE}_{sc['id']}.wav"
+                wav_path = os.path.join(AUDIO_CACHE_DIR, f"vo_{VOICE_TYPE}_{sc['id']}.wav")
                 if FORCE_VOICE or not os.path.exists(wav_path):
-                    import subprocess
                     subprocess.run([ffmpeg_exe, "-y", "-i", vo_path, "-ac", "1", "-ar", str(SAMPLE_RATE), wav_path, "-loglevel", "quiet"], check=True)
                 
                 rate, vo_data = wavfile.read(wav_path)
@@ -486,8 +504,8 @@ def synthesize_soundtrack():
 
     # Final master normalization and soft clipping
     audio = np.tanh(audio * 1.1) * 0.95
-    wavfile.write("master_soundtrack.wav", SAMPLE_RATE, (audio * 32767).astype(np.int16))
-    print("Master soundtrack generated: master_soundtrack.wav")
+    wavfile.write(MASTER_SOUNDTRACK, SAMPLE_RATE, (audio * 32767).astype(np.int16))
+    print(f"Master soundtrack generated: {MASTER_SOUNDTRACK}")
 
 def render_video_frames():
     print("[3/4] Rendering 2880 full HD cinema frames (24 fps)...")
@@ -512,7 +530,7 @@ def render_video_frames():
     font_climax_sub = _load_font(_MONO_CANDIDATES, 26)
 
     # Open video writer via ffmpeg pipe directly for pristine quality and speed
-    video_raw_output = "temp_video_stream.mp4"
+    video_raw_output = _temp_render_path("video_stream.mp4")
     cmd = [
         ffmpeg_exe,
         "-y",
@@ -529,108 +547,115 @@ def render_video_frames():
         video_raw_output
     ]
 
-    import subprocess
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
 
     letterbox_h = int(HEIGHT * 0.08) # 2.39:1 letterbox
 
-    for f in range(TOTAL_FRAMES):
-        t = f / FPS
-        # Find current scene
-        scene = SCENES[-1]
-        for sc in SCENES:
-            if sc["start"] <= t < sc["end"]:
-                scene = sc
-                break
+    try:
+        for f in range(TOTAL_FRAMES):
+            t = f / FPS
+            # Find current scene
+            scene = SCENES[-1]
+            for sc in SCENES:
+                if sc["start"] <= t < sc["end"]:
+                    scene = sc
+                    break
 
-        progress_in_scene = (t - scene["start"]) / (scene["end"] - scene["start"])
-        progress_in_scene = max(0.0, min(1.0, progress_in_scene))
+            progress_in_scene = (t - scene["start"]) / (scene["end"] - scene["start"])
+            progress_in_scene = max(0.0, min(1.0, progress_in_scene))
 
-        # Scene 12: Typographic Climax
-        if scene["id"] == 12:
-            frame_img = Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0))
-            draw = ImageDraw.Draw(frame_img)
+            # Scene 12: Typographic Climax
+            if scene["id"] == 12:
+                frame_img = Image.new("RGB", (WIDTH, HEIGHT), (0, 0, 0))
+                draw = ImageDraw.Draw(frame_img)
             
             # Fade in manifesto
-            climax_t = t - 116.0
-            if climax_t > 0.5:
-                text1 = "DON'T WAIT FOR TIME TO CHANGE YOUR LIFE."
-                draw.text((WIDTH//2, HEIGHT//2 - 90), text1, font=font_badge, fill=(160, 160, 160), anchor="mm")
-            if climax_t > 1.2:
-                text2 = "USE YOUR TIME TO CHANGE YOUR LIFE."
-                draw.text((WIDTH//2, HEIGHT//2), text2, font=font_climax_big, fill=(245, 195, 110), anchor="mm")
-            if climax_t > 2.0:
-                text3 = "TIME MANAGEMENT   •   DISCIPLINE   •   BETTER RESULTS"
-                draw.text((WIDTH//2, HEIGHT//2 + 90), text3, font=font_climax_sub, fill=(210, 160, 80), anchor="mm")
-        else:
-            base_img = loaded_images[scene["image"]]
-            orig_w, orig_h = base_img.size
+                climax_t = t - 116.0
+                if climax_t > 0.5:
+                    text1 = "DON'T WAIT FOR TIME TO CHANGE YOUR LIFE."
+                    draw.text((WIDTH//2, HEIGHT//2 - 90), text1, font=font_badge, fill=(160, 160, 160), anchor="mm")
+                if climax_t > 1.2:
+                    text2 = "USE YOUR TIME TO CHANGE YOUR LIFE."
+                    draw.text((WIDTH//2, HEIGHT//2), text2, font=font_climax_big, fill=(245, 195, 110), anchor="mm")
+                if climax_t > 2.0:
+                    text3 = "TIME MANAGEMENT   •   DISCIPLINE   •   BETTER RESULTS"
+                    draw.text((WIDTH//2, HEIGHT//2 + 90), text3, font=font_climax_sub, fill=(210, 160, 80), anchor="mm")
+            else:
+                base_img = loaded_images[scene["image"]]
+                orig_w, orig_h = base_img.size
 
             # Ken Burns zoom & pan
-            z_start, z_end = scene["zoom"]
-            current_zoom = z_start + (z_end - z_start) * progress_in_scene
+                z_start, z_end = scene["zoom"]
+                current_zoom = z_start + (z_end - z_start) * progress_in_scene
 
-            crop_w = int(orig_w / current_zoom)
-            crop_h = int(orig_h / current_zoom)
+                crop_w = int(orig_w / current_zoom)
+                crop_h = int(orig_h / current_zoom)
 
-            pan_x1, pan_y1, pan_x2, pan_y2 = scene["pan"]
-            cur_pan_x = pan_x1 + (pan_x2 - pan_x1) * progress_in_scene
-            cur_pan_y = pan_y1 + (pan_y2 - pan_y1) * progress_in_scene
+                pan_x1, pan_y1, pan_x2, pan_y2 = scene["pan"]
+                cur_pan_x = pan_x1 + (pan_x2 - pan_x1) * progress_in_scene
+                cur_pan_y = pan_y1 + (pan_y2 - pan_y1) * progress_in_scene
 
-            left = int((orig_w - crop_w) / 2 + cur_pan_x)
-            top = int((orig_h - crop_h) / 2 + cur_pan_y)
-            left = max(0, min(orig_w - crop_w, left))
-            top = max(0, min(orig_h - crop_h, top))
+                left = int((orig_w - crop_w) / 2 + cur_pan_x)
+                top = int((orig_h - crop_h) / 2 + cur_pan_y)
+                left = max(0, min(orig_w - crop_w, left))
+                top = max(0, min(orig_h - crop_h, top))
 
-            cropped = base_img.crop((left, top, left + crop_w, top + crop_h))
-            frame_img = cropped.resize((WIDTH, HEIGHT), Image.Resampling.BILINEAR)
+                cropped = base_img.crop((left, top, left + crop_w, top + crop_h))
+                frame_img = cropped.resize((WIDTH, HEIGHT), Image.Resampling.BILINEAR)
 
             # Draw Overlays
-            draw = ImageDraw.Draw(frame_img)
+                draw = ImageDraw.Draw(frame_img)
 
             # 2.39:1 Anamorphic Black Letterbox Bars
-            draw.rectangle([(0, 0), (WIDTH, letterbox_h)], fill=(0, 0, 0))
-            draw.rectangle([(0, HEIGHT - letterbox_h), (WIDTH, HEIGHT)], fill=(0, 0, 0))
+                draw.rectangle([(0, 0), (WIDTH, letterbox_h)], fill=(0, 0, 0))
+                draw.rectangle([(0, HEIGHT - letterbox_h), (WIDTH, HEIGHT)], fill=(0, 0, 0))
 
             # HUD Badge (Top Left)
-            badge_text = f"SCENE 0{scene['id']}  •  {scene['badge']}"
-            draw.text((80, letterbox_h + 35), badge_text, font=font_badge, fill=(240, 200, 120))
+                badge_text = f"SCENE 0{scene['id']}  •  {scene['badge']}"
+                draw.text((80, letterbox_h + 35), badge_text, font=font_badge, fill=(240, 200, 120))
 
             # Subtitle (Bottom Center with shadow)
-            sub_text = scene["subtitle"]
-            if sub_text:
-                sub_y = HEIGHT - letterbox_h - 60
-                draw.text((WIDTH//2 + 2, sub_y + 2), sub_text, font=font_serif, fill=(0, 0, 0), anchor="mm")
-                draw.text((WIDTH//2, sub_y), sub_text, font=font_serif, fill=(255, 255, 255), anchor="mm")
+                sub_text = scene["subtitle"]
+                if sub_text:
+                    sub_y = HEIGHT - letterbox_h - 60
+                    draw.text((WIDTH//2 + 2, sub_y + 2), sub_text, font=font_serif, fill=(0, 0, 0), anchor="mm")
+                    draw.text((WIDTH//2, sub_y), sub_text, font=font_serif, fill=(255, 255, 255), anchor="mm")
 
-        # Write RGB24 directly to ffmpeg pipe
-        try:
-            proc.stdin.write(frame_img.tobytes())
-        except BrokenPipeError:
-            proc.wait()
-            raise SystemExit(
-                f"ERROR: ffmpeg exited with code {proc.returncode} after {f}/{TOTAL_FRAMES} "
-                "frames. Check that the bundled ffmpeg supports libx264."
-            )
+            # Write RGB24 directly to ffmpeg pipe
+            try:
+                proc.stdin.write(frame_img.tobytes())
+            except BrokenPipeError:
+                proc.wait()
+                raise SystemExit(
+                    f"ERROR: ffmpeg exited with code {proc.returncode} after {f}/{TOTAL_FRAMES} "
+                    "frames. Check that the bundled ffmpeg supports libx264."
+                )
 
-        if f % 120 == 0:
-            pct = (f / TOTAL_FRAMES) * 100
-            print(f"  Rendered {f}/{TOTAL_FRAMES} frames ({pct:.1f}%)...")
+            if f % 120 == 0:
+                pct = (f / TOTAL_FRAMES) * 100
+                print(f"  Rendered {f}/{TOTAL_FRAMES} frames ({pct:.1f}%)...")
+    except BaseException:
+        if proc.stdin and not proc.stdin.closed:
+            proc.stdin.close()
+        if proc.poll() is None:
+            proc.kill()
+        proc.wait()
+        raise
 
     proc.stdin.close()
     returncode = proc.wait()
     if returncode != 0:
         raise SystemExit(
             f"ERROR: ffmpeg frame encoder failed with exit code {returncode}. "
-            "temp_video_stream.mp4 may be incomplete - not muxing."
+            f"{video_raw_output} may be incomplete - not muxing."
         )
     print("Video stream rendering complete.")
 
 def mux_final_mp4():
     print("[4/4] Muxing master video and high-fidelity audio into MP4...")
     ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-    video_raw = "temp_video_stream.mp4"
-    audio_wav = "master_soundtrack.wav"
+    video_raw = _temp_render_path("video_stream.mp4")
+    audio_wav = MASTER_SOUNDTRACK
 
     cmd = [
         ffmpeg_exe,
@@ -643,15 +668,10 @@ def mux_final_mp4():
         "-shortest",
         OUTPUT_VIDEO
     ]
-    import subprocess
     try:
         subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError as exc:
         raise SystemExit(f"ERROR: ffmpeg mux failed with exit code {exc.returncode}.")
-
-    # Clean temporary raw stream
-    if os.path.exists(video_raw):
-        os.remove(video_raw)
 
     print("\n=======================================================")
     print(f"SUCCESS! Master Film Exported: {OUTPUT_VIDEO}")
@@ -672,6 +692,18 @@ if __name__ == "__main__":
     CUSTOM_AUDIO_PATH = args.custom_audio
     FORCE_VOICE = args.force_voice
     OUTPUT_VIDEO = args.out
+
+    # Explicit CLI paths retain the traditional working-directory semantics;
+    # validate them before any expensive synthesis begins.
+    if CUSTOM_AUDIO_PATH:
+        CUSTOM_AUDIO_PATH = os.path.abspath(CUSTOM_AUDIO_PATH)
+        if not os.path.isfile(CUSTOM_AUDIO_PATH):
+            parser.error(f"--custom-audio file not found: {args.custom_audio}")
+    if args.out != parser.get_default("out"):
+        OUTPUT_VIDEO = os.path.abspath(args.out)
+    output_parent = os.path.dirname(OUTPUT_VIDEO)
+    if output_parent:
+        os.makedirs(output_parent, exist_ok=True)
 
     # Load custom script if provided
     if CUSTOM_SCRIPT_PATH:
@@ -707,13 +739,27 @@ if __name__ == "__main__":
                 print(f"WARNING: skipping non-object script entry at index {index}.")
                 continue
             scene_id = item.get("id")
+            if isinstance(scene_id, bool) or not isinstance(scene_id, int):
+                print(f"WARNING: script entry {index} has invalid scene id {scene_id!r}.")
+                continue
             target = next((s for s in SCENES if s["id"] == scene_id), None)
             if target is None:
                 print(f"WARNING: script entry {index} references unknown scene id {scene_id!r}.")
                 continue
-            if "voScript" in item: target["vo"] = item["voScript"]
-            elif "vo" in item: target["vo"] = item["vo"]
-            if "subtitle" in item: target["subtitle"] = item["subtitle"]
+            vo_value = item.get("voScript", item.get("vo"))
+            if vo_value is not None and not isinstance(vo_value, str):
+                print(f"WARNING: script entry {index} has non-text narration; skipping narration field.")
+            elif vo_value is not None:
+                target["vo"] = vo_value
+            subtitle_value = item.get("subtitle")
+            if subtitle_value is not None and not isinstance(subtitle_value, str):
+                print(f"WARNING: script entry {index} has non-text subtitle; skipping subtitle field.")
+            elif subtitle_value is not None:
+                target["subtitle"] = subtitle_value
+            for timing_key in ("start", "end", "duration"):
+                if timing_key in item and (isinstance(item[timing_key], bool) or
+                                           not isinstance(item[timing_key], (int, float))):
+                    print(f"WARNING: script entry {index} has invalid {timing_key}; expected a number.")
             applied += 1
         if applied == 0:
             parser.error("--script contained no usable scene entries - nothing would be narrated.")
@@ -726,7 +772,12 @@ if __name__ == "__main__":
     if CUSTOM_SCRIPT_PATH: print(f"  Custom Script:  {CUSTOM_SCRIPT_PATH}")
     print("=======================================================\n")
 
-    asyncio.run(generate_voiceovers())
-    synthesize_soundtrack()
-    render_video_frames()
-    mux_final_mp4()
+    TEMP_RENDER_DIR = tempfile.mkdtemp(prefix="cinevoice-render-", dir=REPO_ROOT)
+    try:
+        asyncio.run(generate_voiceovers())
+        synthesize_soundtrack()
+        render_video_frames()
+        mux_final_mp4()
+    finally:
+        shutil.rmtree(TEMP_RENDER_DIR, ignore_errors=True)
+        TEMP_RENDER_DIR = None

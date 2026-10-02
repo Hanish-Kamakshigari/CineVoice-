@@ -41,7 +41,13 @@ import socket.py
 input.txt
 output.txt
 
+# Environment variables
+.env
+.env*
+
 # OS files
 .DS_Store
 Thumbs.db
 desktop.ini
+
+

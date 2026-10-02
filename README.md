@@ -37,6 +37,19 @@ A single self-contained file — no build step, no bundler, no framework.
 
 > Speech synthesis quality and the available voice list vary by browser. Chrome and Edge provide the most reliable results.
 
+### Prompt Coach — Scene Improvement Analysis (`coach.js` + `/api/coach.js`)
+Added in v1.2. Pause the video on any scene and the coach analyses the current scene frame-by-frame, then suggests an improved AI-video-generation prompt.
+
+- **Frame Sampling**: Creates a hidden `<video>` clone with the same source, samples grayscale 32×18 thumbnails every 0.5 s in an 16-second window around the paused time, and detects hard scene cuts via per-frame pixel deltas (threshold ≈0.18).
+- **Scene Stats**: Computes average brightness (0–1) and average motion (0–1) for the detected scene.
+- **Keyframe Capture**: Captures 3 JPEG keyframes (scene start, middle, end) at 512 px wide.
+- **AI Prompt Generation** (powered by Gemini): POSTs the 3 images + stats to `POST /api/coach`, which calls the Gemini API to describe weaknesses and write a concrete, cinematography-focused improved prompt (<90 words).
+- **Offline Fallback**: If the Gemini API is unreachable or quota is exhausted, the serverless function returns a rule-based prompt derived from the brightness and motion numbers, labelled "offline mode".
+- **Floating Panel**: Dark theme (#07090c) with gold accent (#d4a73a), shows timestamps, weaknesses, improved prompt, negative prompt, camera tip, and a Copy button.
+- **XSS Safe**: All model output is escaped via `textContent` before inserting into the page.
+- **Mobile Friendly**: Panel fits 360 px wide screens.
+- **Auto-trigger**: Pausing the video automatically opens the coach after 600 ms (debounced).
+
 ### Automated Movie Rendering Pipeline (`render_movie.py`)
 - **HD Video Synthesis**: 1920×1080 at 24 fps, composed frame-by-frame with Pillow and encoded through FFmpeg (bundled via `imageio-ffmpeg`).
 - **Neural Text-to-Speech**: Edge-TTS with male and female neural voices, tuned speech rate and pitch. Requires network access on first synthesis.
@@ -114,6 +127,54 @@ Open [http://127.0.0.1:8080/editor.html](http://127.0.0.1:8080/editor.html). Upl
 - **Frontend**: HTML5, vanilla CSS (glassmorphism / cine-dark theme), vanilla JavaScript — Web Speech API, HTML5 Canvas, `localStorage`.
 - **Video & Audio Pipeline**: Python, Pillow (`PIL`), Edge-TTS, NumPy, SciPy, FFmpeg (`imageio-ffmpeg`).
 - **Deployment**: Vercel static hosting, configured via `vercel.json`.
+- **AI Prompt Coach**: Vercel serverless function (`/api/coach.js`) + Gemini API.
+
+---
+
+## Prompt Coach — Deployment Setup
+
+The Prompt Coach feature requires a Gemini API key set as a Vercel environment variable.
+
+### 1. Get a Gemini API key
+
+1. Go to [Google AI Studio](https://aistudio.google.com/apikey).
+2. Click **Create API Key** and choose a Google Cloud project (or create one).
+3. Copy the key (it starts with `AIza...`).
+
+### 2. Set the environment variables on Vercel
+
+```bash
+# Install Vercel CLI if you haven't
+npm i -g vercel
+
+# Log in
+vercel login
+
+# Link your project
+vercel link
+
+# Add the API key (never commit it)
+vercel env add GEMINI_API_KEY
+
+# Optionally set the model (default: gemini-2.0-flash)
+vercel env add GEMINI_MODEL
+
+# Or set them in the Vercel Dashboard → Project → Settings → Environment Variables:
+#   Key:   GEMINI_API_KEY
+#   Value: AIza...
+```
+
+### 3. Redeploy
+
+```bash
+git add .
+git commit -m "Add Prompt Coach feature"
+git push
+# Vercel auto-deploys. Or run:
+vercel --prod
+```
+
+The Gemini API key stays server-side — the browser never sees it. If the API quota is exhausted or the service is unreachable, the coach falls back to a rule-based prompt generator ("offline mode").
 
 ---
 

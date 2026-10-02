@@ -1,4 +1,5 @@
 // coach.js — Prompt Coach for AI Video Generation (Veo, Runway, Sora, Luma)
+// Supports both single-scene analysis on pause/click and full-video scene-by-scene analysis with timestamps.
 // Vanilla JS, no build step. Added via <script src="coach.js"></script>.
 (function () {
   'use strict';
@@ -29,8 +30,34 @@
     }, 3000);
   }
 
+  function fallbackCopy(text, cb) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try {
+      document.execCommand('copy');
+      if (cb) cb();
+    } catch (_) {}
+    ta.remove();
+  }
+
+  function copyText(text, onCopied) {
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(onCopied).catch(function () {
+        fallbackCopy(text, onCopied);
+      });
+    } else {
+      fallbackCopy(text, onCopied);
+    }
+  }
+
   /* ================================================================== */
-  /*  Inject Styles for the Prompt Coach UI                             */
+  /*  Inject Styles for Prompt Coach UI                                 */
   /* ================================================================== */
   var STYLES = document.createElement('style');
   STYLES.textContent =
@@ -40,7 +67,7 @@
       'left: 50%;' +
       'transform: translate(-50%, -50%);' +
       'z-index: 10000;' +
-      'width: min(calc(100vw - 24px), 480px);' +
+      'width: min(calc(100vw - 24px), 520px);' +
       'max-height: 88vh;' +
       'overflow-y: auto;' +
       'box-sizing: border-box;' +
@@ -103,6 +130,37 @@
       'background: rgba(239, 68, 68, 0.2);' +
       'border-color: rgba(239, 68, 68, 0.4);' +
       'color: #fca5a5;' +
+    '}' +
+    '.coach-mode-tabs {' +
+      'display: flex;' +
+      'gap: 0.35rem;' +
+      'background: rgba(255, 255, 255, 0.04);' +
+      'padding: 0.25rem;' +
+      'border-radius: 8px;' +
+      'border: 1px solid rgba(255, 255, 255, 0.06);' +
+    '}' +
+    '.coach-tab {' +
+      'flex: 1;' +
+      'background: transparent;' +
+      'border: none;' +
+      'color: #94a3b8;' +
+      'font-size: 0.73rem;' +
+      'font-weight: 600;' +
+      'padding: 0.35rem 0.6rem;' +
+      'border-radius: 6px;' +
+      'cursor: pointer;' +
+      'transition: all 0.2s;' +
+      'text-align: center;' +
+      'display: flex;' +
+      'align-items: center;' +
+      'justify-content: center;' +
+      'gap: 0.35rem;' +
+      'font-family: inherit;' +
+    '}' +
+    '.coach-tab.active {' +
+      'background: rgba(212, 167, 58, 0.2);' +
+      'color: #d4a73a;' +
+      'border: 1px solid rgba(212, 167, 58, 0.4);' +
     '}' +
     '.coach-meta-bar {' +
       'display: flex;' +
@@ -196,7 +254,7 @@
     '}' +
     '.coach-btn-row {' +
       'display: flex;' +
-      'gap: 0.6rem;' +
+      'gap: 0.5rem;' +
       'flex-wrap: wrap;' +
       'margin-top: 0.25rem;' +
     '}' +
@@ -204,15 +262,15 @@
       'background: #d4a73a;' +
       'border: 1px solid #d4a73a;' +
       'color: #07090c;' +
-      'padding: 0.5rem 1.1rem;' +
+      'padding: 0.45rem 1rem;' +
       'border-radius: 9999px;' +
-      'font-size: 0.8rem;' +
+      'font-size: 0.78rem;' +
       'font-weight: 700;' +
       'cursor: pointer;' +
       'transition: all 0.2s;' +
       'display: inline-flex;' +
       'align-items: center;' +
-      'gap: 0.4rem;' +
+      'gap: 0.35rem;' +
       'font-family: inherit;' +
     '}' +
     '.coach-btn:hover {' +
@@ -228,6 +286,15 @@
       'background: rgba(255, 255, 255, 0.14);' +
       'color: #ffffff;' +
     '}' +
+    '.coach-btn-gold-outline {' +
+      'background: rgba(212, 167, 58, 0.12);' +
+      'border: 1px solid rgba(212, 167, 58, 0.4);' +
+      'color: #d4a73a;' +
+    '}' +
+    '.coach-btn-gold-outline:hover {' +
+      'background: rgba(212, 167, 58, 0.25);' +
+      'color: #fff;' +
+    '}' +
     '.coach-spinner {' +
       'display: inline-block;' +
       'width: 16px;' +
@@ -239,6 +306,70 @@
     '}' +
     '@keyframes coachSpin {' +
       'to { transform: rotate(360deg); }' +
+    '}' +
+    '/* Full Video Scenes View */' +
+    '.coach-full-video-container {' +
+      'display: flex;' +
+      'flex-direction: column;' +
+      'gap: 0.85rem;' +
+    '}' +
+    '.coach-film-summary-box {' +
+      'background: rgba(212, 167, 58, 0.08);' +
+      'border: 1px solid rgba(212, 167, 58, 0.25);' +
+      'border-radius: 10px;' +
+      'padding: 0.75rem 0.95rem;' +
+      'font-size: 0.82rem;' +
+      'color: #e5b364;' +
+      'line-height: 1.45;' +
+    '}' +
+    '.coach-scene-card {' +
+      'background: rgba(18, 23, 31, 0.75);' +
+      'border: 1px solid rgba(255, 255, 255, 0.08);' +
+      'border-radius: 12px;' +
+      'padding: 0.9rem 1rem;' +
+      'display: flex;' +
+      'flex-direction: column;' +
+      'gap: 0.6rem;' +
+      'transition: border-color 0.2s;' +
+    '}' +
+    '.coach-scene-card:hover {' +
+      'border-color: rgba(212, 167, 58, 0.35);' +
+    '}' +
+    '.coach-scene-card-header {' +
+      'display: flex;' +
+      'justify-content: space-between;' +
+      'align-items: center;' +
+      'flex-wrap: wrap;' +
+      'gap: 0.4rem;' +
+      'border-bottom: 1px solid rgba(255, 255, 255, 0.06);' +
+      'padding-bottom: 0.45rem;' +
+    '}' +
+    '.coach-scene-badge {' +
+      'font-family: "JetBrains Mono", monospace;' +
+      'font-size: 0.8rem;' +
+      'color: #d4a73a;' +
+      'font-weight: 700;' +
+      'cursor: pointer;' +
+      'text-decoration: underline;' +
+      'text-underline-offset: 3px;' +
+    '}' +
+    '.coach-scene-badge:hover {' +
+      'color: #fff;' +
+    '}' +
+    '.coach-copy-sm-btn {' +
+      'background: rgba(212, 167, 58, 0.15);' +
+      'border: 1px solid rgba(212, 167, 58, 0.35);' +
+      'color: #d4a73a;' +
+      'font-size: 0.72rem;' +
+      'padding: 0.25rem 0.6rem;' +
+      'border-radius: 6px;' +
+      'cursor: pointer;' +
+      'font-weight: 600;' +
+      'transition: all 0.15s;' +
+    '}' +
+    '.coach-copy-sm-btn:hover {' +
+      'background: #d4a73a;' +
+      'color: #07090c;' +
     '}' +
     '#coachLaunchBtn {' +
       'background: rgba(212, 167, 58, 0.14);' +
@@ -302,34 +433,60 @@
       '<div class="coach-title"><span>🎬</span> PROMPT COACH</div>' +
       '<button class="coach-close" id="coachCloseBtn" title="Close Prompt Coach (Esc)">✕</button>' +
     '</div>' +
-    '<div class="coach-meta-bar">' +
-      '<div class="coach-timestamps" id="coachTimestamps"></div>' +
-      '<div id="coachBadgeContainer"></div>' +
+    '<div class="coach-mode-tabs">' +
+      '<button class="coach-tab active" id="coachTabScene">📍 Current Scene</button>' +
+      '<button class="coach-tab" id="coachTabFull">🎞️ Entire Video (Full Film)</button>' +
     '</div>' +
-    '<div class="coach-section" id="coachWeaknessSection">' +
-      '<div class="coach-section-label">Weaknesses</div>' +
-      '<ul class="coach-weakness-list" id="coachWeaknesses"></ul>' +
+    '<!-- Single Scene Container -->' +
+    '<div id="coachSingleContainer" style="display:flex; flex-direction:column; gap:0.75rem;">' +
+      '<div class="coach-meta-bar">' +
+        '<div class="coach-timestamps" id="coachTimestamps"></div>' +
+        '<div id="coachBadgeContainer"></div>' +
+      '</div>' +
+      '<div class="coach-section" id="coachWeaknessSection">' +
+        '<div class="coach-section-label">Weaknesses</div>' +
+        '<ul class="coach-weakness-list" id="coachWeaknesses"></ul>' +
+      '</div>' +
+      '<div class="coach-section">' +
+        '<div class="coach-section-label">Improvised Prompt</div>' +
+        '<div class="coach-prompt-box" id="coachPrompt"></div>' +
+      '</div>' +
+      '<div class="coach-section" id="coachNegativeSection">' +
+        '<div class="coach-section-label">What to Avoid</div>' +
+        '<div class="coach-negative-box" id="coachNegative"></div>' +
+      '</div>' +
+      '<div class="coach-section" id="coachTipSection">' +
+        '<div class="coach-section-label">Camera Tip</div>' +
+        '<div class="coach-tip" id="coachTip"></div>' +
+      '</div>' +
+      '<div class="coach-btn-row">' +
+        '<button class="coach-btn" id="coachCopyBtn">📋 Copy Prompt</button>' +
+        '<button class="coach-btn coach-btn-secondary" id="coachRegenBtn">🔄 Re-analyze</button>' +
+        '<button class="coach-btn coach-btn-gold-outline" id="coachAnalyzeFullBtn">🎞️ Analyze Entire Film</button>' +
+      '</div>' +
     '</div>' +
-    '<div class="coach-section">' +
-      '<div class="coach-section-label">Improved Prompt</div>' +
-      '<div class="coach-prompt-box" id="coachPrompt"></div>' +
-    '</div>' +
-    '<div class="coach-section" id="coachNegativeSection">' +
-      '<div class="coach-section-label">What to Avoid</div>' +
-      '<div class="coach-negative-box" id="coachNegative"></div>' +
-    '</div>' +
-    '<div class="coach-section" id="coachTipSection">' +
-      '<div class="coach-section-label">Camera Tip</div>' +
-      '<div class="coach-tip" id="coachTip"></div>' +
-    '</div>' +
-    '<div class="coach-btn-row">' +
-      '<button class="coach-btn" id="coachCopyBtn">📋 Copy Prompt</button>' +
-      '<button class="coach-btn coach-btn-secondary" id="coachRegenBtn">🔄 Re-analyze</button>' +
+    '<!-- Full Video Container -->' +
+    '<div id="coachFullContainer" class="coach-full-video-container" style="display:none;">' +
+      '<div class="coach-meta-bar">' +
+        '<div class="coach-timestamps" id="coachFullMeta">Full Film Prompt Sequence</div>' +
+        '<div id="coachFullBadgeContainer"></div>' +
+      '</div>' +
+      '<div class="coach-film-summary-box" id="coachFilmSummary">Scanning video scenes...</div>' +
+      '<div id="coachFullScenesList" style="display:flex; flex-direction:column; gap:0.75rem;"></div>' +
+      '<div class="coach-btn-row">' +
+        '<button class="coach-btn" id="coachCopyAllBtn">📋 Copy All Prompts</button>' +
+        '<button class="coach-btn coach-btn-secondary" id="coachFullRegenBtn">🔄 Re-scan Full Film</button>' +
+      '</div>' +
     '</div>';
 
   document.body.appendChild(panel);
 
   /* DOM references */
+  var tabSceneBtn = document.getElementById('coachTabScene');
+  var tabFullBtn = document.getElementById('coachTabFull');
+  var singleContainer = document.getElementById('coachSingleContainer');
+  var fullContainer = document.getElementById('coachFullContainer');
+
   var timestampsEl = document.getElementById('coachTimestamps');
   var badgeContainerEl = document.getElementById('coachBadgeContainer');
   var weaknessSectionEl = document.getElementById('coachWeaknessSection');
@@ -341,6 +498,40 @@
   var tipEl = document.getElementById('coachTip');
   var copyBtn = document.getElementById('coachCopyBtn');
   var regenBtn = document.getElementById('coachRegenBtn');
+  var analyzeFullBtn = document.getElementById('coachAnalyzeFullBtn');
+
+  var fullMetaEl = document.getElementById('coachFullMeta');
+  var fullBadgeEl = document.getElementById('coachFullBadgeContainer');
+  var filmSummaryEl = document.getElementById('coachFilmSummary');
+  var fullScenesListEl = document.getElementById('coachFullScenesList');
+  var copyAllBtn = document.getElementById('coachCopyAllBtn');
+  var fullRegenBtn = document.getElementById('coachFullRegenBtn');
+
+  var activeMode = 'single'; // 'single' or 'full'
+  var cachedFullResult = null;
+
+  function switchTab(mode) {
+    activeMode = mode;
+    if (mode === 'single') {
+      tabSceneBtn.classList.add('active');
+      tabFullBtn.classList.remove('active');
+      singleContainer.style.display = 'flex';
+      fullContainer.style.display = 'none';
+    } else {
+      tabSceneBtn.classList.remove('active');
+      tabFullBtn.classList.add('active');
+      singleContainer.style.display = 'none';
+      fullContainer.style.display = 'flex';
+      if (!cachedFullResult) {
+        analyzeEntireVideo();
+      }
+    }
+  }
+
+  tabSceneBtn.addEventListener('click', function () { switchTab('single'); });
+  tabFullBtn.addEventListener('click', function () { switchTab('full'); });
+  analyzeFullBtn.addEventListener('click', function () { switchTab('full'); });
+  fullRegenBtn.addEventListener('click', function () { analyzeEntireVideo(); });
 
   /* ================================================================== */
   /*  Inject "Coach" Button into Player Control Bar                     */
@@ -355,7 +546,7 @@
     var btn = document.createElement('button');
     btn.id = 'coachLaunchBtn';
     btn.innerHTML = '🎬 Coach';
-    btn.title = 'Analyze current scene and suggest an improved AI video prompt';
+    btn.title = 'Analyze scene or entire video with Gemini 2.5 Flash';
     var tools = controlRow.querySelector('.playback-tools');
     if (tools) tools.after(btn);
     else controlRow.appendChild(btn);
@@ -368,7 +559,7 @@
   }
 
   /* ================================================================== */
-  /*  Robust Seek Helper with Timeout Guard                             */
+  /*  Robust Seek Helper                                                */
   /* ================================================================== */
   function seekTo(videoEl, targetTime) {
     return new Promise(function (resolve) {
@@ -385,7 +576,7 @@
         videoEl.removeEventListener('seeked', onSeeked);
         resolve();
       }
-      var timeoutId = setTimeout(onSeeked, 1400); // 1.4s safety limit per seek
+      var timeoutId = setTimeout(onSeeked, 1400);
       videoEl.addEventListener('seeked', onSeeked, { once: true });
       try {
         videoEl.currentTime = clamped;
@@ -396,7 +587,36 @@
   }
 
   /* ================================================================== */
-  /*  Sample Frames every 0.5s from -8s to +8s on Hidden Video Clone    */
+  /*  Keyframe Capture (512px wide JPEG)                                */
+  /* ================================================================== */
+  function captureKeyframe(videoEl, t) {
+    return seekTo(videoEl, t).then(function () {
+      var vw = videoEl.videoWidth || 640;
+      var vh = videoEl.videoHeight || 360;
+      var targetWidth = 512;
+      var targetHeight = Math.max(1, Math.round(vh * (targetWidth / vw)));
+
+      var c = document.createElement('canvas');
+      c.width = targetWidth;
+      c.height = targetHeight;
+      var ctx = c.getContext('2d');
+      ctx.drawImage(videoEl, 0, 0, targetWidth, targetHeight);
+      return c.toDataURL('image/jpeg', 0.82);
+    });
+  }
+
+  function captureThreeKeyframes(videoEl, times) {
+    return captureKeyframe(videoEl, times[0]).then(function (img1) {
+      return captureKeyframe(videoEl, times[1]).then(function (img2) {
+        return captureKeyframe(videoEl, times[2]).then(function (img3) {
+          return [img1, img2, img3];
+        });
+      });
+    });
+  }
+
+  /* ================================================================== */
+  /*  Sample Frames and Compute Cuts                                    */
   /* ================================================================== */
   function sampleFrames(hiddenVideo, startT, endT, step) {
     return new Promise(function (resolve) {
@@ -429,13 +649,12 @@
             var bSum = 0;
 
             for (var p = 0, k = 0; p < imgData.length; p += 4, k++) {
-              // ITU-R BT.601 standard grayscale conversion: 0.299R + 0.587G + 0.114B
               var g = (0.299 * imgData[p] + 0.587 * imgData[p + 1] + 0.114 * imgData[p + 2]) / 255;
               grays[k] = g;
               bSum += g;
             }
 
-            var brightness = bSum / (32 * 18); // 0 to 1
+            var brightness = bSum / (32 * 18);
             var delta = 0;
 
             if (prevGrays) {
@@ -443,7 +662,7 @@
               for (var j = 0; j < 32 * 18; j++) {
                 diffSum += Math.abs(grays[j] - prevGrays[j]);
               }
-              delta = diffSum / (32 * 18); // average pixel difference (0 to 1)
+              delta = diffSum / (32 * 18);
             }
 
             prevGrays = grays;
@@ -453,12 +672,10 @@
               brightness: brightness,
               delta: delta
             });
-          } catch (e) {
-            console.warn('Frame sample error at', t, e);
-          }
+          } catch (e) {}
 
           index++;
-          setTimeout(sampleNext, 20);
+          setTimeout(sampleNext, 18);
         });
       }
 
@@ -467,14 +684,13 @@
   }
 
   /* ================================================================== */
-  /*  Scene Boundary & Cut Detection around Center Time (Threshold ≈0.18)*/
+  /*  Detect Scene Boundaries around Time                               */
   /* ================================================================== */
   function findSceneAround(frames, centerTime, cutThreshold) {
     if (!frames || !frames.length) {
       return { start: 0, end: 0, sceneFrames: [] };
     }
 
-    // Mark hard cuts: frame i is a cut if delta from frame i-1 exceeds threshold
     for (var i = 1; i < frames.length; i++) {
       frames[i].isCut = frames[i].delta > cutThreshold;
     }
@@ -483,14 +699,12 @@
     var sceneEnd = frames[frames.length - 1].time;
     var cutEndIndex = -1;
 
-    // Latest cut at or before centerTime defines the scene start
     for (var i = 1; i < frames.length; i++) {
       if (frames[i].isCut && frames[i].time <= centerTime && frames[i].time > sceneStart) {
         sceneStart = frames[i].time;
       }
     }
 
-    // Earliest cut strictly after centerTime defines where next scene begins
     for (var i = 1; i < frames.length; i++) {
       if (frames[i].isCut && frames[i].time > centerTime) {
         sceneEnd = frames[i].time;
@@ -499,7 +713,6 @@
       }
     }
 
-    // Current scene frames: from sceneStart up to right before the next cut
     var sceneFrames = frames.filter(function (f) {
       return f.time >= sceneStart && (cutEndIndex > -1 ? f.time < sceneEnd : f.time <= sceneEnd);
     });
@@ -517,9 +730,6 @@
     };
   }
 
-  /* ================================================================== */
-  /*  Compute Average Brightness and Motion (0-1) for the Scene         */
-  /* ================================================================== */
   function computeStats(sceneFrames) {
     if (!sceneFrames || !sceneFrames.length) {
       return { brightness: 0.5, motion: 0.1 };
@@ -530,7 +740,6 @@
 
     for (var i = 0; i < sceneFrames.length; i++) {
       bSum += sceneFrames[i].brightness;
-      // Intra-scene motion ignores the boundary cut of the first frame
       if (i > 0) {
         mSum += sceneFrames[i].delta;
         mCount++;
@@ -544,103 +753,57 @@
   }
 
   /* ================================================================== */
-  /*  Capture 512px-wide JPEG Keyframe (Sequential, No Concurrency Race)*/
+  /*  Segment Full Video into Consecutive Scenes                       */
   /* ================================================================== */
-  function captureKeyframe(videoEl, t) {
-    return seekTo(videoEl, t).then(function () {
-      var vw = videoEl.videoWidth || 640;
-      var vh = videoEl.videoHeight || 360;
-      var targetWidth = 512;
-      var targetHeight = Math.max(1, Math.round(vh * (targetWidth / vw)));
-
-      var c = document.createElement('canvas');
-      c.width = targetWidth;
-      c.height = targetHeight;
-      var ctx = c.getContext('2d');
-      ctx.drawImage(videoEl, 0, 0, targetWidth, targetHeight);
-      return c.toDataURL('image/jpeg', 0.85);
-    });
-  }
-
-  function captureThreeKeyframes(videoEl, times) {
-    return captureKeyframe(videoEl, times[0]).then(function (img1) {
-      return captureKeyframe(videoEl, times[1]).then(function (img2) {
-        return captureKeyframe(videoEl, times[2]).then(function (img3) {
-          return [img1, img2, img3];
-        });
-      });
-    });
-  }
-
-  /* ================================================================== */
-  /*  Client-side Rule-based Fallback in case of Network/API Outage    */
-  /* ================================================================== */
-  function localRuleBasedPrompt(brightness, motion, start, end) {
-    var dur = Math.max(1, Math.round((end || 8) - (start || 0)));
-    var bPct = Math.round(brightness * 100);
-    var mPct = Math.round(motion * 100);
-
-    var lighting = 'balanced cinematic natural lighting';
-    var lightWeakness = null;
-    if (brightness < 0.22) {
-      lighting = 'moody low-key dramatic lighting, subtle rim lighting, deep contrast';
-      lightWeakness = 'Under-exposed: shadow details are crushed and subject lacks definition';
-    } else if (brightness < 0.45) {
-      lighting = 'soft diffused atmospheric ambient lighting with gentle falloff';
-    } else if (brightness > 0.75) {
-      lighting = 'bright controlled high-key daylight with soft highlight diffusion';
-      lightWeakness = 'Over-exposed: highlights are washed out with risk of blown-out clipping';
+  function segmentFullVideo(frames, totalDuration, cutThreshold) {
+    var cuts = [0];
+    for (var i = 1; i < frames.length; i++) {
+      if (frames[i].delta > cutThreshold) {
+        // Enforce minimum scene duration of 2 seconds to prevent micro-cuts
+        var lastCut = cuts[cuts.length - 1];
+        if (frames[i].time - lastCut >= 2.0) {
+          cuts.push(frames[i].time);
+        }
+      }
     }
-
-    var camera = 'subtle slow push-in, 35mm anamorphic prime lens, f/2.0';
-    var action = 'composed character movement';
-    var motionWeakness = null;
-
-    if (motion < 0.04) {
-      camera = 'slow cinematic creeping push-in on 50mm prime, stable lock-off';
-      action = 'focused stillness with subtle atmospheric drift';
-      motionWeakness = 'Static scene: lacks dynamic focal movement or environmental tension';
-    } else if (motion <= 0.16) {
-      camera = 'smooth steadycam tracking shot, 35mm lens, f/2.8';
-      action = 'measured deliberate character movement';
-    } else if (motion <= 0.38) {
-      camera = 'dynamic handheld camera tracking with organic micro-sway, 28mm lens';
-      action = 'active character motion through the environment';
+    if (totalDuration - cuts[cuts.length - 1] >= 1.5) {
+      cuts.push(parseFloat(totalDuration.toFixed(2)));
     } else {
-      camera = 'kinetic gimbal pursuit tracking with motion-blur compensation, 24mm wide angle lens';
-      action = 'fast-paced action and rapid subject repositioning';
-      motionWeakness = 'Excessive motion: risk of visual jitter and temporal warping artifacts';
+      cuts[cuts.length - 1] = parseFloat(totalDuration.toFixed(2));
     }
 
-    var weaknesses = [];
-    if (lightWeakness) weaknesses.push(lightWeakness);
-    if (motionWeakness) weaknesses.push(motionWeakness);
-    if (weaknesses.length === 0) {
-      weaknesses.push('Compositional framing could feature sharper depth-of-field separation');
-    }
-    if (weaknesses.length < 2) {
-      weaknesses.push('Lighting contrast could be shaped with stronger key-to-fill ratio');
+    // Build scene objects
+    var scenes = [];
+    for (var j = 0; j < cuts.length - 1; j++) {
+      var sStart = cuts[j];
+      var sEnd = cuts[j + 1];
+      var sFrames = frames.filter(function (f) {
+        return f.time >= sStart && f.time <= sEnd;
+      });
+      var stats = computeStats(sFrames);
+      scenes.push({
+        scene_id: j + 1,
+        start: sStart,
+        end: sEnd,
+        duration: Math.max(1, Math.round(sEnd - sStart)),
+        brightness: stats.brightness,
+        motion: stats.motion,
+        keyframeTime: parseFloat(((sStart + sEnd) / 2).toFixed(2))
+      });
     }
 
-    return {
-      scene_summary: 'Scene from ' + formatTime(start) + ' to ' + formatTime(end) + ' (' + bPct + '% brightness, ' + mPct + '% motion).',
-      weaknesses: weaknesses.slice(0, 3),
-      improved_prompt: action + ', cinematic film setting, ' + camera + ', ' + lighting + ', 35mm film grain, rich color grade, 24fps, shallow depth of field. Duration ' + dur + 's.',
-      negative_prompt: 'jittery camera, flickering, motion smear, blown out highlights, muddy crushed shadows, cartoonish textures, warped anatomy.',
-      camera_tip: 'Scene brightness ' + bPct + '%, motion ' + mPct + '%. Use ' + (motion > 0.2 ? 'a gimbal stabilizer and 1/50s shutter speed' : 'a stable dolly push-in with 50mm f/2.0 lens') + ' to maximize temporal coherence.',
-      is_offline: true,
-      offline_mode: true
-    };
+    return scenes;
   }
 
   /* ================================================================== */
-  /*  POST Keyframes & Stats to /api/coach                              */
+  /*  API Callers                                                       */
   /* ================================================================== */
-  function callCoachAPI(images, stats, start, end) {
+  function callCoachSingle(images, stats, start, end) {
     return fetch('/api/coach', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        mode: 'single',
         images: images,
         brightness: stats.brightness,
         motion: stats.motion,
@@ -657,19 +820,32 @@
     });
   }
 
-  /* ================================================================== */
-  /*  Main Scene Analysis Pipeline                                      */
-  /* ================================================================== */
-  var isAnalyzing = false;
-  var lastAnalyzedTime = -1;
+  function callCoachFullVideo(scenesPayload) {
+    return fetch('/api/coach', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mode: 'full_video',
+        scenes: scenesPayload
+      })
+    }).then(function (r) {
+      if (!r.ok) {
+        return r.json().catch(function () { return { error: 'Status ' + r.status }; }).then(function (err) {
+          throw new Error(err.error || 'Server error ' + r.status);
+        });
+      }
+      return r.json();
+    });
+  }
 
-  function renderCoachResult(result, scene) {
+  /* ================================================================== */
+  /*  Render Single Scene Result                                        */
+  /* ================================================================== */
+  function renderSingleResult(result, scene) {
     var isOffline = !!(result.is_offline || result.offline_mode);
 
-    // Timestamps mm:ss
     timestampsEl.textContent = '📽️ ' + formatTime(scene.start) + ' – ' + formatTime(scene.end);
 
-    // Badge
     badgeContainerEl.innerHTML = '';
     if (isOffline) {
       var badge = document.createElement('span');
@@ -678,7 +854,6 @@
       badgeContainerEl.appendChild(badge);
     }
 
-    // Weaknesses (XSS safe via textContent)
     weaknessesEl.innerHTML = '';
     var wList = Array.isArray(result.weaknesses) ? result.weaknesses : [];
     if (wList.length > 0) {
@@ -689,17 +864,11 @@
       });
       weaknessSectionEl.style.display = 'flex';
     } else {
-      var liNone = document.createElement('li');
-      liNone.textContent = 'Visual balance and framing look strong.';
-      liNone.style.color = '#94a3b8';
-      weaknessesEl.appendChild(liNone);
-      weaknessSectionEl.style.display = 'flex';
+      weaknessSectionEl.style.display = 'none';
     }
 
-    // Improved prompt (XSS safe)
     promptEl.textContent = String(result.improved_prompt || '—');
 
-    // What to avoid (XSS safe)
     if (result.negative_prompt) {
       negativeEl.textContent = String(result.negative_prompt);
       negativeSectionEl.style.display = 'flex';
@@ -707,7 +876,6 @@
       negativeSectionEl.style.display = 'none';
     }
 
-    // Camera tip (XSS safe)
     if (result.camera_tip) {
       tipEl.textContent = String(result.camera_tip);
       tipSectionEl.style.display = 'flex';
@@ -717,7 +885,116 @@
 
     copyBtn.style.display = 'inline-flex';
     regenBtn.style.display = 'inline-flex';
+    analyzeFullBtn.style.display = 'inline-flex';
   }
+
+  /* ================================================================== */
+  /*  Render Full Video Sequence Results                                */
+  /* ================================================================== */
+  function renderFullVideoResult(result) {
+    cachedFullResult = result;
+    var isOffline = !!(result.is_offline || result.offline_mode);
+
+    fullMetaEl.textContent = '🎞️ Complete Film Sequence (' + (result.scenes ? result.scenes.length : 0) + ' scenes)';
+
+    fullBadgeEl.innerHTML = '';
+    if (isOffline) {
+      var badge = document.createElement('span');
+      badge.className = 'coach-offline-badge';
+      badge.textContent = '⚡ OFFLINE MODE';
+      fullBadgeEl.appendChild(badge);
+    }
+
+    filmSummaryEl.textContent = result.film_summary || 'Cohesive cinematic sequence prompts';
+
+    fullScenesListEl.innerHTML = '';
+    var scenes = Array.isArray(result.scenes) ? result.scenes : [];
+
+    scenes.forEach(function (s, idx) {
+      var card = document.createElement('div');
+      card.className = 'coach-scene-card';
+
+      // Header row
+      var head = document.createElement('div');
+      head.className = 'coach-scene-card-header';
+
+      var badge = document.createElement('span');
+      badge.className = 'coach-scene-badge';
+      badge.textContent = 'Scene ' + (s.scene_id || (idx + 1)) + ' [' + (s.start || '00:00') + ' – ' + (s.end || '00:00') + ']';
+      badge.title = 'Click to seek main video to this scene';
+      badge.addEventListener('click', function () {
+        var mainVideo = document.getElementById('mainVideoPlayer');
+        if (mainVideo) {
+          var tParts = (s.start || '0:0').split(':');
+          var sec = (parseFloat(tParts[0]) || 0) * 60 + (parseFloat(tParts[1]) || 0);
+          mainVideo.currentTime = sec;
+          toast('Jumped to ' + (s.start || '00:00'));
+        }
+      });
+
+      var copySm = document.createElement('button');
+      copySm.className = 'coach-copy-sm-btn';
+      copySm.textContent = '📋 Copy';
+      copySm.addEventListener('click', function () {
+        copyText(s.improved_prompt, function () {
+          copySm.textContent = '✅ Copied!';
+          setTimeout(function () { copySm.textContent = '📋 Copy'; }, 2000);
+        });
+      });
+
+      head.appendChild(badge);
+      head.appendChild(copySm);
+      card.appendChild(head);
+
+      // Scene Summary
+      if (s.scene_summary) {
+        var sumEl = document.createElement('div');
+        sumEl.style.fontSize = '0.78rem';
+        sumEl.style.color = '#94a3b8';
+        sumEl.textContent = s.scene_summary;
+        card.appendChild(sumEl);
+      }
+
+      // Weaknesses tags
+      if (Array.isArray(s.weaknesses) && s.weaknesses.length) {
+        var wUl = document.createElement('ul');
+        wUl.className = 'coach-weakness-list';
+        s.weaknesses.forEach(function (w) {
+          var li = document.createElement('li');
+          li.textContent = String(w);
+          wUl.appendChild(li);
+        });
+        card.appendChild(wUl);
+      }
+
+      // Improved Prompt
+      var pBox = document.createElement('div');
+      pBox.className = 'coach-prompt-box';
+      pBox.style.fontSize = '0.82rem';
+      pBox.textContent = String(s.improved_prompt || '—');
+      card.appendChild(pBox);
+
+      // Camera Tip
+      if (s.camera_tip) {
+        var tipBox = document.createElement('div');
+        tipBox.className = 'coach-tip';
+        tipBox.style.fontSize = '0.76rem';
+        tipBox.textContent = '🎥 ' + s.camera_tip;
+        card.appendChild(tipBox);
+      }
+
+      fullScenesListEl.appendChild(card);
+    });
+
+    copyAllBtn.style.display = 'inline-flex';
+    fullRegenBtn.style.display = 'inline-flex';
+  }
+
+  /* ================================================================== */
+  /*  Analyze Current Scene                                             */
+  /* ================================================================== */
+  var isAnalyzing = false;
+  var lastAnalyzedTime = -1;
 
   function analyzeScene(isManualClick) {
     if (isAnalyzing) return;
@@ -736,18 +1013,18 @@
     var launchBtn = document.getElementById('coachLaunchBtn');
     if (launchBtn) launchBtn.disabled = true;
 
-    // Show panel in loading state
+    switchTab('single');
     panel.classList.add('open');
     timestampsEl.textContent = 'Analyzing scene around ' + formatTime(currentTime) + '...';
     badgeContainerEl.innerHTML = '';
     weaknessesEl.innerHTML = '';
-    promptEl.innerHTML = '<span class="coach-spinner"></span> Scanning frames & generating prompt...';
+    promptEl.innerHTML = '<span class="coach-spinner"></span> Scanning frames with Gemini 2.5 Flash...';
     negativeEl.textContent = '';
     tipEl.textContent = '';
     copyBtn.style.display = 'none';
     regenBtn.style.display = 'none';
+    analyzeFullBtn.style.display = 'none';
 
-    // Create hidden video element with identical source
     var hiddenVideo = document.createElement('video');
     hiddenVideo.preload = 'auto';
     hiddenVideo.muted = true;
@@ -773,24 +1050,19 @@
       try { hiddenVideo.remove(); } catch (_) {}
     }
 
-    function startProcessing() {
+    function processScene() {
       var T = Math.max(0, currentTime);
       var halfWindow = 8;
       var startT = Math.max(0, T - halfWindow);
       var endT = Math.min(hiddenVideo.duration, T + halfWindow);
 
-      // If near beginning, shift window forward
       if (T < halfWindow) {
         endT = Math.min(hiddenVideo.duration, T + halfWindow + (halfWindow - T));
       }
 
-      var step = 0.5;
-
-      sampleFrames(hiddenVideo, startT, endT, step)
+      sampleFrames(hiddenVideo, startT, endT, 0.5)
         .then(function (frames) {
-          if (!frames || !frames.length) {
-            throw new Error('Could not sample frames from video.');
-          }
+          if (!frames || !frames.length) throw new Error('Could not sample video frames');
 
           var scene = findSceneAround(frames, T, 0.18);
           var sceneFrames = scene.sceneFrames;
@@ -804,19 +1076,13 @@
 
           var stats = computeStats(sceneFrames);
 
-          // Select 3 keyframe timestamps: start, middle, end
           var tStart = sceneFrames[0].time;
           var tMid = sceneFrames[Math.floor(sceneFrames.length / 2)].time;
           var tEnd = sceneFrames[sceneFrames.length - 1].time;
 
-          // Sequential capture to avoid concurrent seeking conflicts on single video
           return captureThreeKeyframes(hiddenVideo, [tStart, tMid, tEnd])
             .then(function (images) {
-              return callCoachAPI(images, stats, scene.start, scene.end)
-                .catch(function (err) {
-                  console.warn('API call failed, switching to local offline fallback:', err);
-                  return localRuleBasedPrompt(stats.brightness, stats.motion, scene.start, scene.end);
-                })
+              return callCoachSingle(images, stats, scene.start, scene.end)
                 .then(function (result) {
                   return { result: result, scene: scene };
                 });
@@ -824,42 +1090,169 @@
         })
         .then(function (data) {
           cleanup();
-          renderCoachResult(data.result, data.scene);
+          renderSingleResult(data.result, data.scene);
         })
         .catch(function (err) {
           cleanup();
-          console.error('Coach analysis error:', err);
-          // Fallback to local rule-based prompt even in case of sampling error
-          var fallbackResult = localRuleBasedPrompt(0.5, 0.1, Math.max(0, T - 2), Math.min(T + 4, 10));
-          renderCoachResult(fallbackResult, { start: Math.max(0, T - 2), end: Math.min(T + 4, 10) });
+          console.warn('Single scene analysis error:', err);
+          timestampsEl.textContent = '⚠️ Scene Analysis: ' + err.message;
+          promptEl.textContent = 'Please click Re-analyze or try full film analysis.';
+          regenBtn.style.display = 'inline-flex';
         });
     }
 
     document.body.appendChild(hiddenVideo);
-
     if (hiddenVideo.readyState >= 2) {
-      startProcessing();
+      processScene();
     } else {
-      hiddenVideo.addEventListener('loadeddata', startProcessing, { once: true });
+      hiddenVideo.addEventListener('loadeddata', processScene, { once: true });
       hiddenVideo.addEventListener('error', function () {
         cleanup();
-        var fallbackResult = localRuleBasedPrompt(0.5, 0.1, Math.max(0, currentTime - 2), currentTime + 4);
-        renderCoachResult(fallbackResult, { start: Math.max(0, currentTime - 2), end: currentTime + 4 });
+        timestampsEl.textContent = '⚠️ Could not load video for frame analysis.';
+        regenBtn.style.display = 'inline-flex';
       }, { once: true });
     }
 
-    // Master safety timeout (28 seconds)
     setTimeout(function () {
       if (!cleanedUp) {
         cleanup();
-        var fallbackResult = localRuleBasedPrompt(0.5, 0.1, Math.max(0, currentTime - 2), currentTime + 4);
-        renderCoachResult(fallbackResult, { start: Math.max(0, currentTime - 2), end: currentTime + 4 });
+        timestampsEl.textContent = '⚠️ Request timed out. Click Re-analyze to try again.';
+        regenBtn.style.display = 'inline-flex';
       }
     }, 28000);
   }
 
   /* ================================================================== */
-  /*  Event Listeners & Interactions                                    */
+  /*  Analyze Entire Video (Full Film Scene-by-Scene Improvised Prompts)*/
+  /* ================================================================== */
+  var isFullAnalyzing = false;
+
+  function analyzeEntireVideo() {
+    if (isFullAnalyzing) return;
+    var mainVideo = document.getElementById('mainVideoPlayer');
+    if (!mainVideo || !mainVideo.duration || mainVideo.readyState < 2) {
+      toast('Load a video first before starting full film analysis.');
+      return;
+    }
+
+    isFullAnalyzing = true;
+    switchTab('full');
+    panel.classList.add('open');
+
+    fullMetaEl.textContent = 'Analyzing Full Film...';
+    fullBadgeEl.innerHTML = '';
+    filmSummaryEl.innerHTML = '<span class="coach-spinner"></span> Scanning entire film for scene transitions and keyframes...';
+    fullScenesListEl.innerHTML = '';
+    copyAllBtn.style.display = 'none';
+    fullRegenBtn.style.display = 'none';
+
+    var hiddenVideo = document.createElement('video');
+    hiddenVideo.preload = 'auto';
+    hiddenVideo.muted = true;
+    hiddenVideo.playsInline = true;
+    hiddenVideo.crossOrigin = 'anonymous';
+    hiddenVideo.style.position = 'fixed';
+    hiddenVideo.style.top = '-9999px';
+    hiddenVideo.style.left = '-9999px';
+    hiddenVideo.style.width = '1px';
+    hiddenVideo.style.height = '1px';
+    hiddenVideo.style.opacity = '0';
+    hiddenVideo.style.pointerEvents = 'none';
+
+    var currentSource = mainVideo.currentSrc || mainVideo.src;
+    hiddenVideo.src = currentSource;
+
+    var cleanedUp = false;
+    function cleanupFull() {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      isFullAnalyzing = false;
+      try { hiddenVideo.remove(); } catch (_) {}
+    }
+
+    function processFull() {
+      var duration = hiddenVideo.duration;
+      // Adaptive step size based on duration to maintain fast performance
+      var step = duration <= 30 ? 0.5 : (duration <= 75 ? 0.75 : 1.0);
+
+      filmSummaryEl.innerHTML = '<span class="coach-spinner"></span> Detecting cuts across ' + formatTime(duration) + ' runtime...';
+
+      sampleFrames(hiddenVideo, 0, duration, step)
+        .then(function (frames) {
+          if (!frames || !frames.length) throw new Error('No frames could be sampled.');
+
+          var rawScenes = segmentFullVideo(frames, duration, 0.18);
+          if (!rawScenes.length) {
+            rawScenes = [{
+              scene_id: 1,
+              start: 0,
+              end: duration,
+              duration: Math.round(duration),
+              brightness: 0.5,
+              motion: 0.1,
+              keyframeTime: parseFloat((duration / 2).toFixed(2))
+            }];
+          }
+
+          filmSummaryEl.innerHTML = '<span class="coach-spinner"></span> Captured ' + rawScenes.length + ' scenes. Extracting keyframes for Gemini 2.5 Flash...';
+
+          // Sequentially capture keyframe for each scene
+          var sceneIndex = 0;
+          var scenesWithImages = [];
+
+          function captureNextSceneKeyframe() {
+            if (sceneIndex >= rawScenes.length) {
+              return Promise.resolve(scenesWithImages);
+            }
+            var sc = rawScenes[sceneIndex];
+            return captureKeyframe(hiddenVideo, sc.keyframeTime).then(function (img) {
+              sc.image = img;
+              scenesWithImages.push(sc);
+              sceneIndex++;
+              return captureNextSceneKeyframe();
+            });
+          }
+
+          return captureNextSceneKeyframe().then(function (finalScenes) {
+            filmSummaryEl.innerHTML = '<span class="coach-spinner"></span> Gemini 2.5 Flash is improvising scene prompts with timestamps...';
+            return callCoachFullVideo(finalScenes);
+          });
+        })
+        .then(function (result) {
+          cleanupFull();
+          renderFullVideoResult(result);
+        })
+        .catch(function (err) {
+          cleanupFull();
+          console.warn('Full video analysis error:', err);
+          filmSummaryEl.textContent = '⚠️ Full Film Analysis failed: ' + err.message;
+          fullRegenBtn.style.display = 'inline-flex';
+        });
+    }
+
+    document.body.appendChild(hiddenVideo);
+    if (hiddenVideo.readyState >= 2) {
+      processFull();
+    } else {
+      hiddenVideo.addEventListener('loadeddata', processFull, { once: true });
+      hiddenVideo.addEventListener('error', function () {
+        cleanupFull();
+        filmSummaryEl.textContent = '⚠️ Could not load video for full scan.';
+        fullRegenBtn.style.display = 'inline-flex';
+      }, { once: true });
+    }
+
+    setTimeout(function () {
+      if (!cleanedUp) {
+        cleanupFull();
+        filmSummaryEl.textContent = '⚠️ Analysis timed out. Click Re-scan to try again.';
+        fullRegenBtn.style.display = 'inline-flex';
+      }
+    }, 45000);
+  }
+
+  /* ================================================================== */
+  /*  Event Handlers                                                    */
   /* ================================================================== */
 
   // Launch button in player controls
@@ -875,7 +1268,7 @@
     panel.classList.remove('open');
   });
 
-  // Re-analyze button
+  // Re-analyze single scene
   regenBtn.addEventListener('click', function () {
     analyzeScene(true);
   });
@@ -887,41 +1280,32 @@
     }
   });
 
-  // Copy button with clipboard fallback and visual confirmation
+  // Copy Single Prompt
   copyBtn.addEventListener('click', function () {
     var text = promptEl.textContent;
     if (!text || text === '—') return;
-
-    function onCopied() {
+    copyText(text, function () {
       copyBtn.innerHTML = '✅ Copied!';
-      setTimeout(function () {
-        copyBtn.innerHTML = '📋 Copy Prompt';
-      }, 2000);
-    }
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(onCopied).catch(function () {
-        fallbackCopy(text, onCopied);
-      });
-    } else {
-      fallbackCopy(text, onCopied);
-    }
+      setTimeout(function () { copyBtn.innerHTML = '📋 Copy Prompt'; }, 2000);
+    });
   });
 
-  function fallbackCopy(text, cb) {
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.left = '-9999px';
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    try {
-      document.execCommand('copy');
-      cb();
-    } catch (_) {}
-    ta.remove();
-  }
+  // Copy All Prompts formatted with timestamps
+  copyAllBtn.addEventListener('click', function () {
+    if (!cachedFullResult || !cachedFullResult.scenes) return;
+    var allText = '🎬 ' + (cachedFullResult.film_summary || 'Film Prompt Sequence') + '\n\n' +
+      cachedFullResult.scenes.map(function (s) {
+        return '--- Scene ' + s.scene_id + ' [' + s.start + ' – ' + s.end + '] ---\n' +
+               'PROMPT: ' + s.improved_prompt + '\n' +
+               (s.negative_prompt ? 'NEGATIVE: ' + s.negative_prompt + '\n' : '') +
+               (s.camera_tip ? 'CAMERA TIP: ' + s.camera_tip + '\n' : '');
+      }).join('\n');
+
+    copyText(allText, function () {
+      copyAllBtn.innerHTML = '✅ All Prompts Copied!';
+      setTimeout(function () { copyAllBtn.innerHTML = '📋 Copy All Prompts'; }, 2000);
+    });
+  });
 
   /* ================================================================== */
   /*  Auto-trigger Analysis when Video Pauses                           */
@@ -931,14 +1315,13 @@
   document.addEventListener('pause', function (e) {
     if (e.target && e.target.id === 'mainVideoPlayer') {
       var v = e.target;
-      if (v.ended || v.seeking || isAnalyzing) return;
+      if (v.ended || v.seeking || isAnalyzing || isFullAnalyzing) return;
       if (!v.duration || v.readyState < 2) return;
 
       clearTimeout(pauseDebounceTimer);
       pauseDebounceTimer = setTimeout(function () {
-        if (v.paused && !v.ended && !v.seeking && !isAnalyzing) {
-          // If panel is already open and still on the same time, don't needlessly re-run
-          if (panel.classList.contains('open') && Math.abs(v.currentTime - lastAnalyzedTime) < 0.5) {
+        if (v.paused && !v.ended && !v.seeking && !isAnalyzing && !isFullAnalyzing) {
+          if (panel.classList.contains('open') && activeMode === 'single' && Math.abs(v.currentTime - lastAnalyzedTime) < 0.5) {
             return;
           }
           analyzeScene(false);

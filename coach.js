@@ -753,23 +753,38 @@
   }
 
   /* ================================================================== */
-  /*  Segment Full Video into Consecutive Scenes                       */
+  /*  Segment Full Video into Coherent Cinematic Scenes                 */
   /* ================================================================== */
   function segmentFullVideo(frames, totalDuration, cutThreshold) {
+    var minSceneDuration = 5.0; // AI video clips standard: 5s to 12s
     var cuts = [0];
-    for (var i = 1; i < frames.length; i++) {
-      if (frames[i].delta > cutThreshold) {
-        // Enforce minimum scene duration of 2 seconds to prevent micro-cuts
+
+    // Detect significant cut peaks across the film
+    for (var i = 1; i < frames.length - 1; i++) {
+      var isPeak = (frames[i].delta >= frames[i - 1].delta && frames[i].delta >= frames[i + 1].delta);
+      if (frames[i].delta > 0.22 && isPeak) {
         var lastCut = cuts[cuts.length - 1];
-        if (frames[i].time - lastCut >= 2.0) {
+        if (frames[i].time - lastCut >= minSceneDuration) {
           cuts.push(frames[i].time);
         }
       }
     }
-    if (totalDuration - cuts[cuts.length - 1] >= 1.5) {
+
+    if (totalDuration - cuts[cuts.length - 1] >= 3.0) {
       cuts.push(parseFloat(totalDuration.toFixed(2)));
     } else {
       cuts[cuts.length - 1] = parseFloat(totalDuration.toFixed(2));
+    }
+
+    // If too few scenes found for a long video, split into balanced segments
+    if (cuts.length <= 2 && totalDuration > 14) {
+      var segCount = Math.min(6, Math.max(3, Math.round(totalDuration / 10)));
+      var segLen = totalDuration / segCount;
+      cuts = [0];
+      for (var s = 1; s < segCount; s++) {
+        cuts.push(parseFloat((s * segLen).toFixed(2)));
+      }
+      cuts.push(parseFloat(totalDuration.toFixed(2)));
     }
 
     // Build scene objects
@@ -790,6 +805,28 @@
         motion: stats.motion,
         keyframeTime: parseFloat(((sStart + sEnd) / 2).toFixed(2))
       });
+    }
+
+    // Cap at maximum 8 scenes to keep Gemini 2.5 Flash request fast and within token budget
+    while (scenes.length > 8) {
+      var minDurIdx = 0;
+      var minDur = 99999;
+      for (var k = 0; k < scenes.length - 1; k++) {
+        if (scenes[k].duration < minDur) {
+          minDur = scenes[k].duration;
+          minDurIdx = k;
+        }
+      }
+      var nextEnd = scenes[minDurIdx + 1].end;
+      scenes[minDurIdx].end = nextEnd;
+      scenes[minDurIdx].duration = Math.max(1, Math.round(nextEnd - scenes[minDurIdx].start));
+      scenes[minDurIdx].keyframeTime = parseFloat(((scenes[minDurIdx].start + nextEnd) / 2).toFixed(2));
+      scenes.splice(minDurIdx + 1, 1);
+    }
+
+    // Re-index scenes
+    for (var m = 0; m < scenes.length; m++) {
+      scenes[m].scene_id = m + 1;
     }
 
     return scenes;

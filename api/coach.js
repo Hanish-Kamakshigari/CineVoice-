@@ -1,7 +1,6 @@
 // /api/coach.js — Vercel serverless function (CommonJS)
-// Uses Gemini 2.5 Flash to analyze single scenes or entire video sequences with timestamps.
-// Adheres strictly to the Standard Prompt Formula:
-// [Shot Type & Camera Movement] of [Subject & Action], set in [Environment/Setting]. [Lighting & Atmosphere], [Visual Style/Render Quality].
+// Expert Computer Vision Cinematographer and AI Video Prompt Engineer.
+// Deconstructs user-uploaded video segments and outputs reproduction-ready prompts for generative models.
 
 const https = require('https');
 const http = require('http');
@@ -58,81 +57,129 @@ function formatTime(sec) {
   return `${String(m).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
 }
 
-// --- Rule-Based Fallback Prompt Generator adhering to the Standard Prompt Formula ---
-// [Shot Type & Camera Movement] of [Subject & Action], set in [Environment/Setting]. [Lighting & Atmosphere], [Visual Style/Render Quality].
-function ruleBasedPrompt(brightness, motion, start, end, sceneIndex = 1) {
+// --- Computer Vision System Prompt & Operating Rules ---
+const CV_CINEMATOGRAPHER_SYSTEM_PROMPT = `
+You are an expert Computer Vision Cinematographer and AI Video Prompt Engineer. 
+
+Your sole task is to analyze user-uploaded video segments, deconstruct their exact visual, technical, and stylistic mechanics, and output hyper-accurate, reproduction-ready prompts optimized for modern generative video models (e.g., Kling, Sora, Runway Gen-3, Luma Dream Machine).
+
+---
+
+### CORE OPERATING RULES
+
+1. ZERO GENERIC HALLUCINATIONS:
+   Never default to boilerplate "indie film" tropes (e.g., "protagonist in deep contemplation", "moody deep shadow corridors", "melancholic atmosphere") unless the footage explicitly shows that. If the video is a corporate ad, UGC social media reel, 3D motion graphic, or UI mockup, reflect that exact genre.
+
+2. DETECT THE ASSET TYPE FIRST:
+   Classify each scene into one of three categories before writing:
+   - Live-Action / Cinematic (Actors, physical locations, real lighting)
+   - Mixed-Media / AR Overlay (Actors interacting with HUDs, floating UI, holographic graphics)
+   - Pure Motion Design / UI (Dashboards, typography, abstract 3D elements, graphic slides)
+
+3. RESPECT ASPECT RATIO & PACE:
+   Always state the framing geometry (Vertical 9:16 vs. Landscape 16:9) and pace (fast dynamic commercial cuts vs. slow continuous tracking).
+
+4. AVOID CONFLICTING DIRECTIVES:
+   Do not mix conflicting focal lengths (e.g., don't write "28mm wide shot" and "crisp 50mm portrait" in the same block).
+
+---
+
+### OUTPUT FORMAT SPECIFICATION
+
+For each distinct scene or cut, output strictly in the following format:
+
+- Asset Type: [Live-Action | Mixed-Media AR | Motion Graphics | Screen UI]
+- Framing & Aspect: [Vertical 9:16 | Landscape 16:9 | Close-up | Medium | Wide]
+
+RECREATION PROMPT:
+[Timestamp Range]: [Framing, lens/focal length, and camera motion]. [Exact subject details: demographic, clothing, action, and direction of movement]. [Environment/setting: interior/exterior, architecture, specific background props]. [Lighting and color grade: high-key commercial, cyber-neon accents, diffused daylight, exact color palette]. [Special elements: floating HUDs, UI elements, motion graphics, VFX]. [Frame rate, visual resolution, aesthetic target].
+
+NEGATIVE PROMPT:
+[List 8-12 scene-specific artifacts and stylistic elements to explicitly avoid based on the scene type].
+
+CAMERA & GENERATION TIP:
+[Specific advice on motion bucket/intensity, prompt weights, shutter/camera movement consistency, and whether to use image-to-video or text-to-video for best fidelity].
+
+---
+
+### FEW-SHOT EXAMPLES
+
+#### Example 1: Mixed-Media / Corporate Commercial
+- Asset Type: Mixed-Media AR / Commercial
+- Framing & Aspect: Vertical 9:16 | Full-body to Medium tracking shot
+RECREATION PROMPT:
+[00:00 - 00:07]: Vertical 9:16 commercial video, eye-level smooth forward tracking shot on a 28mm wide lens. A sharp, confident young South Asian professional man in a crisp white tailored dress shirt and slate gray trousers walks purposefully down an ultra-modern glass office corridor carrying a closed silver laptop. Translucent glowing blue and purple holographic data widgets and line graphs float organically beside him in mid-air. Bright corporate high-key lighting with soft reflections on white polished floors, pristine 4K commercial broadcast quality, crisp focus, 24fps.
+NEGATIVE PROMPT:
+Moody film grain, dark shadows, cinematic lens dirt, distorted hands, floating laptop artifacts, warped geometry, flickering HUD text, low dynamic range, jittery motion.
+CAMERA & GENERATION TIP:
+Motion scale 25-30%. Use image-to-video seeded from a clean front-facing still to ensure face identity and corporate cleanliness are preserved across the forward dolly movement.
+
+#### Example 2: Pure 3D Motion Graphics / UI
+- Asset Type: Motion Graphics / UI
+- Framing & Aspect: Vertical 9:16 | Dynamic 3D angled screen perspective
+RECREATION PROMPT:
+[00:20 - 00:35]: Vertical 9:16 dynamic 3D motion design sequence. Floating glossy glassmorphic social media feed tiles, glowing conversion funnel diagrams, and neon purple line graphs animating across a deep dark navy digital background. Smooth diagonal camera drift over sleek data metrics with subtle volumetric glow and depth of field, high-end tech SaaS product video aesthetic, 60fps fluidity, ultra-sharp vector lines.
+NEGATIVE PROMPT:
+Live-action humans, real-world rooms, noisy compression, pixelated text, photorealistic skin textures, naturalistic daylight, shaky cam.
+CAMERA & GENERATION TIP:
+Set camera motion to slow smooth pan with zero organic sway. Generative models struggle with real-time text—generate base assets cleanly and composite kinetic typography in post-production.
+`;
+
+// --- Rule-Based Fallback Prompt Generator (Zero Indie Hallucinations) ---
+function ruleBasedPrompt(brightness, motion, start, end, sceneIndex = 1, aspectInfo = {}) {
   const durationSec = Math.max(1, Math.round((end || 8) - (start || 0)));
   const bPercent = Math.round(brightness * 100);
   const mPercent = Math.round(motion * 100);
 
-  // 1. [Shot Type & Camera Movement]
-  let shotAndCamera = 'Medium shot with smooth slow push-in';
+  const isVertical = aspectInfo.aspect === '9:16' || (aspectInfo.height && aspectInfo.width && aspectInfo.height > aspectInfo.width);
+  const aspectLabel = isVertical ? 'Vertical 9:16' : 'Landscape 16:9';
+
+  let shotAndCamera = 'Eye-level smooth tracking shot';
   let motionWeakness = null;
+
   if (motion < 0.04) {
-    shotAndCamera = 'Clean, static locked-off wide shot';
-    motionWeakness = 'Static scene: lacks dynamic focal movement or tension';
+    shotAndCamera = 'Clean, static locked-off perspective';
+    motionWeakness = 'Static scene: lacks dynamic kinetic movement';
   } else if (motion <= 0.16) {
-    shotAndCamera = 'Smooth Steadicam tracking shot moving alongside on a 35mm lens';
+    shotAndCamera = 'Smooth linear forward tracking shot on a 28mm wide lens';
   } else if (motion <= 0.35) {
-    shotAndCamera = 'Over-the-shoulder tracking shot moving slightly inward with organic micro-sway, 28mm lens';
+    shotAndCamera = 'Dynamic angled camera drift with subtle organic micro-sway, 24mm lens';
   } else {
-    shotAndCamera = 'Dynamic handheld camera tracking shot with kinetic motion, 24mm wide angle lens';
+    shotAndCamera = 'Kinetic high-motion camera tracking sequence';
     motionWeakness = 'High motion: risk of visual jitter and temporal warping artifacts';
   }
 
-  // 2. [Subject & Action]
-  const subjectActions = [
-    'a protagonist in deep contemplation, turning gaze forward with purposeful resolve',
-    'the subject moving deliberately through the scene, scanning the environment with intense focus',
-    'two figures in an emotional dialogue exchange, gesturing with natural micro-expressions',
-    'hands engaging with physical tools and objects in sharp focal relief',
-    'a character striding through the frame as the background reveals dramatic depth'
-  ];
-  const subjectAction = subjectActions[(sceneIndex - 1) % subjectActions.length];
-
-  // 3. [Environment/Setting]
-  let setting = 'a cinematic interior environment with layered background elements';
-  if (brightness > 0.65) {
-    setting = 'a sun-drenched architectural space with wide windows and soft bokeh';
-  } else if (brightness < 0.3) {
-    setting = 'a moody low-key cinematic interior with deep shadow corridors';
-  }
-
-  // 4. [Lighting & Atmosphere]
-  let lighting = 'balanced natural cinematic lighting with soft shadow rolloff';
+  let lighting = 'balanced clean ambient lighting with neutral color grade';
   let lightWeakness = null;
-  if (brightness < 0.22) {
-    lighting = 'moody low-key dramatic lighting, subtle rim illumination, deep contrast';
-    lightWeakness = 'Under-exposed: shadow details are crushed and subject lacks definition';
-  } else if (brightness < 0.45) {
-    lighting = 'soft diffused atmospheric ambient lighting with gentle warm falloff';
-  } else if (brightness > 0.75) {
-    lighting = 'bright daylight-balanced lighting with crisp highlights and soft diffusion';
-    lightWeakness = 'Over-exposed: highlights are washed out with risk of blown-out clipping';
+  let setting = 'modern structured visual setting with crisp geometric separation';
+
+  if (brightness < 0.25) {
+    lighting = 'low-key lighting with subtle rim accents and high contrast';
+    lightWeakness = 'Under-exposed: shadow details risk crushing in darker zones';
+  } else if (brightness > 0.70) {
+    lighting = 'high-key bright commercial lighting with clean highlights';
+    lightWeakness = 'High exposure: highlights risk blown-out clipping';
   }
 
-  // 5. [Visual Style/Render Quality]
-  const visualStyle = 'crisp 35mm lens look, realistic skin texture, rich color grade, cinematic 24fps';
-
-  // Assembly: Standard Prompt Formula
-  const prompt = `${shotAndCamera} of ${subjectAction}, set in ${setting}. ${lighting}, ${visualStyle}. (${durationSec}s)`;
-  const negativePrompt = 'Warped hands, distorted face, flickering, artificial plastic look, frame stutter, ghosting, blurry textures, unnatural walking cycle, extra limbs, low resolution.';
-  const cameraTip = `Scene brightness ${bPercent}%, motion ${mPercent}%. Use ${motion > 0.2 ? 'a gimbal stabilizer and 1/50s shutter speed' : 'a stable dolly or 50mm f/2.0 prime'} to maximize temporal coherence.`;
+  const timeRange = `[${formatTime(start)} - ${formatTime(end)}]`;
+  const recreationPrompt = `${timeRange}: ${aspectLabel} video, ${shotAndCamera}. Primary visual elements and focal subjects positioned within ${setting}. ${lighting}, crisp optical definition, pristine broadcast quality, 24fps. (${durationSec}s)`;
+  const negativePrompt = 'Distorted anatomy, warped geometry, flickering artifacts, low dynamic range, jittery motion, duplicate elements, pixelation, motion stutter, compression noise.';
+  const cameraTip = `Scene brightness ${bPercent}%, motion ${mPercent}%. Suggested motion scale ${Math.min(45, Math.max(15, mPercent))}%. For maximum reproduction fidelity, seed with image-to-video using a clean keyframe still.`;
 
   const weaknesses = [];
   if (lightWeakness) weaknesses.push(lightWeakness);
   if (motionWeakness) weaknesses.push(motionWeakness);
   if (weaknesses.length === 0) {
-    weaknesses.push('Compositional framing could feature sharper depth-of-field separation');
-  }
-  if (weaknesses.length < 2) {
-    weaknesses.push('Lighting contrast could be shaped with stronger key-to-fill ratio');
+    weaknesses.push('Focal depth separation between foreground elements and background can be strengthened');
   }
 
   return {
-    scene_summary: `Scene from ${formatTime(start)} to ${formatTime(end)} (${bPercent}% brightness, ${mPercent}% motion).`,
+    asset_type: 'Live-Action / Cinematic',
+    framing_aspect: `${aspectLabel} | ${shotAndCamera.split(' on ')[0]}`,
+    scene_summary: `Video segment from ${formatTime(start)} to ${formatTime(end)} (${bPercent}% brightness, ${mPercent}% motion).`,
     weaknesses: weaknesses.slice(0, 3),
-    improved_prompt: prompt,
+    improved_prompt: recreationPrompt,
+    recreation_prompt: recreationPrompt,
     negative_prompt: negativePrompt,
     camera_tip: cameraTip,
     is_offline: true,
@@ -141,19 +188,22 @@ function ruleBasedPrompt(brightness, motion, start, end, sceneIndex = 1) {
 }
 
 // --- Rule-Based Fallback for Full Video ---
-function ruleBasedFullVideo(scenes) {
+function ruleBasedFullVideo(scenes, aspectInfo = {}) {
   return {
-    film_summary: `Sequential scene-by-scene analysis for ${scenes.length} detected film scenes (offline mode).`,
+    film_summary: `Sequential scene-by-scene computer vision analysis for ${scenes.length} detected video scenes (offline mode).`,
     scenes: scenes.map((s, idx) => {
-      const single = ruleBasedPrompt(s.brightness || 0.5, s.motion || 0.1, s.start, s.end, idx + 1);
+      const single = ruleBasedPrompt(s.brightness || 0.5, s.motion || 0.1, s.start, s.end, idx + 1, aspectInfo);
       return {
         scene_id: idx + 1,
         start: formatTime(s.start),
         end: formatTime(s.end),
         duration: Math.max(1, Math.round(s.end - s.start)),
+        asset_type: single.asset_type,
+        framing_aspect: single.framing_aspect,
         scene_summary: single.scene_summary,
         weaknesses: single.weaknesses,
-        improved_prompt: `[${formatTime(s.start)} - ${formatTime(s.end)}]: ${single.improved_prompt}`,
+        improved_prompt: single.improved_prompt,
+        recreation_prompt: single.recreation_prompt,
         negative_prompt: single.negative_prompt,
         camera_tip: single.camera_tip
       };
@@ -163,63 +213,46 @@ function ruleBasedFullVideo(scenes) {
   };
 }
 
-// --- Gemini System Prompt Guidelines & Few-Shot Templates ---
-const PROMPT_FORMULA_INSTRUCTIONS = `
-MANDATORY PROMPT FORMULA FOR ALL IMPROVED PROMPTS:
-[Shot Type & Camera Movement] of [Subject & Action], set in [Environment/Setting]. [Lighting & Atmosphere], [Visual Style/Render Quality].
-
-PRODUCTION-READY REFERENCE TEMPLATES:
-- Kinetic CGI / Titles: Fast drone-style flythrough of a futuristic neon-lit digital skyline. 3D holographic title text floats between glass skyscrapers. High-tech, cinematic blue and purple lighting, octane render, 4K resolution.
-  Negative: Shaky cam, low resolution, motion blur, muddy textures.
-- Character Dialogue / Direct-to-Camera: Medium shot of a professional speaking directly to the camera, gestures naturally. Modern open-plan office background with soft bokeh. Clean corporate lighting, crisp 35mm lens look, realistic skin texture.
-  Negative: Warped hands, distorted face, flickering, artificial plastic look.
-- Over-the-Shoulder / Workspace Action: Over-the-shoulder shot tracking slightly inward as hands type on a laptop. Sharp focus on a high-tech UI dashboard displayed on the screen. Bright, daylight-balanced corporate office lighting.
-  Negative: Illegible screen distortion, extra fingers, jittery movement.
-- Motion Graphics / Visualizations: Clean, static frontal angle of a 3D animated marketing funnel graphic with glowing data nodes. Dark minimalist tech background, sharp geometric vectors, smooth digital animation.
-  Negative: Organic noise, blurry graphics, erratic camera pan.
-- Group Tracking / Hallway Walk: Smooth Steadicam shot moving backward in front of a diverse group walking down a bright office hallway, talking and smiling. Cool-toned fluorescent lighting, glossy floor reflections, cinematic 24fps.
-  Negative: Deformed limbs, unnatural walking cycle, ghosting, frame stutter.
-
-NEGATIVE PROMPTS:
-Must target realistic generative video artifacts (e.g. "Warped hands, distorted face, flickering, artificial plastic look, ghosting, frame stutter, unnatural walking cycle, blurry textures").
-`;
-
 // --- Gemini API Call: Single Scene ---
-async function callGeminiSingleScene(images, stats, modelName) {
+async function callGeminiSingleScene(images, stats, aspectInfo, modelName) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not configured');
   }
 
   const sceneDuration = Math.max(1, Math.round(stats.end - stats.start));
+  const aspectDesc = aspectInfo.aspect || (aspectInfo.width && aspectInfo.height ? `${aspectInfo.width}x${aspectInfo.height}` : 'Auto-detect');
 
-  const promptText = `You are a world-class film director and AI video prompt engineer (for Veo, Runway Gen-3, Sora, Luma).
-Analyze these 3 chronological keyframes (start, middle, end) from one video scene.
+  const promptText = `${CV_CINEMATOGRAPHER_SYSTEM_PROMPT}
 
-Scene parameters:
-- Scene start: ${formatTime(stats.start)} (${stats.start.toFixed(2)}s)
-- Scene end: ${formatTime(stats.end)} (${stats.end.toFixed(2)}s)
-- Scene duration: ~${sceneDuration}s
-- Average brightness (0-1): ${stats.brightness.toFixed(2)}
-- Motion intensity (0-1): ${stats.motion.toFixed(2)}
+Analyze these 3 chronological keyframes (start, middle, end) from this specific video segment.
 
-${PROMPT_FORMULA_INSTRUCTIONS}
+Video & Scene Parameters:
+- Native Video Geometry: ${aspectDesc} (Dimensions: ${aspectInfo.width || 'unknown'}x${aspectInfo.height || 'unknown'})
+- Scene Start: ${formatTime(stats.start)} (${stats.start.toFixed(2)}s)
+- Scene End: ${formatTime(stats.end)} (${stats.end.toFixed(2)}s)
+- Duration: ~${sceneDuration}s
+- Measured Brightness (0-1): ${stats.brightness.toFixed(2)}
+- Motion Intensity (0-1): ${stats.motion.toFixed(2)}
 
 Instructions:
-1. "scene_summary": Describe the visual reality: subject, action, setting, lighting, style.
-2. "weaknesses": List up to 3 flaws (e.g. flat lighting, awkward framing, artifacts, lack of depth).
-3. "improved_prompt": ONE production-ready prompt strictly following:
-   [Shot Type & Camera Movement] of [Subject & Action], set in [Environment/Setting]. [Lighting & Atmosphere], [Visual Style/Render Quality]. (${sceneDuration}s)
-4. "negative_prompt": Targeted list of generative artifacts to avoid.
-5. "camera_tip": Specific cinematography tip for lens choice, camera movement, or stabilization.
+1. "asset_type": Classify exactly as one of: "Live-Action", "Mixed-Media AR", "Motion Graphics", or "Screen UI".
+2. "framing_aspect": State the framing geometry and lens perspective (e.g. "Vertical 9:16 | Full-body tracking" or "Landscape 16:9 | Medium close-up").
+3. "scene_summary": Factual, grounded breakdown of subjects, actions, lighting, and palette without inventing unshown characters or melodramatic indie tropes.
+4. "weaknesses": Array of 1-3 technical flaws or generative model rendering challenges.
+5. "improved_prompt": The RECREATION PROMPT starting with [${formatTime(stats.start)} - ${formatTime(stats.end)}]: following the exact prompt specification.
+6. "negative_prompt": 8-12 scene-specific artifacts to avoid based on the asset type.
+7. "camera_tip": Specific advice on motion scale/intensity, prompt weights, and image-to-video vs text-to-video.
 
 Output ONLY valid JSON matching this schema:
 {
-  "scene_summary": "Concise visual description",
-  "weaknesses": ["Weakness 1", "Weakness 2"],
-  "improved_prompt": "Prompt strictly adhering to the Standard Prompt Formula",
-  "negative_prompt": "Targeted negative prompt listing visual artifacts to avoid",
-  "camera_tip": "Specific cinematography advice for this shot"
+  "asset_type": "Live-Action | Mixed-Media AR | Motion Graphics | Screen UI",
+  "framing_aspect": "Geometry and shot type",
+  "scene_summary": "Concise factual breakdown",
+  "weaknesses": ["Flaw or generation challenge 1", "Flaw or generation challenge 2"],
+  "improved_prompt": "[${formatTime(stats.start)} - ${formatTime(stats.end)}]: ...",
+  "negative_prompt": "Targeted negative prompt listing 8-12 visual artifacts to avoid",
+  "camera_tip": "Specific generation advice on motion scale and pipeline"
 }`;
 
   const parts = [{ text: promptText }];
@@ -237,7 +270,7 @@ Output ONLY valid JSON matching this schema:
   const body = JSON.stringify({
     contents: [{ parts }],
     generationConfig: {
-      temperature: 0.7,
+      temperature: 0.5,
       maxOutputTokens: 2048,
       responseMimeType: 'application/json',
       thinkingConfig: {
@@ -276,14 +309,18 @@ Output ONLY valid JSON matching this schema:
 
   const result = JSON.parse(text);
 
-  if (!result.improved_prompt) {
-    throw new Error('Response JSON is missing improved_prompt');
+  const promptResult = String(result.improved_prompt || result.recreation_prompt || '');
+  if (!promptResult) {
+    throw new Error('Response JSON is missing improved_prompt / recreation_prompt');
   }
 
   return {
+    asset_type: String(result.asset_type || 'Live-Action'),
+    framing_aspect: String(result.framing_aspect || 'Landscape 16:9'),
     scene_summary: String(result.scene_summary || ''),
     weaknesses: Array.isArray(result.weaknesses) ? result.weaknesses.map(String) : [],
-    improved_prompt: String(result.improved_prompt),
+    improved_prompt: promptResult,
+    recreation_prompt: promptResult,
     negative_prompt: String(result.negative_prompt || ''),
     camera_tip: String(result.camera_tip || ''),
     is_offline: false
@@ -291,11 +328,13 @@ Output ONLY valid JSON matching this schema:
 }
 
 // --- Gemini API Call: Whole Video (Multiple Scenes with Timestamps) ---
-async function callGeminiFullVideo(scenes, modelName) {
+async function callGeminiFullVideo(scenes, aspectInfo, modelName) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY is not configured');
   }
+
+  const aspectDesc = aspectInfo.aspect || (aspectInfo.width && aspectInfo.height ? `${aspectInfo.width}x${aspectInfo.height}` : 'Auto-detect');
 
   const sceneDescriptions = scenes.map((s, idx) => {
     const dur = Math.max(1, Math.round(s.end - s.start));
@@ -305,44 +344,35 @@ async function callGeminiFullVideo(scenes, modelName) {
 - Motion intensity: ${Math.round((s.motion || 0.1) * 100)}%`;
   }).join('\n\n');
 
-  const promptText = `You are a master film director and AI video prompt engineer (for Veo, Runway Gen-3, Sora, Luma).
-Analyze this complete sequence of ${scenes.length} chronological film scenes, using the attached keyframe images and timestamps.
+  const promptText = `${CV_CINEMATOGRAPHER_SYSTEM_PROMPT}
+
+Analyze this complete sequence of ${scenes.length} chronological video scenes using the attached keyframe images and timestamps.
+
+Video Metadata:
+- Native Geometry: ${aspectDesc} (Dimensions: ${aspectInfo.width || 'unknown'}x${aspectInfo.height || 'unknown'})
 
 Scene Metadata:
 ${sceneDescriptions}
 
-${PROMPT_FORMULA_INSTRUCTIONS}
-
 Task:
-Analyze each scene in the context of the whole film's narrative and visual continuity.
-For EVERY scene, generate a production-ready AI video prompt starting with its timestamp prefix.
-
-Strict requirements for each scene in "scenes":
-1. "scene_id": number (1, 2, ...)
-2. "start": string in "MM:SS" (e.g. "${formatTime(scenes[0]?.start || 0)}")
-3. "end": string in "MM:SS" (e.g. "${formatTime(scenes[0]?.end || 5)}")
-4. "duration": number in seconds
-5. "scene_summary": concise visual description of subject, action, lighting, and mood.
-6. "weaknesses": array of up to 3 flaws.
-7. "improved_prompt": production-ready prompt formatted as:
-   "[MM:SS - MM:SS]: [Shot Type & Camera Movement] of [Subject & Action], set in [Environment/Setting]. [Lighting & Atmosphere], [Visual Style/Render Quality]."
-8. "negative_prompt": targeted generative video artifacts to avoid.
-9. "camera_tip": specific cinematography tip for focal length, camera movement, or stabilization.
+Analyze each scene with zero generic hallucinations. Detect asset type, framing & aspect, exact recreation prompt, negative prompt, and camera & generation tips for each scene.
 
 Output ONLY valid JSON matching this schema:
 {
-  "film_summary": "Comprehensive overview of the film aesthetic, character consistency, and narrative arc",
+  "film_summary": "Comprehensive overview of the video aesthetic, asset type continuity, and pacing",
   "scenes": [
     {
       "scene_id": 1,
       "start": "00:00",
       "end": "00:06",
       "duration": 6,
-      "scene_summary": "...",
-      "weaknesses": ["...", "..."],
+      "asset_type": "Live-Action | Mixed-Media AR | Motion Graphics | Screen UI",
+      "framing_aspect": "Vertical 9:16 | Landscape 16:9 | Close-up | Medium | Wide",
+      "scene_summary": "Factual visual description",
+      "weaknesses": ["Flaw or generation challenge 1", "Flaw or generation challenge 2"],
       "improved_prompt": "[00:00 - 00:06]: ...",
-      "negative_prompt": "...",
-      "camera_tip": "..."
+      "negative_prompt": "8-12 scene-specific artifacts to avoid",
+      "camera_tip": "Specific generation tip on motion scale and i2v vs t2v"
     }
   ]
 }`;
@@ -367,7 +397,7 @@ Output ONLY valid JSON matching this schema:
   const body = JSON.stringify({
     contents: [{ parts }],
     generationConfig: {
-      temperature: 0.7,
+      temperature: 0.5,
       maxOutputTokens: 4096,
       responseMimeType: 'application/json',
       thinkingConfig: {
@@ -408,8 +438,10 @@ Output ONLY valid JSON matching this schema:
 
   return {
     mode: 'full_video',
-    film_summary: String(result.film_summary || 'Cohesive cinematic sequence prompt guide'),
-    scenes: Array.isArray(result.scenes) ? result.scenes : [],
+    film_summary: String(result.film_summary || 'Cohesive video sequence prompt guide'),
+    scenes: Array.isArray(result.scenes) ? result.scenes.map(s => Object.assign({}, s, {
+      recreation_prompt: s.improved_prompt || s.recreation_prompt
+    })) : [],
     is_offline: false
   };
 }
@@ -438,6 +470,12 @@ module.exports = async (req, res) => {
 
   const configuredModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
+  const aspectInfo = {
+    aspect: body.aspect || null,
+    width: parseInt(body.width, 10) || null,
+    height: parseInt(body.height, 10) || null
+  };
+
   // -------------------------------------------------------------
   // BRANCH A: Full Video Analysis Mode
   // -------------------------------------------------------------
@@ -451,12 +489,12 @@ module.exports = async (req, res) => {
     try {
       let result;
       try {
-        result = await callGeminiFullVideo(scenes, configuredModel);
+        result = await callGeminiFullVideo(scenes, aspectInfo, configuredModel);
       } catch (primaryErr) {
         console.warn(`Primary full video call (${configuredModel}) failed:`, primaryErr.message);
         const fallbackModel = (configuredModel === 'gemini-2.5-flash') ? 'gemini-flash-latest' : 'gemini-2.5-flash';
         if (process.env.GEMINI_API_KEY) {
-          result = await callGeminiFullVideo(scenes, fallbackModel);
+          result = await callGeminiFullVideo(scenes, aspectInfo, fallbackModel);
         } else {
           throw primaryErr;
         }
@@ -464,7 +502,7 @@ module.exports = async (req, res) => {
       res.status(200).json(result);
     } catch (err) {
       console.warn('Falling back to rule-based full video mode:', err.message);
-      const offlineResult = ruleBasedFullVideo(scenes);
+      const offlineResult = ruleBasedFullVideo(scenes, aspectInfo);
       offlineResult.offline_reason = err.message;
       res.status(200).json(offlineResult);
     }
@@ -491,12 +529,12 @@ module.exports = async (req, res) => {
   try {
     let result;
     try {
-      result = await callGeminiSingleScene(images, stats, configuredModel);
+      result = await callGeminiSingleScene(images, stats, aspectInfo, configuredModel);
     } catch (primaryErr) {
       console.warn(`Primary Gemini call (${configuredModel}) failed:`, primaryErr.message);
       const fallbackModel = (configuredModel === 'gemini-2.5-flash') ? 'gemini-flash-latest' : 'gemini-2.5-flash';
       if (process.env.GEMINI_API_KEY) {
-        result = await callGeminiSingleScene(images, stats, fallbackModel);
+        result = await callGeminiSingleScene(images, stats, aspectInfo, fallbackModel);
       } else {
         throw primaryErr;
       }
@@ -504,7 +542,7 @@ module.exports = async (req, res) => {
     res.status(200).json(result);
   } catch (err) {
     console.warn('Falling back to rule-based offline mode:', err.message);
-    const offlineResult = ruleBasedPrompt(stats.brightness, stats.motion, stats.start, stats.end);
+    const offlineResult = ruleBasedPrompt(stats.brightness, stats.motion, stats.start, stats.end, 1, aspectInfo);
     offlineResult.offline_reason = err.message;
     res.status(200).json(offlineResult);
   }

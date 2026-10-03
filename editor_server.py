@@ -27,7 +27,7 @@ for folder in (ASSETS, EXPORTS, TMP):
 
 MAX_JSON = 256 * 1024
 ALLOWED_STATIC = {
-    "index.html", "editor.html", "editor.js", "editor.css", "favicon.svg",
+    "index.html", "editor.html", "editor.js", "editor.css", "coach.js", "favicon.svg",
     "favicon.ico", "favicon-16x16.png", "favicon-32x32.png", "site.webmanifest",
     "apple-touch-icon.png", "android-chrome-192x192.png", "android-chrome-512x512.png",
 }

@@ -188,6 +188,28 @@
       'display: inline-block;' +
       'text-transform: uppercase;' +
     '}' +
+    '.coach-asset-badge {' +
+      'font-family: "JetBrains Mono", monospace;' +
+      'font-size: 0.62rem;' +
+      'letter-spacing: 0.04em;' +
+      'color: #38bdf8;' +
+      'background: rgba(56, 189, 248, 0.15);' +
+      'border: 1px solid rgba(56, 189, 248, 0.35);' +
+      'padding: 0.18rem 0.55rem;' +
+      'border-radius: 9999px;' +
+      'display: inline-block;' +
+    '}' +
+    '.coach-framing-badge {' +
+      'font-family: "JetBrains Mono", monospace;' +
+      'font-size: 0.62rem;' +
+      'letter-spacing: 0.04em;' +
+      'color: #c084fc;' +
+      'background: rgba(168, 85, 247, 0.15);' +
+      'border: 1px solid rgba(168, 85, 247, 0.35);' +
+      'padding: 0.18rem 0.55rem;' +
+      'border-radius: 9999px;' +
+      'display: inline-block;' +
+    '}' +
     '.coach-section {' +
       'display: flex;' +
       'flex-direction: column;' +
@@ -448,15 +470,15 @@
         '<ul class="coach-weakness-list" id="coachWeaknesses"></ul>' +
       '</div>' +
       '<div class="coach-section">' +
-        '<div class="coach-section-label">Improvised Prompt</div>' +
+        '<div class="coach-section-label">Recreation Prompt</div>' +
         '<div class="coach-prompt-box" id="coachPrompt"></div>' +
       '</div>' +
       '<div class="coach-section" id="coachNegativeSection">' +
-        '<div class="coach-section-label">What to Avoid</div>' +
+        '<div class="coach-section-label">Negative Prompt</div>' +
         '<div class="coach-negative-box" id="coachNegative"></div>' +
       '</div>' +
       '<div class="coach-section" id="coachTipSection">' +
-        '<div class="coach-section-label">Camera Tip</div>' +
+        '<div class="coach-section-label">Camera & Generation Tip</div>' +
         '<div class="coach-tip" id="coachTip"></div>' +
       '</div>' +
       '<div class="coach-btn-row">' +
@@ -833,9 +855,26 @@
   }
 
   /* ================================================================== */
-  /*  API Callers                                                       */
+  /*  API Callers & Video Aspect Resolution                             */
   /* ================================================================== */
+  function getVideoAspectInfo() {
+    var mainVideo = document.getElementById('mainVideoPlayer');
+    if (!mainVideo || !mainVideo.videoWidth || !mainVideo.videoHeight) {
+      return { aspect: 'Auto-detect', width: null, height: null };
+    }
+    var w = mainVideo.videoWidth;
+    var h = mainVideo.videoHeight;
+    var isVertical = h > w;
+    var aspect = isVertical ? '9:16' : (w === h ? '1:1' : '16:9');
+    return {
+      aspect: aspect,
+      width: w,
+      height: h
+    };
+  }
+
   function callCoachSingle(images, stats, start, end) {
+    var aspectInfo = getVideoAspectInfo();
     return fetch('/api/coach', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -845,7 +884,10 @@
         brightness: stats.brightness,
         motion: stats.motion,
         start: start,
-        end: end
+        end: end,
+        aspect: aspectInfo.aspect,
+        width: aspectInfo.width,
+        height: aspectInfo.height
       })
     }).then(function (r) {
       if (!r.ok) {
@@ -858,12 +900,16 @@
   }
 
   function callCoachFullVideo(scenesPayload) {
+    var aspectInfo = getVideoAspectInfo();
     return fetch('/api/coach', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         mode: 'full_video',
-        scenes: scenesPayload
+        scenes: scenesPayload,
+        aspect: aspectInfo.aspect,
+        width: aspectInfo.width,
+        height: aspectInfo.height
       })
     }).then(function (r) {
       if (!r.ok) {
@@ -890,6 +936,18 @@
       badge.textContent = '⚡ OFFLINE MODE';
       badgeContainerEl.appendChild(badge);
     }
+    if (result.asset_type) {
+      var atBadge = document.createElement('span');
+      atBadge.className = 'coach-asset-badge';
+      atBadge.textContent = '🏷️ ' + result.asset_type;
+      badgeContainerEl.appendChild(atBadge);
+    }
+    if (result.framing_aspect) {
+      var faBadge = document.createElement('span');
+      faBadge.className = 'coach-framing-badge';
+      faBadge.textContent = '📐 ' + result.framing_aspect;
+      badgeContainerEl.appendChild(faBadge);
+    }
 
     weaknessesEl.innerHTML = '';
     var wList = Array.isArray(result.weaknesses) ? result.weaknesses : [];
@@ -904,7 +962,7 @@
       weaknessSectionEl.style.display = 'none';
     }
 
-    promptEl.textContent = String(result.improved_prompt || '—');
+    promptEl.textContent = String(result.recreation_prompt || result.improved_prompt || '—');
 
     if (result.negative_prompt) {
       negativeEl.textContent = String(result.negative_prompt);
@@ -932,7 +990,7 @@
     cachedFullResult = result;
     var isOffline = !!(result.is_offline || result.offline_mode);
 
-    fullMetaEl.textContent = '🎞️ Complete Film Sequence (' + (result.scenes ? result.scenes.length : 0) + ' scenes)';
+    fullMetaEl.textContent = '🎞️ Complete Video Sequence (' + (result.scenes ? result.scenes.length : 0) + ' scenes)';
 
     fullBadgeEl.innerHTML = '';
     if (isOffline) {
@@ -942,7 +1000,7 @@
       fullBadgeEl.appendChild(badge);
     }
 
-    filmSummaryEl.textContent = result.film_summary || 'Cohesive cinematic sequence prompts';
+    filmSummaryEl.textContent = result.film_summary || 'Cohesive video sequence prompts';
 
     fullScenesListEl.innerHTML = '';
     var scenes = Array.isArray(result.scenes) ? result.scenes : [];
@@ -973,13 +1031,27 @@
       copySm.className = 'coach-copy-sm-btn';
       copySm.textContent = '📋 Copy';
       copySm.addEventListener('click', function () {
-        copyText(s.improved_prompt, function () {
+        copyText(s.recreation_prompt || s.improved_prompt, function () {
           copySm.textContent = '✅ Copied!';
           setTimeout(function () { copySm.textContent = '📋 Copy'; }, 2000);
         });
       });
 
       head.appendChild(badge);
+
+      if (s.asset_type) {
+        var atBadge = document.createElement('span');
+        atBadge.className = 'coach-asset-badge';
+        atBadge.textContent = '🏷️ ' + s.asset_type;
+        head.appendChild(atBadge);
+      }
+      if (s.framing_aspect) {
+        var faBadge = document.createElement('span');
+        faBadge.className = 'coach-framing-badge';
+        faBadge.textContent = '📐 ' + s.framing_aspect;
+        head.appendChild(faBadge);
+      }
+
       head.appendChild(copySm);
       card.appendChild(head);
 
@@ -1004,12 +1076,21 @@
         card.appendChild(wUl);
       }
 
-      // Improved Prompt
+      // Recreation Prompt
       var pBox = document.createElement('div');
       pBox.className = 'coach-prompt-box';
       pBox.style.fontSize = '0.82rem';
-      pBox.textContent = String(s.improved_prompt || '—');
+      pBox.textContent = String(s.recreation_prompt || s.improved_prompt || '—');
       card.appendChild(pBox);
+
+      // Negative Prompt
+      if (s.negative_prompt) {
+        var negBox = document.createElement('div');
+        negBox.className = 'coach-negative-box';
+        negBox.style.fontSize = '0.76rem';
+        negBox.textContent = '⛔ Avoid: ' + s.negative_prompt;
+        card.appendChild(negBox);
+      }
 
       // Camera Tip
       if (s.camera_tip) {

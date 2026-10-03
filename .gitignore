@@ -33,6 +33,7 @@ wheels/
 *.egg
 
 # Editor / scratch files
+.vibe-wise/
 .kilo/
 .vscode/
 .idea/

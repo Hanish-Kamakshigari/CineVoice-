@@ -657,6 +657,10 @@
       var index = 0;
 
       function sampleNext() {
+        if (!isAnalyzing && !isFullAnalyzing) {
+          resolve([]);
+          return;
+        }
         if (index >= times.length) {
           resolve(results);
           return;
@@ -1112,7 +1116,25 @@
   /*  Analyze Current Scene                                             */
   /* ================================================================== */
   var isAnalyzing = false;
+  var isFullAnalyzing = false;
   var lastAnalyzedTime = -1;
+  var activeSceneCleanup = null;
+  var activeFullCleanup = null;
+
+  function cancelCoachAnalysis() {
+    if (activeSceneCleanup) {
+      try { activeSceneCleanup(); } catch (_) {}
+      activeSceneCleanup = null;
+    }
+    if (activeFullCleanup) {
+      try { activeFullCleanup(); } catch (_) {}
+      activeFullCleanup = null;
+    }
+    isAnalyzing = false;
+    isFullAnalyzing = false;
+    var launchBtn = document.getElementById('coachLaunchBtn');
+    if (launchBtn) launchBtn.disabled = false;
+  }
 
   function analyzeScene(isManualClick) {
     if (isAnalyzing) return;
@@ -1163,10 +1185,12 @@
     function cleanup() {
       if (cleanedUp) return;
       cleanedUp = true;
+      activeSceneCleanup = null;
       isAnalyzing = false;
       if (launchBtn) launchBtn.disabled = false;
       try { hiddenVideo.remove(); } catch (_) {}
     }
+    activeSceneCleanup = cleanup;
 
     function processScene() {
       var T = Math.max(0, currentTime);
@@ -1243,8 +1267,6 @@
   /* ================================================================== */
   /*  Analyze Entire Video (Full Film Scene-by-Scene Improvised Prompts)*/
   /* ================================================================== */
-  var isFullAnalyzing = false;
-
   function analyzeEntireVideo() {
     if (isFullAnalyzing) return;
     var mainVideo = document.getElementById('mainVideoPlayer');
@@ -1284,9 +1306,11 @@
     function cleanupFull() {
       if (cleanedUp) return;
       cleanedUp = true;
+      activeFullCleanup = null;
       isFullAnalyzing = false;
       try { hiddenVideo.remove(); } catch (_) {}
     }
+    activeFullCleanup = cleanupFull;
 
     function processFull() {
       var duration = hiddenVideo.duration;
@@ -1319,6 +1343,9 @@
           var scenesWithImages = [];
 
           function captureNextSceneKeyframe() {
+            if (!isFullAnalyzing) {
+              return Promise.resolve([]);
+            }
             if (sceneIndex >= rawScenes.length) {
               return Promise.resolve(scenesWithImages);
             }
@@ -1383,6 +1410,7 @@
 
   // Close button
   document.getElementById('coachCloseBtn').addEventListener('click', function () {
+    cancelCoachAnalysis();
     panel.classList.remove('open');
   });
 
@@ -1394,6 +1422,7 @@
   // Close on Escape
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && panel.classList.contains('open')) {
+      cancelCoachAnalysis();
       panel.classList.remove('open');
     }
   });

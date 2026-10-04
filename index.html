@@ -2764,7 +2764,7 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
     function readLegacyProject() {
       try {
         const readJson = key => {
-          try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { return null; }
+          try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; }
         };
         const cues = readJson('cinevoice_script_cues');
         const subtitles = readJson('cinevoice_subtitles');
@@ -2835,8 +2835,26 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
       }[c]));
     }
 
+    // Declared before saveSubtitles() so no call site can hit the temporal
+    // dead zone if an early save ever runs before this line.
+    let subtitleSaveTimer = null;
+
     function saveSubtitles() {
+      // Cancel a queued debounced write so it cannot land after this
+      // authoritative save and resurrect stale caption text.
+      if (subtitleSaveTimer) { clearTimeout(subtitleSaveTimer); subtitleSaveTimer = null; }
       persistProject();
+    }
+
+    // Caption text fires on every keystroke. Writing the whole project to
+    // localStorage that often is wasteful and can block typing, so commit on
+    // a short idle window instead. Debounced, matching the cue-card fields.
+    function scheduleSubtitleSave() {
+      if (subtitleSaveTimer) clearTimeout(subtitleSaveTimer);
+      subtitleSaveTimer = setTimeout(() => {
+        subtitleSaveTimer = null;
+        persistProject();
+      }, 400);
     }
 
     function saveScriptCues() {
@@ -3103,6 +3121,16 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
     const btnWorkflowKeepCurrent = document.getElementById('btnWorkflowKeepCurrent');
     const sceneScriptFileInput = document.getElementById('sceneScriptFileInput');
 
+    // Robust File Input Trigger:
+    // Browser file inputs suppress the 'change' event if a user re-selects the
+    // same file after a cancellation, re-export, or error. Clearing .value
+    // beforehand guarantees 'change' always fires reliably and never gets stuck.
+    function triggerFileInput(inputEl) {
+      if (!inputEl) return;
+      try { inputEl.value = ''; } catch {}
+      inputEl.click();
+    }
+
     // AI Frame Scanner Overlay Elements
     const frameScannerOverlay = document.getElementById('frameScannerOverlay');
     const btnCancelFrameScan = document.getElementById('btnCancelFrameScan');
@@ -3234,6 +3262,7 @@ let speakRetries = 0;
 
     // Parse SS, MM:SS or HH:MM:SS(.mmm) to seconds. Delegates to the single
     // canonical subtitle parser so the two paths can never disagree.
+    // Unparseable input yields NaN, matching parseSubCueTime.
     function parseTimeString(str) {
       return parseSubCueTime(str);
     }
@@ -3270,19 +3299,43 @@ let speakRetries = 0;
     }
 
     // Parse MM:SS.ms or SS.ms or HH:MM:SS,mmm to seconds float
+    // Parse SS, MM:SS(.s) or HH:MM:SS(,mmm) to seconds.
+    // Returns NaN for input that is not a recognisable time, so a typo in a
+    // hand-typed timing field can be rejected instead of silently snapping the
+    // cue to 00:00.0. Callers that can tolerate a bad value coerce it themselves.
     function parseSubCueTime(str) {
-      if (!str) return 0;
-      if (typeof str === 'number') return str;
+      if (str === null || str === undefined || str === '') return NaN;
+      if (typeof str === 'number') return isFinite(str) && str >= 0 ? str : NaN;
       const clean = String(str).trim().replace(',', '.');
+      if (!clean) return NaN;
       if (clean.includes(':')) {
         const parts = clean.split(':');
-        if (parts.length === 3) {
-          return (parseFloat(parts[0]) || 0) * 3600 + (parseFloat(parts[1]) || 0) * 60 + (parseFloat(parts[2]) || 0);
-        } else if (parts.length === 2) {
-          return (parseFloat(parts[0]) || 0) * 60 + (parseFloat(parts[1]) || 0);
-        }
+        if (parts.length > 3 || !parts.every(p => /^\d+(\.\d+)?$/.test(p.trim()))) return NaN;
+        const n = parts.map(p => parseFloat(p.trim()));
+        if (n.some(isNaN) || n.some(v => v < 0)) return NaN;
+        if (parts.length === 3) return n[0] * 3600 + n[1] * 60 + n[2];
+        if (parts.length === 2) return n[0] * 60 + n[1];
+        return NaN;
       }
-      return parseFloat(clean) || 0;
+      if (!/^\d+(\.\d+)?$/.test(clean)) return NaN;
+      const v = parseFloat(clean);
+      return isNaN(v) ? NaN : v;
+    }
+
+    // Coerce a possibly-NaN parse result into a safe number.
+    function safeSubCueTime(value, fallback) {
+      return (typeof value === 'number' && isFinite(value) && value >= 0) ? value : fallback;
+    }
+
+    // True when a timing edit has moved a cue away from its chronological slot,
+    // which means the subtitle list must be re-rendered rather than patched in
+    // place. Compares the cue's index in the live array with its index once
+    // sorted, so a move in either direction is caught.
+    function needsResortAfter(sub) {
+      const currentIdx = SUBTITLES.findIndex(s => s.id === sub.id);
+      if (currentIdx < 0) return false;
+      const ordered = SUBTITLES.slice().sort((a, b) => a.start - b.start);
+      return ordered.findIndex(s => s.id === sub.id) !== currentIdx;
     }
 
     // Parse SRT or WebVTT content to structured subtitle cue array
@@ -3365,24 +3418,64 @@ let speakRetries = 0;
     // -------------------------------------------------------------
     // VIDEO LOADING & PLAYBACK LOGIC
     // -------------------------------------------------------------
+    let videoLoadWatchdog = null;
+
+    function resetVideoToEmptyState(errorMsg) {
+      if (videoLoadWatchdog) {
+        clearTimeout(videoLoadWatchdog);
+        videoLoadWatchdog = null;
+      }
+      isVideoLoaded = false;
+      mainVideoPlayer.onloadedmetadata = null;
+      mainVideoPlayer.onerror = null;
+      mainVideoPlayer.classList.remove('active');
+      if (videoBlobUrl) {
+        try { URL.revokeObjectURL(videoBlobUrl); } catch {}
+        videoBlobUrl = null;
+      }
+      mainVideoPlayer.removeAttribute('src');
+      try { mainVideoPlayer.load(); } catch {}
+
+      if (videoDropzone) videoDropzone.style.display = 'flex';
+      if (videoHudTop) videoHudTop.style.display = 'none';
+      if (videoCenterTrigger) videoCenterTrigger.classList.add('hidden');
+      if (videoFilenameLabel) videoFilenameLabel.textContent = 'NO VIDEO LOADED';
+      if (videoFileInput) videoFileInput.value = '';
+
+      if (errorMsg) {
+        showToast(errorMsg, true);
+      }
+    }
+
     function loadVideoFromFile(file) {
       if (!file) return;
+
+      if (videoLoadWatchdog) {
+        clearTimeout(videoLoadWatchdog);
+        videoLoadWatchdog = null;
+      }
+
+      showToast(`Loading ${file.name}...`);
+
       if (videoBlobUrl) URL.revokeObjectURL(videoBlobUrl);
       videoBlobUrl = URL.createObjectURL(file);
 
-      // Clear handlers from any previous source (including the demo fallback chain)
-      // BEFORE load(), otherwise a later media error can swap the user's file out.
+      // Clear handlers from any previous source
       mainVideoPlayer.onloadedmetadata = null;
       mainVideoPlayer.onerror = null;
-      mainVideoPlayer.src = videoBlobUrl;
-      mainVideoPlayer.load();
 
-      // A file's metadata makes a stable identity for this browser. Switching
-      // videos loads that video's project (or safe empty defaults), never stale
-      // cues from the previous source.
-      activateVideoProject(`file:${file.name}|${file.size}|${file.lastModified || 0}|${file.type || ''}`);
+      // Watchdog timeout in case media decoder hangs or container format is incompatible
+      videoLoadWatchdog = setTimeout(() => {
+        if (!isVideoLoaded) {
+          resetVideoToEmptyState(`Loading timed out for "${file.name}". Video format or codec may not be supported.`);
+        }
+      }, 10000);
 
       mainVideoPlayer.onloadedmetadata = () => {
+        if (videoLoadWatchdog) {
+          clearTimeout(videoLoadWatchdog);
+          videoLoadWatchdog = null;
+        }
         isVideoLoaded = true;
         mainVideoPlayer.classList.add('active');
         videoDropzone.style.display = 'none';
@@ -3397,20 +3490,41 @@ let speakRetries = 0;
       };
 
       mainVideoPlayer.onerror = () => {
-        showToast('Error playing video file. Please check format.', true);
+        if (videoLoadWatchdog) {
+          clearTimeout(videoLoadWatchdog);
+          videoLoadWatchdog = null;
+        }
+        resetVideoToEmptyState(`Error loading "${file.name}". Please check the video format.`);
       };
+
+      mainVideoPlayer.src = videoBlobUrl;
+      mainVideoPlayer.load();
+
+      // A file's metadata makes a stable identity for this browser. Switching
+      // videos loads that video's project (or safe empty defaults), never stale
+      // cues from the previous source.
+      activateVideoProject(`file:${file.name}|${file.size}|${file.lastModified || 0}|${file.type || ''}`);
     }
 
+    // Reset the script and the caption track together. Single implementation so
+    // the "Clear Script" button and any future caller cannot drift apart.
     function clearScriptAndSubtitles() {
       SCRIPT_CUES = [];
       SUBTITLES = [];
+      // Flush pending debounced writes first, otherwise a caption edit made a
+      // moment earlier is written back after this clear.
+      if (cueSaveTimer) { clearTimeout(cueSaveTimer); cueSaveTimer = null; }
+      if (subtitleSaveTimer) { clearTimeout(subtitleSaveTimer); subtitleSaveTimer = null; }
       resetSpokenCursor();
       clearMasterScriptTextarea();
       saveScriptCues();
       saveSubtitles();
       renderCuesList();
       renderSubtitlesList();
-      toggleSubtitles(false);
+      // Silent + overlay refresh, matching "Clear" in the subtitle panel: the
+      // persisted flag must not claim "on" against an empty subtitle list.
+      toggleSubtitles(false, true);
+      if (isVideoLoaded) updateSubtitlesForTime(mainVideoPlayer.currentTime);
     }
 
     const DEMO_FILM_SCENES = [
@@ -3503,7 +3617,7 @@ let speakRetries = 0;
     // Video Play / Pause
     function togglePlay() {
       if (!isVideoLoaded) {
-        videoFileInput.click();
+        triggerFileInput(videoFileInput);
         return;
       }
       if (mainVideoPlayer.paused || mainVideoPlayer.ended) {
@@ -3744,7 +3858,7 @@ let speakRetries = 0;
         deckActiveAudioLabel.style.color = 'var(--accent-purple)';
         voiceEngine.stop();
         if (!customAudio.isLoaded) {
-          customAudioFileInput.click();
+          triggerFileInput(customAudioFileInput);
         } else if (!mainVideoPlayer.paused) {
           customAudio.play(mainVideoPlayer.currentTime);
         }
@@ -3799,11 +3913,11 @@ let speakRetries = 0;
         }
       });
     }
-    activateOnKey(videoDropzone, () => videoFileInput.click());
-    activateOnKey(audioUploadBox, () => customAudioFileInput.click());
+    activateOnKey(videoDropzone, () => triggerFileInput(videoFileInput));
+    activateOnKey(audioUploadBox, () => triggerFileInput(customAudioFileInput));
 
     // Audio upload: click, keyboard, and the drag & drop the copy already promises.
-    audioUploadBox.addEventListener('click', () => customAudioFileInput.click());
+    audioUploadBox.addEventListener('click', () => triggerFileInput(customAudioFileInput));
     ['dragenter', 'dragover'].forEach(evt => audioUploadBox.addEventListener(evt, (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -3820,8 +3934,10 @@ let speakRetries = 0;
     });
 
     customAudioFileInput.addEventListener('change', (e) => {
-      if (e.target.files && e.target.files[0]) {
-        customAudio.loadFile(e.target.files[0]);
+      const file = e.target.files && e.target.files[0];
+      try { e.target.value = ''; } catch {}
+      if (file) {
+        customAudio.loadFile(file);
       }
     });
 
@@ -4206,12 +4322,31 @@ let speakRetries = 0;
 
       seekToTime(seconds) {
         return new Promise((resolve) => {
-          const onSeeked = () => {
-            this.video.removeEventListener('seeked', onSeeked);
+          if (!this.video) {
+            resolve();
+            return;
+          }
+          const dur = this.video.duration || seconds;
+          const clamped = Math.max(0, Math.min(dur, seconds));
+          if (Math.abs(this.video.currentTime - clamped) < 0.04) {
+            resolve();
+            return;
+          }
+          let completed = false;
+          const onDone = () => {
+            if (completed) return;
+            completed = true;
+            clearTimeout(timeoutId);
+            this.video.removeEventListener('seeked', onDone);
             resolve();
           };
-          this.video.addEventListener('seeked', onSeeked, { once: true });
-          this.video.currentTime = seconds;
+          const timeoutId = setTimeout(onDone, 1200);
+          this.video.addEventListener('seeked', onDone, { once: true });
+          try {
+            this.video.currentTime = clamped;
+          } catch {
+            onDone();
+          }
         });
       }
 
@@ -4331,6 +4466,15 @@ let speakRetries = 0;
       const analyzer = new VideoFrameAnalyzer(mainVideoPlayer);
       activeFrameAnalyzer = analyzer;
 
+      // Watchdog timer: Guarantee triggers are never permanently locked even on extreme stalls
+      const scanWatchdog = setTimeout(() => {
+        if (token === frameScanToken && activeFrameAnalyzer && activeFrameAnalyzer.isScanning) {
+          console.warn('Frame scan watchdog triggered: auto-cancelling stuck scan.');
+          cancelFrameAnalysis();
+          showToast('Frame analysis timed out. Controls restored.', true);
+        }
+      }, 45000);
+
       analyzer.analyzeVideo(
         // Progress Callback
         (data) => {
@@ -4373,6 +4517,7 @@ let speakRetries = 0;
         },
         // Complete Callback
         (result) => {
+          clearTimeout(scanWatchdog);
           setTimeout(() => {
             if (token !== frameScanToken) return;
             if (frameScannerOverlay) frameScannerOverlay.style.display = 'none';
@@ -4393,6 +4538,7 @@ let speakRetries = 0;
           }, 400);
         }
       ).catch(() => {
+        clearTimeout(scanWatchdog);
         if (token !== frameScanToken) return;
         if (frameScannerOverlay) frameScannerOverlay.style.display = 'none';
         setFrameScanTriggersDisabled(false);
@@ -4425,7 +4571,10 @@ let speakRetries = 0;
           const parsed = JSON.parse(text);
           const list = Array.isArray(parsed) ? parsed : (parsed.scenes || parsed.cues || []);
           list.forEach((item, idx) => {
-            const time = parseTimeString(item.time !== undefined ? item.time : (item.timestamp || idx * 10));
+            const time = safeSubCueTime(
+            parseTimeString(item.time !== undefined ? item.time : item.timestamp),
+            idx * 10
+          );
             const voice = item.text || item.voiceover || item.speech || item.line || '';
             if (voice) {
               cues.push({
@@ -4454,7 +4603,7 @@ let speakRetries = 0;
 
         // Try extracting timestamp [MM:SS]
         const timeMatch = trimmed.match(/\[?(\d{1,2}:\d{2}(?::\d{2})?)\]?/);
-        let timeSec = timeMatch ? parseTimeString(timeMatch[1]) : (idx * step);
+        let timeSec = timeMatch ? safeSubCueTime(parseTimeString(timeMatch[1]), idx * step) : (idx * step);
 
         // Extract Voiceover line or speech
         let voiceText = "";
@@ -4680,7 +4829,18 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       // Sort chronologically
       developedSubtitles.sort((a, b) => a.start - b.start);
 
-      SUBTITLES = developedSubtitles;
+      // Merge over the existing track instead of replacing it. Users refine
+      // imported captions by hand, so regenerating from the script must not
+      // throw that work away. Where a generated cue overlaps an existing one,
+      // the existing hand-tuned timing wins, exactly like a scene import.
+      const previousCount = SUBTITLES.length;
+      // mergeSubtitles returns a NEW array; it does not mutate SUBTITLES, so the
+      // result has to be assigned or the generated cues are silently dropped.
+      const existingIds = new Set(SUBTITLES.map(s => s.id));
+      SUBTITLES = mergeSubtitles(SUBTITLES, developedSubtitles);
+      // Existing cues that no longer appear in the merge were overlap-replaced.
+      const replacedCount = previousCount - SUBTITLES.filter(s => existingIds.has(s.id)).length;
+      const addedCount = SUBTITLES.length - (previousCount - replacedCount);
       saveSubtitles();
       renderSubtitlesList();
       toggleSubtitles(true);
@@ -4690,7 +4850,16 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       // Switch to Subtitle Suite view so user immediately inspects and customizes
       if (tabSubtitles) tabSubtitles.click();
 
-      showToast(`✨ AI generated ${SUBTITLES.length} functional subtitle cues from audio script!`);
+      if (previousCount > 0) {
+        const parts = [];
+        if (addedCount > 0) parts.push(`added ${addedCount} AI cue${addedCount === 1 ? '' : 's'}`);
+        if (replacedCount > 0) parts.push(`updated ${replacedCount} overlapping cue${replacedCount === 1 ? '' : 's'}`);
+        const kept = previousCount - replacedCount;
+        if (kept > 0) parts.push(`kept ${kept} you timed by hand`);
+        showToast(`✨ Subtitles synced: ${parts.join(', ')}.`);
+      } else {
+        showToast(`✨ AI generated ${SUBTITLES.length} functional subtitle cues from audio script!`);
+      }
     }
 
     function splitIntoSubtitlePhrases(text) {
@@ -4800,23 +4969,40 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
         const endIn = card.querySelector('.sub-end-input');
         const textIn = card.querySelector('.sub-text-input');
 
-        startIn.addEventListener('change', () => {
-          sub.start = parseSubCueTime(startIn.value);
-          if (sub.end <= sub.start) sub.end = parseFloat((sub.start + 1.0).toFixed(1));
+        // A typo must not silently snap the cue to 00:00.0, so an
+        // unparseable timing field is rejected: the old value is restored and
+        // the user is told why.
+        const commitSubTiming = (field, value, label) => {
+          const parsed = parseSubCueTime(value);
+          if (!Number.isFinite(parsed)) {
+            showToast(`"${value}" is not a valid ${label} time. Use MM:SS.s`, true);
+            refreshSubRow(sub);
+            if (isVideoLoaded) updateSubtitlesForTime(mainVideoPlayer.currentTime);
+            return;
+          }
+          if (field === 'start') {
+            sub.start = parsed;
+            if (sub.end <= sub.start) sub.end = parseFloat((sub.start + 1.0).toFixed(1));
+          } else {
+            sub.end = parsed;
+            if (sub.end <= sub.start) sub.start = parseFloat(Math.max(0, sub.end - 1.0).toFixed(1));
+          }
           saveSubtitles();
-          refreshSubRow(sub);
+          // A timing edit can move the cue past its neighbours, so keep the
+          // list order and the numbering in step with the data.
+          if (needsResortAfter(sub)) renderSubtitlesList();
+          else refreshSubRow(sub);
           if (isVideoLoaded) updateSubtitlesForTime(mainVideoPlayer.currentTime);
-        });
-        endIn.addEventListener('change', () => {
-          sub.end = parseSubCueTime(endIn.value);
-          if (sub.end <= sub.start) sub.start = parseFloat(Math.max(0, sub.end - 1.0).toFixed(1));
-          saveSubtitles();
-          refreshSubRow(sub);
-          if (isVideoLoaded) updateSubtitlesForTime(mainVideoPlayer.currentTime);
-        });
+        };
+
+        startIn.addEventListener('change', () => commitSubTiming('start', startIn.value, 'in'));
+        endIn.addEventListener('change', () => commitSubTiming('end', endIn.value, 'out'));
         textIn.addEventListener('input', () => {
           sub.text = textIn.value;
-          saveSubtitles();
+          // Refresh the live overlay immediately so the caption the user is
+          // looking at matches the text they just typed.
+          if (isVideoLoaded) updateSubtitlesForTime(mainVideoPlayer.currentTime);
+          scheduleSubtitleSave();
         });
 
         card.querySelector('[data-act="play"]').addEventListener('click', () => jumpToSubTime(sub.start));
@@ -4848,7 +5034,10 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
         sub.start = parseFloat(mainVideoPlayer.currentTime.toFixed(1));
         if (sub.end <= sub.start) sub.end = parseFloat((sub.start + 3.0).toFixed(1));
         saveSubtitles();
-        refreshSubRow(sub);
+        // Capture can move the cue past its neighbours, so keep list order
+        // and the "#n" numbering in step with the data.
+        if (needsResortAfter(sub)) renderSubtitlesList();
+        else refreshSubRow(sub);
         showToast(`Set Subtitle #${SUBTITLES.indexOf(sub) + 1} start to ${formatSubCueTime(sub.start)}`);
       }
     }
@@ -4860,7 +5049,8 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
         sub.end = parseFloat(mainVideoPlayer.currentTime.toFixed(1));
         if (sub.end <= sub.start) sub.start = parseFloat(Math.max(0, sub.end - 1.0).toFixed(1));
         saveSubtitles();
-        refreshSubRow(sub);
+        if (needsResortAfter(sub)) renderSubtitlesList();
+        else refreshSubRow(sub);
         showToast(`Set Subtitle #${SUBTITLES.indexOf(sub) + 1} end to ${formatSubCueTime(sub.end)}`);
       }
     }
@@ -5026,8 +5216,8 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
     if (btnBannerDismiss) btnBannerDismiss.addEventListener('click', dismissSubtitleBanner);
 
     // Subtitle upload buttons
-    if (btnUploadSubFile) btnUploadSubFile.addEventListener('click', () => subtitleFileInput.click());
-    if (btnBannerUploadSub) btnBannerUploadSub.addEventListener('click', () => subtitleFileInput.click());
+    if (btnUploadSubFile) btnUploadSubFile.addEventListener('click', () => triggerFileInput(subtitleFileInput));
+    if (btnBannerUploadSub) btnBannerUploadSub.addEventListener('click', () => triggerFileInput(subtitleFileInput));
 
     subtitleFileInput.addEventListener('change', (e) => {
       if (!e.target.files || !e.target.files[0]) return;
@@ -5059,7 +5249,7 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
     // -------------------------------------------------------------
     if (btnWorkflowDismiss) btnWorkflowDismiss.addEventListener('click', dismissWorkflowBanner);
     if (btnWorkflowKeepCurrent) btnWorkflowKeepCurrent.addEventListener('click', dismissWorkflowBanner);
-    if (btnWorkflowUploadScript) btnWorkflowUploadScript.addEventListener('click', () => sceneScriptFileInput.click());
+    if (btnWorkflowUploadScript) btnWorkflowUploadScript.addEventListener('click', () => triggerFileInput(sceneScriptFileInput));
     if (btnWorkflowOpenSceneEditor) btnWorkflowOpenSceneEditor.addEventListener('click', openSceneScriptModal);
     if (btnWorkflowStartFrameScan) btnWorkflowStartFrameScan.addEventListener('click', startFrameByFrameAnalysis);
     if (btnWorkflowSubtitlesSuite) btnWorkflowSubtitlesSuite.addEventListener('click', () => {
@@ -5077,7 +5267,7 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
     // Scene-by-Scene Script Modal Buttons
     if (btnCloseSceneModal) btnCloseSceneModal.addEventListener('click', closeSceneScriptModal);
     if (btnCancelSceneModal) btnCancelSceneModal.addEventListener('click', closeSceneScriptModal);
-    if (btnModalUploadFile) btnModalUploadFile.addEventListener('click', () => sceneScriptFileInput.click());
+    if (btnModalUploadFile) btnModalUploadFile.addEventListener('click', () => triggerFileInput(sceneScriptFileInput));
     if (btnModalLoadTemplate) btnModalLoadTemplate.addEventListener('click', loadSampleSceneTemplate);
     if (sceneScriptInputArea) {
       // Reparsing + rebuilding a card per scene on every keystroke is unusable for
@@ -5202,7 +5392,7 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       if (blocks.length > 1) {
         const newCues = [];
         for (let i = 1; i < blocks.length; i += 2) {
-          const time = parseTimeString(blocks[i]);
+          const time = safeSubCueTime(parseTimeString(blocks[i]), i * 5);
           const content = blocks[i + 1] || '';
           const voMatch = content.match(/VOICEOVER:\s*(.*)/i);
           const subMatch = content.match(/SUBTITLE:\s*(.*)/i);
@@ -5258,7 +5448,9 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       const timeInput = document.getElementById(`cueTimeInput_${cue.id}`);
       const textInput = document.getElementById(`cueTextInput_${cue.id}`);
       const subInput = document.getElementById(`cueSubInput_${cue.id}`);
-      if (timeInput) cue.time = parseTimeString(timeInput.value);
+      // An unparseable time field keeps the cue's existing time rather than
+      // snapping it to 0, which would silently reorder the whole script.
+      if (timeInput) cue.time = safeSubCueTime(parseTimeString(timeInput.value), cue.time);
       if (textInput) cue.text = textInput.value.trim();
       if (subInput) cue.subtitle = subInput.value.trim();
     });
@@ -5271,16 +5463,8 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
 
     btnResetScript.addEventListener('click', () => {
       if (confirm('Clear all narration script cues?')) {
-        SCRIPT_CUES = [];
-        SUBTITLES = [];
-        saveScriptCues();
-        saveSubtitles();
-        if (cueSaveTimer) { clearTimeout(cueSaveTimer); cueSaveTimer = null; }
-        resetSpokenCursor();
-        clearMasterScriptTextarea();
-        renderCuesList();
-        renderSubtitlesList();
-        toggleSubtitles(false);        showToast('↺ Narration script cleared.');
+        clearScriptAndSubtitles();
+        showToast('↺ Narration script cleared.');
       }
     });
 
@@ -5318,14 +5502,16 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
     // -------------------------------------------------------------
     // VIDEO DROPZONE & FILE INPUT HANDLERS
     // -------------------------------------------------------------
-    videoDropzone.addEventListener('click', () => videoFileInput.click());
-    btnHeaderUploadVideo.addEventListener('click', () => videoFileInput.click());
-    btnChangeVideo.addEventListener('click', () => videoFileInput.click());
+    videoDropzone.addEventListener('click', () => triggerFileInput(videoFileInput));
+    btnHeaderUploadVideo.addEventListener('click', () => triggerFileInput(videoFileInput));
+    btnChangeVideo.addEventListener('click', () => triggerFileInput(videoFileInput));
     btnLoadDemoVideo.addEventListener('click', loadDemoVideo);
 
     videoFileInput.addEventListener('change', (e) => {
-      if (e.target.files && e.target.files[0]) {
-        loadVideoFromFile(e.target.files[0]);
+      const file = e.target.files && e.target.files[0];
+      try { e.target.value = ''; } catch {}
+      if (file) {
+        loadVideoFromFile(file);
       }
     });
 

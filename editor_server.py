@@ -30,6 +30,8 @@ ALLOWED_STATIC = {
     "index.html", "editor.html", "editor.js", "editor.css", "coach.js", "favicon.svg",
     "favicon.ico", "favicon-16x16.png", "favicon-32x32.png", "site.webmanifest",
     "apple-touch-icon.png", "android-chrome-192x192.png", "android-chrome-512x512.png",
+    # The studio's bundled demo film, so "Load Demo" works without network access.
+    "THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4",
 }
 PUBLIC_ASSET_DIRS = {"cinematic_film_assets"}
 JOBS = RenderJobs(RUNTIME)
@@ -100,7 +102,8 @@ class EditorHandler(BaseHTTPRequestHandler):
             clean = "editor.html" if (ROOT / "editor.html").exists() else "index.html"
         parts = clean.split("/")
         if clean in ALLOWED_STATIC:
-            return self._file(ROOT / clean)
+            # Byte ranges are what make seeking inside the demo film responsive.
+            return self._file(ROOT / clean, allow_range=clean.endswith(".mp4"))
         if len(parts) == 2 and parts[0] in PUBLIC_ASSET_DIRS and Path(parts[1]).name == parts[1]:
             return self._file(ROOT / parts[0] / parts[1])
         return _json(self, 404, {"error": "not found"})

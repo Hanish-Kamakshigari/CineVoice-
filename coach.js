@@ -1443,7 +1443,7 @@
     var allText = '🎬 ' + (cachedFullResult.film_summary || 'Film Prompt Sequence') + '\n\n' +
       cachedFullResult.scenes.map(function (s) {
         return '--- Scene ' + s.scene_id + ' [' + s.start + ' – ' + s.end + '] ---\n' +
-               'PROMPT: ' + s.improved_prompt + '\n' +
+               'PROMPT: ' + (s.improved_prompt || s.recreation_prompt || '—') + '\n' +
                (s.negative_prompt ? 'NEGATIVE: ' + s.negative_prompt + '\n' : '') +
                (s.camera_tip ? 'CAMERA TIP: ' + s.camera_tip + '\n' : '');
       }).join('\n');

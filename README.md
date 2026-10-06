@@ -156,7 +156,7 @@ vercel link
 # Add the API key (never commit it)
 vercel env add GEMINI_API_KEY
 
-# Optionally set the model (default: gemini-2.0-flash)
+# Optionally set the model (default: gemini-2.5-flash)
 vercel env add GEMINI_MODEL
 
 # Or set them in the Vercel Dashboard → Project → Settings → Environment Variables:

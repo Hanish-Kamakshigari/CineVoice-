@@ -34,6 +34,7 @@ wheels/
 
 # Editor / scratch files
 .vibe-wise/
+.freebuff/
 .kilo/
 .vscode/
 .idea/

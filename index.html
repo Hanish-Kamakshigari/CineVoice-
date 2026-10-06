@@ -3767,7 +3767,10 @@ let speakRetries = 0;
         spokenCursor++;
       }
       const activeCue = SCRIPT_CUES[spokenCursor];
-      if (currentTime < activeCue.time) return;
+      // spokenCursor is -1 until playback reaches the first cue, and replacing
+      // the cue list mid-playback can leave it past the end of the new array.
+      // Either way there is nothing to say yet.
+      if (!activeCue || currentTime < activeCue.time) return;
       if (activeCue.id !== lastSpokenCueId && !mainVideoPlayer.paused) {
         lastSpokenCueId = activeCue.id;
         speakRetries = 0;
@@ -4745,6 +4748,11 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       }
 
       SCRIPT_CUES = parsed;
+      // Persist and re-arm like every other cue-list replacement, so a reload
+      // does not silently drop the screenplay that was just applied and the
+      // speech cursor cannot point into the previous list.
+      saveScriptCues();
+      resetSpokenCursor();
       renderCuesList();
       syncMasterScriptTextarea();
       closeSceneScriptModal();
@@ -5297,6 +5305,10 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
           const parsed = parseSceneScriptText(raw);
           if (parsed && parsed.length > 0) {
             SCRIPT_CUES = parsed;
+            // Same contract as the other import paths: save the new cues and
+            // re-arm the speech cursor before rendering.
+            saveScriptCues();
+            resetSpokenCursor();
             renderCuesList();
             syncMasterScriptTextarea();
             dismissWorkflowBanner();
@@ -5711,11 +5723,15 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
           seekTo(cur - (e.shiftKey ? 10 : 5));
           break;
         case 'ArrowUp':
+          // The focused timeline already handles Up/Down as a seek; doing both
+          // here changed the volume at the same time.
+          if (e.target === timelineContainer) return;
           e.preventDefault();
           sliderVideoVol.value = String(Math.min(1, sliderVideoVol.valueAsNumber + 0.05));
           sliderVideoVol.dispatchEvent(new Event('input'));
           break;
         case 'ArrowDown':
+          if (e.target === timelineContainer) return;
           e.preventDefault();
           sliderVideoVol.value = String(Math.max(0, sliderVideoVol.valueAsNumber - 0.05));
           sliderVideoVol.dispatchEvent(new Event('input'));

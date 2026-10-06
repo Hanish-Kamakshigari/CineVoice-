@@ -517,10 +517,14 @@ def render_video_frames():
         img_path = sc["image"]
         if img_path and os.path.exists(img_path):
             loaded_images[img_path] = Image.open(img_path).convert("RGB")
-        else:
+        elif img_path:
             # A renamed/missing asset used to yield a silently black frame.
             print(f"WARNING: missing scene art {img_path!r} for scene {sc['id']} - rendering black.")
             loaded_images[img_path] = Image.new("RGB", (WIDTH, HEIGHT), (5, 7, 10))
+        else:
+            # No artwork by design (the typographic epilogue is a black frame),
+            # so this is not a missing-asset warning.
+            loaded_images[None] = Image.new("RGB", (WIDTH, HEIGHT), (5, 7, 10))
 
     # Font setup: search the platform font directories instead of hardcoding Windows
     # paths, so macOS/Linux get real scalable fonts rather than an 11px bitmap.

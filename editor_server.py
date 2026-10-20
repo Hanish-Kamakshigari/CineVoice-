@@ -8,6 +8,7 @@ import re
 import threading
 import urllib.parse
 import uuid
+import shutil
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -15,6 +16,7 @@ from pathlib import Path
 import edge_tts
 
 from editor_render import RenderJobs, MAX_ASSET_BYTES, _asset_path, _number, MAX_SEGMENTS, MAX_NARRATION
+from video_enhancer import process_video_enhancement
 
 
 ROOT = Path(__file__).resolve().parent
@@ -150,6 +152,7 @@ class EditorHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/upload": return self._upload(parsed)
             if parsed.path == "/api/narration": return self._narration()
             if parsed.path == "/api/export": return self._export()
+            if parsed.path == "/api/enhance": return self._enhance()
             _json(self, 404, {"error": "not found"})
         except (ValueError, json.JSONDecodeError) as exc:
             _json(self, 400, {"error": str(exc)})
@@ -205,6 +208,60 @@ class EditorHandler(BaseHTTPRequestHandler):
             _asset_path(RUNTIME, music.get("assetId"))
         job_id = JOBS.submit(value)
         _json(self, 202, {"id": job_id})
+
+    def _enhance(self):
+        value = json.loads(self._body())
+        if not isinstance(value, dict): raise ValueError("request must be an object")
+
+        # Get required parameters
+        video_id = value.get("videoId")
+        if not video_id:
+            raise ValueError("videoId is required")
+
+        presets = value.get("presets")
+        preset_type = value.get("presetType", "modern_cinematic")
+
+        # Get the video file
+        video_path = ASSETS / video_id
+
+        # Validate video exists and is accessible
+        if not video_path.is_file():
+            raise ValueError("video not found")
+
+        # Create enhanced directory if it doesn't exist
+        enhanced_dir = RUNTIME / "enhanced"
+        enhanced_dir.mkdir(exist_ok=True)
+
+        # Generate enhanced video
+        enhanced_filename = f"enhanced_{uuid.uuid4().hex[:12]}.mp4"
+        enhanced_path = enhanced_dir / enhanced_filename
+
+        # Import here to avoid circular imports
+        from video_enhancer import process_video_enhancement
+
+        try:
+            process_video_enhancement(
+                str(video_path),
+                str(enhanced_path),
+                presets=presets,
+                preset_type=preset_type,
+                scene_enhancement=True
+            )
+        except Exception as exc:
+            raise ValueError(f"Video enhancement failed: {exc}")
+
+        # Register enhanced video as an asset
+        enhanced_id = enhanced_filename.replace(".mp4", "")
+        target_path = ASSETS / enhanced_id
+        shutil.copy2(enhanced_path, target_path)
+
+        _json(self, 200, {
+            "id": enhanced_id,
+            "url": f"/media/{enhanced_id}",
+            "originalId": video_id,
+            "path": str(target_path),
+            "message": "Video enhanced successfully"
+        })
 
 
 def serve(host="127.0.0.1", port=8080):

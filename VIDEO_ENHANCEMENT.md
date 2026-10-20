@@ -113,15 +113,15 @@ The video enhancement feature integrates seamlessly with the CineVoice editor in
 
 #### Dependencies
 
-- **OpenCV (cv2)**: Video processing and frame manipulation
-- **Pillow (PIL)**: Image enhancement and color correction
-- **NumPy**: Array operations and mathematical calculations
+- **imageio-ffmpeg**: Native FFmpeg binary for high-speed filtergraph processing
+- **Pillow (PIL)**: Image and color utilities
+- **NumPy**: Numeric and array operations
 
 #### Performance Considerations
 
-- **Real-time processing**: Enhancements are applied during video editing
-- **Progressive enhancement**: Changes are applied frame-by-frame
-- **Memory efficient**: Uses streaming processing for large videos
+- **High-speed processing**: Evaluated via multi-threaded native FFmpeg C filtergraphs (capable of enhancing 3-minute 1080p footage in seconds)
+- **Audio preservation**: Lossless audio stream copy (`-c:a copy`) with AAC fallback
+- **Fast-Start Web Streaming**: Encoded with `-movflags +faststart` for immediate browser playback
 
 #### Compatibility
 

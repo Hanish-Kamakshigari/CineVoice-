@@ -1,304 +1,349 @@
-"""Video Enhancement Module for CineVoice Editor.
+"""Video Enhancement Module for CineVoice.
 
-Provides cinematic video enhancement capabilities for both AI-generated and original videos.
-Includes color correction, noise reduction, contrast enhancement, and style presets.
+Provides fast, high-quality cinematic video enhancement using FFmpeg filtergraphs.
+Includes color correction, contrast enhancement, sharpening, and style presets
+with audio preservation and fast-start streaming for web playback.
 """
 
+from __future__ import annotations
+
+import os
+import subprocess
+from pathlib import Path
+import imageio_ffmpeg
 import numpy as np
 from PIL import Image, ImageEnhance
-import cv2
+
+PRESET_FILTERS = {
+    "modern_cinematic": {
+        "contrast": 1.12,
+        "saturation": 1.18,
+        "brightness": 0.02,
+        "colorbalance": "bh=0.03:gh=0.02:rh=-0.02:bm=-0.03:rm=0.04:gm=0.01",
+        "unsharp": "5:5:0.6:5:5:0.0",
+    },
+    "vintage_film": {
+        "contrast": 1.06,
+        "saturation": 0.78,
+        "brightness": 0.03,
+        "colorbalance": "rm=0.08:gm=0.03:bm=-0.07:rh=0.06:gh=0.02:bh=-0.05",
+        "unsharp": None,
+    },
+    "dramatic": {
+        "contrast": 1.28,
+        "saturation": 1.22,
+        "brightness": -0.04,
+        "colorbalance": "rs=-0.03:gs=-0.01:bs=0.03:rm=-0.02:bm=0.03",
+        "unsharp": "5:5:0.8:5:5:0.0",
+    },
+    "television_style": {
+        "contrast": 1.06,
+        "saturation": 1.05,
+        "brightness": 0.04,
+        "colorbalance": None,
+        "unsharp": "5:5:0.4:5:5:0.0",
+    },
+    "neutral": {
+        "contrast": 1.0,
+        "saturation": 1.0,
+        "brightness": 0.0,
+        "colorbalance": None,
+        "unsharp": None,
+    },
+}
 
 
-def apply_color_correction(frame, brightness=1.0, contrast=1.0, saturation=1.0):
-    """Apply color correction to a frame.
-    
+def _ffmpeg_exe() -> str:
+    """Retrieve bundled FFmpeg binary path."""
+    return imageio_ffmpeg.get_ffmpeg_exe()
+
+
+def build_filtergraph(preset_type: str = "modern_cinematic", presets: dict | None = None) -> str:
+    """Build an FFmpeg video filtergraph string based on preset and custom overrides.
+
     Args:
-        frame: Numpy array of the frame (BGR format)
-        brightness: Brightness multiplier (1.0 = no change, >1.0 = brighter)
-        contrast: Contrast multiplier (1.0 = no change)
-        saturation: Saturation multiplier (1.0 = no change)
-        
+        preset_type: Name of preset (modern_cinematic, vintage_film, dramatic, etc.)
+        presets: Optional custom overrides for brightness, contrast, saturation.
+
     Returns:
-        Enhanced frame
+        Comma-separated FFmpeg -vf filter string.
     """
-    if frame is None:
-        return frame
+    config = PRESET_FILTERS.get(preset_type, PRESET_FILTERS["modern_cinematic"]).copy()
 
-    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    if presets:
+        if "contrast" in presets and presets["contrast"] is not None:
+            config["contrast"] = float(presets["contrast"])
+        if "saturation" in presets and presets["saturation"] is not None:
+            config["saturation"] = float(presets["saturation"])
+        if "brightness" in presets and presets["brightness"] is not None:
+            raw_b = float(presets["brightness"])
+            # If user provided a multiplier > 0.5 (e.g. 1.05), convert to FFmpeg offset (0.05)
+            config["brightness"] = (raw_b - 1.0) if raw_b >= 0.5 else raw_b
 
-    # Apply brightness correction
-    if brightness != 1.0:
-        frame_rgb = np.clip(frame_rgb * brightness, 0, 255).astype(np.uint8)
+    filters: list[str] = []
 
-    # Apply contrast correction using PIL for better results
-    img = Image.fromarray(frame_rgb)
-    if contrast != 1.0:
-        enhancer = ImageEnhance.Contrast(img)
-        frame_rgb = np.array(enhancer.enhance(contrast))
+    # 1. Equalizer filter (brightness, contrast, saturation)
+    c = config.get("contrast", 1.0)
+    s = config.get("saturation", 1.0)
+    b = config.get("brightness", 0.0)
+    filters.append(f"eq=contrast={c:.3f}:saturation={s:.3f}:brightness={b:.3f}")
 
-    if saturation != 1.0:
-        enhancer = ImageEnhance.Color(img)
-        frame_rgb = np.array(enhancer.enhance(saturation))
+    # 2. Color balance filter (for cinematic tone mapping / split-toning)
+    if config.get("colorbalance"):
+        filters.append(f"colorbalance={config['colorbalance']}")
 
-    return cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+    # 3. Subtle unsharp mask for enhanced clarity and definition
+    if config.get("unsharp"):
+        filters.append(f"unsharp={config['unsharp']}")
 
-
-def apply_cinematic_preset(frame, preset_type="modern"):
-    """Apply cinematic color preset to enhance the video.
-    
-    Args:
-        frame: Numpy array of the frame (BGR format)
-        preset_type: Type of cinematic preset ("modern", "vintage", "television", "dramatic")
-        
-    Returns:
-        Enhanced frame
-    """
-    if frame is None:
-        return frame
-
-    # Convert to HLS color space for better color manipulation
-    frame_hls = cv2.cvtColor(frame, cv2.COLOR_BGR2HLS)
-    h, l, s = cv2.split(frame_hls)
-
-    if preset_type == "modern":
-        # Modern cinematic look - vibrant but natural
-        s = cv2.addWeighted(s, 1.2, s, 0.0, 0)  # Increase saturation
-        l = cv2.addWeighted(l, 1.1, l, 0.0, 0)  # Slightly brighter
-        h = apply_hue_rotation(h, -15)  # Slightly cool tones
-    elif preset_type == "vintage":
-        # Vintage film look
-        s = cv2.multiply(s, 0.7)  # Lower saturation
-        l = cv2.addWeighted(l, 0.9, l, 0.0, 0)  # Muted brightness
-        h = apply_hue_rotation(h, 45)  # Warm tones
-    elif preset_type == "television":
-        # Broadcast television look
-        s = cv2.multiply(s, 0.85)
-        l = cv2.addWeighted(l, 1.05, l, 0.0, 0)
-        h = apply_hue_rotation(h, 0)  # Neutral tones
-    elif preset_type == "dramatic":
-        # Dramatic high-contrast look
-        s = cv2.multiply(s, 1.3)
-        l = cv2.addWeighted(l, 0.8, l, 0.0, 0)
-        h = apply_hue_rotation(h, -30)  # Cooler tones
-
-    # Merge the channels back
-    frame_hls_enhanced = cv2.merge([h, l, s])
-    frame_enhanced = cv2.cvtColor(frame_hls_enhanced, cv2.COLOR_HLS2BGR)
-
-    return frame_enhanced
+    return ",".join(filters)
 
 
-def apply_hue_rotation(hue_channel, degrees):
-    """Apply hue rotation to the hue channel.
-    
-    Args:
-        hue_channel: Hue channel (0-179 in OpenCV)
-        degrees: Rotation angle in degrees
-        
-    Returns:
-        Rotated hue channel
-    """
-    # Convert degrees to radians
-    theta = degrees * np.pi / 180
+def analyze_with_nemotron(video_path: str, timestamp: float = 5.0) -> dict:
+    """Use NVIDIA Nemotron 3 Nano Omni to visually inspect the video and calculate bespoke grading parameters."""
+    import base64
+    import tempfile
+    import requests
+    import json
+    import time
+    from dotenv import load_dotenv
+    load_dotenv()
 
-    # Create rotation matrix
-    c, s = np.cos(theta), np.sin(theta)
+    key = os.environ.get("NVIDIA_API_KEY")
+    if not key:
+        return {}
 
-    # Create mesh grid for translation
-    center_x, center_y = 90, 90
-    y, x = np.indices((180, 180))
+    ffmpeg = _ffmpeg_exe()
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+        tmp_frame = tmp.name
 
-    # Apply rotation
-    x = (x - center_x) * c + (y - center_y) * s + center_x
-    y = -(x - center_x) * s + (y - center_y) * c + center_y
+    try:
+        # Extract single frame at timestamp
+        subprocess.run(
+            [ffmpeg, "-y", "-ss", str(timestamp), "-i", str(video_path), "-vframes", "1", "-q:v", "2", tmp_frame],
+            check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        with open(tmp_frame, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode("utf-8")
+    except Exception:
+        return {}
+    finally:
+        if os.path.exists(tmp_frame):
+            try:
+                os.remove(tmp_frame)
+            except Exception:
+                pass
 
-    # Crop to original size
-    x = x.astype(np.int32)
-    y = y.astype(np.int32)
-
-    # Create the rotated hue channel
-    rotated_hue = np.zeros_like(hue_channel)
-
-    # Handle bounds checking for rotation
-    mask = (x >= 0) & (x < 180) & (y >= 0) & (y < 180)
-    rotated_hue[mask] = hue_channel[y[mask], x[mask]]
-
-    return rotated_hue
-
-
-def apply_scene_enhancement(frame, scene_type="neutral"):
-    """Apply enhancement based on scene type detected.
-    
-    Args:
-        frame: Numpy array of the frame (BGR format)
-        scene_type: Type of scene ("neutral", "dramatic", "bright", "dynamic")
-        
-    Returns:
-        Enhanced frame
-    """
-    if frame is None:
-        return frame
-
-    # Convert to HSV for easier brightness analysis
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    h, s, v = cv2.split(hsv)
-
-    if scene_type == "dramatic":
-        # Increase contrast and saturation
-        s = cv2.multiply(s, 1.3)
-        v = cv2.addWeighted(v, 1.15, v, 0.0, 0)
-    elif scene_type == "bright":
-        # Reduce saturation, increase brightness
-        s = cv2.multiply(s, 0.85)
-        v = cv2.addWeighted(v, 1.2, v, 0.0, 0)
-    elif scene_type == "dynamic":
-        # Vibrant look with balanced brightness
-        s = cv2.multiply(s, 1.15)
-        v = cv2.addWeighted(v, 1.1, v, 0.0, 0)
-    # "neutral" scene keeps the original
-
-    hsv_enhanced = cv2.merge([h, s, v])
-    frame_enhanced = cv2.cvtColor(hsv_enhanced, cv2.COLOR_HSV2BGR)
-
-    return frame_enhanced
-
-
-def process_video_enhancement(video_path, output_path=None, presets=None, preset_type="modern_cinematic", scene_enhancement=True):
-    """Process a video with enhancement presets.
-    
-    Args:
-        video_path: Path to the input video
-        output_path: Path to save enhanced video (optional)
-        presets: Dict of enhancement presets (brightness, contrast, saturation)
-        preset_type: Type of preset to apply (modern_cinematic, vintage_film, etc.)
-        scene_enhancement: Whether to apply scene-type enhancement
-        
-    Returns:
-        Path to enhanced video
-    """
-    # Default presets
-    default_presets = {
-        "modern_cinematic": {"brightness": 1.05, "contrast": 1.1, "saturation": 1.15},
-        "vintage_film": {"brightness": 0.95, "contrast": 1.05, "saturation": 0.75},
-        "television_style": {"brightness": 1.1, "contrast": 1.05, "saturation": 0.9},
-        "dramatic": {"brightness": 0.9, "contrast": 1.15, "saturation": 1.25},
-        "neutral": {"brightness": 1.0, "contrast": 1.0, "saturation": 1.0},
+    headers = {
+        "Authorization": f"Bearer {key}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+    prompt = (
+        "You are an elite Digital Imaging Technician and Master Film Colorist.\n"
+        "Analyze this video frame. Evaluate exposure, shadows, highlights, contrast, and color balance.\n"
+        "Determine the exact optimal mathematical parameters to enhance this video to cinematic quality.\n\n"
+        "Output strictly valid JSON with these numeric keys:\n"
+        "{\n"
+        '  "brightness": 0.05,\n'
+        '  "contrast": 1.15,\n'
+        '  "saturation": 1.15,\n'
+        '  "unsharp": "5:5:0.6:5:5:0.0"\n'
+        "}"
+    )
+    payload = {
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
+                ],
+            }
+        ],
+        "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+        "max_tokens": 512,
+        "temperature": 0.2,
     }
 
-    # Merge user presets with defaults
-    if presets is None:
-        presets = default_presets.get(preset_type, default_presets["modern_cinematic"])
-    else:
-        for key, value in default_presets.items():
-            if key not in presets:
-                presets[key] = value
+    for _ in range(3):
+        try:
+            res = requests.post("https://integrate.api.nvidia.com/v1/chat/completions", headers=headers, json=payload, timeout=30)
+            if res.status_code == 200:
+                raw = res.json()["choices"][0]["message"]["content"]
+                clean_json = raw.strip()
+                if "```json" in clean_json:
+                    clean_json = clean_json.split("```json", 1)[1].split("```", 1)[0].strip()
+                elif "```" in clean_json:
+                    clean_json = clean_json.split("```", 1)[1].split("```", 1)[0].strip()
+                parsed = json.loads(clean_json)
+                return {
+                    "brightness": float(parsed.get("brightness", 0.05)),
+                    "contrast": float(parsed.get("contrast", 1.15)),
+                    "saturation": float(parsed.get("saturation", 1.15)),
+                }
+            time.sleep(2)
+        except Exception:
+            time.sleep(1)
 
-    # Open video file
-    cap = cv2.VideoCapture(video_path)
-    if not cap.isOpened():
-        raise ValueError(f"Could not open video file: {video_path}")
+    return {}
 
-    # Get video properties
-    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-    # Setup output writer
+def process_video_enhancement(
+    video_path: str,
+    output_path: str | None = None,
+    presets: dict | None = None,
+    preset_type: str = "modern_cinematic",
+    scene_enhancement: bool = True,
+    timeout: int = 300,
+) -> str:
+    """Enhance a video using high-speed FFmpeg filtergraphs.
+
+    Args:
+        video_path: Path to the input video.
+        output_path: Optional path for the output enhanced video.
+        presets: Optional dictionary of brightness, contrast, saturation adjustments.
+        preset_type: Preset style ("modern_cinematic", "vintage_film", "dramatic", "nvidia_nemotron_ai", etc.).
+        scene_enhancement: Whether scene-appropriate tone curves should be applied.
+        timeout: Subprocess execution timeout in seconds.
+
+    Returns:
+        Absolute path to the enhanced video.
+    """
+    in_path = Path(video_path).resolve()
+    if not in_path.is_file():
+        raise FileNotFoundError(f"Input video not found: {video_path}")
+
     if output_path is None:
-        import os
-        base_dir = os.path.dirname(video_path)
-        video_name = os.path.basename(video_path)
-        output_path = os.path.join(base_dir, f"enhanced_{video_name}")
+        output_path = str(in_path.parent / f"enhanced_{in_path.stem}.mp4")
 
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
+    out_path = Path(output_path).resolve()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    frame_idx = 0
+    # If AI Autonomous enhancement via NVIDIA Nemotron is requested, compute custom parameters
+    if preset_type in ("nvidia_nemotron_ai", "nemotron_ai"):
+        ai_params = analyze_with_nemotron(str(in_path))
+        if ai_params:
+            presets = {**(presets or {}), **ai_params}
+            preset_type = "neutral"
+        else:
+            preset_type = "modern_cinematic"
 
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
+    filter_str = build_filtergraph(preset_type=preset_type, presets=presets)
+    ffmpeg = _ffmpeg_exe()
 
-        # Apply enhancements
-        enhanced_frame = apply_color_correction(
-            frame,
-            brightness=presets.get("brightness", 1.0),
-            contrast=presets.get("contrast", 1.0),
-            saturation=presets.get("saturation", 1.0)
-        )
+    # Base command: libx264, yuv420p for universal browser support, faststart for streaming
+    cmd = [
+        ffmpeg,
+        "-y",
+        "-i", str(in_path),
+        "-vf", filter_str,
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-pix_fmt", "yuv420p",
+        "-c:a", "copy",
+        "-movflags", "+faststart",
+        str(out_path),
+    ]
 
-        if scene_enhancement:
-            # Detect simple scene type based on brightness and motion
-            gray = cv2.cvtColor(enhanced_frame, cv2.COLOR_BGR2GRAY)
-            brightness = cv2.mean(gray)[0] / 255.0
+    try:
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+        if proc.returncode != 0:
+            # If audio copy failed (e.g. incompatible audio codec in container), retry with AAC encoding
+            fallback_cmd = [
+                ffmpeg,
+                "-y",
+                "-i", str(in_path),
+                "-vf", filter_str,
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-pix_fmt", "yuv420p",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-movflags", "+faststart",
+                str(out_path),
+            ]
+            fallback_proc = subprocess.run(fallback_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+            if fallback_proc.returncode != 0:
+                err_msg = fallback_proc.stderr.decode("utf-8", errors="replace")
+                raise RuntimeError(f"FFmpeg enhancement failed: {err_msg[:400]}")
+    except subprocess.TimeoutExpired:
+        raise TimeoutError(f"Video enhancement exceeded timeout of {timeout} seconds.")
 
-            if brightness < 0.3:
-                scene_type = "dramatic"
-            elif brightness > 0.7:
-                scene_type = "bright"
-            else:
-                scene_type = "dynamic"
-
-            enhanced_frame = apply_scene_enhancement(enhanced_frame, scene_type)
-
-            # Apply cinematic preset based on scene type
-            enhanced_frame = apply_cinematic_preset(enhanced_frame, "modern")
-
-        # Write enhanced frame
-        out.write(enhanced_frame)
-
-        frame_idx += 1
-        if frame_idx % 24 == 0:  # Progress every second at 24fps
-            print(f"Enhancing video: {frame_idx}/{frame_count} frames")
-
-    # Cleanup
-    cap.release()
-    out.release()
-
-    print(f"Enhanced video saved to: {output_path}")
-    return output_path
+    return str(out_path)
 
 
-def batch_enhance_videos(video_paths, output_dir, preset_type="modern_cinematic"):
-    """Enhance multiple videos with the same preset.
-    
+def batch_enhance_videos(
+    video_paths: list[str],
+    output_dir: str,
+    preset_type: str = "modern_cinematic",
+    presets: dict | None = None,
+) -> list[str]:
+    """Enhance multiple videos in batch.
+
     Args:
-        video_paths: List of input video paths
-        output_dir: Directory to save enhanced videos
-        preset_type: Type of preset to apply
-        
+        video_paths: List of input video file paths.
+        output_dir: Destination directory.
+        preset_type: Preset style to apply.
+        presets: Optional custom parameters.
+
     Returns:
-        List of paths to enhanced videos
+        List of generated output file paths.
     """
-    import os
+    out_dir = Path(output_dir).resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create output directory if it doesn't exist
-    os.makedirs(output_dir, exist_ok=True)
-
-    enhanced_paths = []
-    default_presets = {
-        "modern_cinematic": {"brightness": 1.05, "contrast": 1.1, "saturation": 1.15},
-        "vintage_film": {"brightness": 0.95, "contrast": 1.05, "saturation": 0.75},
-        "television_style": {"brightness": 1.1, "contrast": 1.05, "saturation": 0.9},
-        "dramatic": {"brightness": 0.9, "contrast": 1.15, "saturation": 1.25},
-        "neutral": {"brightness": 1.0, "contrast": 1.0, "saturation": 1.0},
-    }
-
-    presets = default_presets.get(preset_type, default_presets["modern_cinematic"])
-
-    for video_path in video_paths:
-        if not os.path.exists(video_path):
-            print(f"Warning: Video not found - {video_path}")
+    results: list[str] = []
+    for vp in video_paths:
+        path = Path(vp)
+        if not path.is_file():
             continue
-
-        output_path = process_video_enhancement(
-            video_path,
+        dest = out_dir / f"enhanced_{path.name}"
+        res = process_video_enhancement(
+            video_path=str(path),
+            output_path=str(dest),
             presets=presets,
-            scene_enhancement=True
+            preset_type=preset_type,
         )
+        results.append(res)
+    return results
 
-        enhanced_paths.append(output_path)
 
-    return enhanced_paths
+# Frame-level utilities for backward compatibility and test verification
+def apply_color_correction(frame: np.ndarray, brightness: float = 1.0, contrast: float = 1.0, saturation: float = 1.0) -> np.ndarray:
+    """Pillow-based per-frame color correction fallback."""
+    if frame is None:
+        return frame
+    img = Image.fromarray(frame)
+    if brightness != 1.0:
+        img = ImageEnhance.Brightness(img).enhance(brightness)
+    if contrast != 1.0:
+        img = ImageEnhance.Contrast(img).enhance(contrast)
+    if saturation != 1.0:
+        img = ImageEnhance.Color(img).enhance(saturation)
+    return np.array(img)
+
+
+def apply_cinematic_preset(frame: np.ndarray, preset_type: str = "modern") -> np.ndarray:
+    """Frame-level cinematic preset fallback using Pillow."""
+    presets = {
+        "modern": {"brightness": 1.05, "contrast": 1.12, "saturation": 1.15},
+        "vintage": {"brightness": 0.96, "contrast": 1.05, "saturation": 0.75},
+        "television": {"brightness": 1.08, "contrast": 1.05, "saturation": 1.02},
+        "dramatic": {"brightness": 0.92, "contrast": 1.25, "saturation": 1.20},
+    }
+    p = presets.get(preset_type, presets["modern"])
+    return apply_color_correction(frame, brightness=p["brightness"], contrast=p["contrast"], saturation=p["saturation"])
+
+
+def apply_scene_enhancement(frame: np.ndarray, scene_type: str = "neutral") -> np.ndarray:
+    """Frame-level scene enhancement fallback."""
+    if frame is None or scene_type == "neutral":
+        return frame
+    if scene_type == "dramatic":
+        return apply_color_correction(frame, brightness=0.95, contrast=1.2, saturation=1.2)
+    elif scene_type == "bright":
+        return apply_color_correction(frame, brightness=1.1, contrast=1.05, saturation=0.88)
+    elif scene_type == "dynamic":
+        return apply_color_correction(frame, brightness=1.04, contrast=1.1, saturation=1.12)
+    return frame

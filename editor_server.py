@@ -130,7 +130,20 @@ class EditorHandler(BaseHTTPRequestHandler):
                     self.send_error(416); return
                 end = min(end, size - 1); status = 206
             self.send_response(status)
-            self.send_header("Content-Type", mimetypes.guess_type(str(path))[0] or "application/octet-stream")
+            ctype = mimetypes.guess_type(str(path))[0]
+            if not ctype:
+                try:
+                    with path.open("rb") as test_f:
+                        header = test_f.read(16)
+                        if b"ftyp" in header or header.startswith(b"\x00\x00\x00"):
+                            ctype = "video/mp4"
+                        elif header.startswith(b"ID3") or header.startswith(b"\xff\xfb"):
+                            ctype = "audio/mpeg"
+                        elif header.startswith(b"RIFF"):
+                            ctype = "audio/wav"
+                except Exception:
+                    pass
+            self.send_header("Content-Type", ctype or "application/octet-stream")
             self.send_header("Content-Length", str(end - start + 1))
             if status == 206: self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
             self.end_headers()
@@ -213,47 +226,32 @@ class EditorHandler(BaseHTTPRequestHandler):
         value = json.loads(self._body())
         if not isinstance(value, dict): raise ValueError("request must be an object")
 
-        # Get required parameters
+        # Get and validate video asset ID
         video_id = value.get("videoId")
         if not video_id:
             raise ValueError("videoId is required")
+        video_path = _asset_path(RUNTIME, video_id)
 
         presets = value.get("presets")
         preset_type = value.get("presetType", "modern_cinematic")
 
-        # Get the video file
-        video_path = ASSETS / video_id
+        # Generate standard 32-character hex asset ID (strictly validated by export pipeline)
+        enhanced_id = uuid.uuid4().hex
+        target_path = ASSETS / enhanced_id
 
-        # Validate video exists and is accessible
-        if not video_path.is_file():
-            raise ValueError("video not found")
-
-        # Create enhanced directory if it doesn't exist
-        enhanced_dir = RUNTIME / "enhanced"
-        enhanced_dir.mkdir(exist_ok=True)
-
-        # Generate enhanced video
-        enhanced_filename = f"enhanced_{uuid.uuid4().hex[:12]}.mp4"
-        enhanced_path = enhanced_dir / enhanced_filename
-
-        # Import here to avoid circular imports
+        # Import enhancement module
         from video_enhancer import process_video_enhancement
 
         try:
             process_video_enhancement(
                 str(video_path),
-                str(enhanced_path),
+                str(target_path),
                 presets=presets,
                 preset_type=preset_type,
                 scene_enhancement=True
             )
         except Exception as exc:
             raise ValueError(f"Video enhancement failed: {exc}")
-
-        # Register enhanced video as an asset
-        enhanced_id = enhanced_filename.replace(".mp4", "")
-        target_path = ASSETS / enhanced_id
-        shutil.copy2(enhanced_path, target_path)
 
         _json(self, 200, {
             "id": enhanced_id,

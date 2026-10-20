@@ -12,9 +12,9 @@ try:
     from video_enhancer import process_video_enhancement
     print("SUCCESS: Video enhancer import successful")
     
-    # Check if OpenCV is available
-    import cv2
-    print("SUCCESS: OpenCV is available for video processing")
+    # Check if FFmpeg is available
+    import imageio_ffmpeg
+    print("SUCCESS: FFmpeg is available for video processing")
     
     # Check if PIL is available
     from PIL import Image, ImageEnhance

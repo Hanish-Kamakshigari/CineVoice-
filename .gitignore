@@ -33,6 +33,7 @@ wheels/
 *.egg
 
 # Editor / scratch files
+.agents/
 .vibe-wise/
 .freebuff/
 .kilo/

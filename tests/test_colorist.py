@@ -469,6 +469,8 @@ class ReviewFallbackTests(unittest.TestCase):
     """The AI review must survive models that cannot read the keyframes."""
 
     def setUp(self):
+        import editor_colorist
+
         self.payload = {
             "preset": "cinematic",
             "scenes": [{
@@ -490,14 +492,25 @@ class ReviewFallbackTests(unittest.TestCase):
             "global_notes": [],
         }
 
-    def _patch(self, recorder, reject_images=True):
+    def _patch(self, recorder, reject_images=True, saturate_primary=False):
+        import editor_colorist
+
+        primary = editor_colorist.nvidia_model()
+        fallback = editor_colorist.nvidia_fallback_model()
+
         def fake_post(url, body, headers, timeout):
             recorder.append(body)
+            model = body["model"]
             sends_images = any(
                 part.get("type") == "image_url"
                 for message in body["messages"]
                 for part in (message["content"] if isinstance(message["content"], list) else [])
             )
+            if saturate_primary and model == primary:
+                raise urllib.error.HTTPError(
+                    url, 503, "ResourceExhausted: Worker local total request limit reached (16/16)",
+                    None, None,
+                )
             if reject_images and sends_images:
                 raise urllib.error.HTTPError(
                     url, 400, "Received multimodal data but multimodal processing is not enabled",
@@ -536,6 +549,22 @@ class ReviewFallbackTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertEqual(notes, [])
         self.assertEqual(answer["scenes"][0]["index"], 0)
+
+    def test_review_falls_back_to_the_text_model_when_the_vision_pool_is_saturated(self):
+        import editor_colorist
+
+        calls = []
+        original = editor_colorist._post_json
+        editor_colorist._post_json = self._patch(calls, saturate_primary=True)
+        try:
+            answer, notes = editor_colorist.review_scenes(self.payload, "key")
+        finally:
+            editor_colorist._post_json = original
+
+        models = [call["model"] for call in calls]
+        self.assertEqual(models[-1], editor_colorist.nvidia_fallback_model())
+        self.assertTrue(notes)
+        self.assertEqual(answer["film_summary"], "A short film.")
 
     def test_review_does_not_retry_without_images_when_no_keyframe_was_sent(self):
         import editor_colorist

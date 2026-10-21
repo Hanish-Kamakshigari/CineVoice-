@@ -49,7 +49,7 @@ Press `?` in the app for the shortcut reminder. Speech synthesis quality depends
 - **Detection and measurement** — FFmpeg `scdet` locates the cuts; every scene is measured for exposure, clipping, contrast, noise, color cast, saturation, skin tone, sharpness and on-screen text.
 - **Deterministic grade** — each scene receives its own exposure, contrast, saturation, white balance, toe lift, highlight roll-off, denoise and sharpen recipe. Presets: `cinematic`, `natural`, `documentary`, `text_clean`, `vintage`, `broadcast`.
 - **Optional AI review** — NVIDIA Nemotron reviews one keyframe per scene and returns a diagnosis plus a grade. The answer is clamped to safe limits and merged over the measured plan, so quality never degrades when the model is unreachable.
-- **Graceful degradation** — if the model rejects the keyframes or the vision pool is saturated, the review is retried from the measured statistics alone and the response is flagged as degraded; only a complete failure falls back to the deterministic plan.
+- **Graceful degradation** — if the model rejects the keyframes, the vision pool is saturated or a call runs long, the review is retried from the measured statistics and then with a text only fallback model. The response is flagged as degraded; only a complete failure falls back to the deterministic plan.
 - **Deliverables** — a DaVinci Resolve 3D `.cube` LUT, a 1D tone `.cube`, the FFmpeg filtergraph, a standalone Python grading script and a Resolve node recipe.
 - **Rendering** — every scene correction is applied inside its own time window in a single decode pass; output is `libx264` with the original audio copied.
 - **LUT fidelity** — the LUTs are baked from the same control points FFmpeg's `curves` filter receives, using identical `pchip` interpolation. The test suite re-parses them with a strict Iridas/Adobe parser and re-applies them through FFmpeg's own `lut3d` and `lut1d` filters.
@@ -69,7 +69,8 @@ Press `?` in the app for the shortcut reminder. Speech synthesis quality depends
 | Variable | Used by | Purpose |
 | --- | --- | --- |
 | `NVIDIA_API_KEY` | Local server, Vercel | Nemotron access. Without it the colorist falls back to the deterministic plan. |
-| `NEMOTRON_MODEL` | Local server, Vercel | Overrides the review model. |
+| `NEMOTRON_MODEL` | Local server, Vercel | Overrides the vision review model. |
+| `NEMOTRON_FALLBACK_MODEL` | Local server, Vercel | Text only model used when the vision pool is saturated. |
 | `COLORIST_PROXY_URL` | Local server | Proxy used when no local key is configured. |
 | `GEMINI_API_KEY` | Vercel | Gemini access for the prompt coach. |
 | `GEMINI_MODEL` | Vercel | Overrides the coach model. |

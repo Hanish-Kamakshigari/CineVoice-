@@ -31,6 +31,7 @@ from editor_render import MAX_ASSET_BYTES, _asset_path
 DEFAULT_PROXY_URL = "https://cine-voice-puce.vercel.app/api/colorist"
 NVIDIA_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 DEFAULT_MODEL = "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+DEFAULT_FALLBACK_MODEL = "nvidia/nemotron-3-ultra-550b-a55b"
 REPORT_TIMEOUT = 900
 
 
@@ -72,6 +73,11 @@ def nvidia_model() -> str:
     return _environment("NEMOTRON_MODEL", DEFAULT_MODEL)
 
 
+def nvidia_fallback_model() -> str:
+    """Text only model used when the vision worker pool is saturated."""
+    return _environment("NEMOTRON_FALLBACK_MODEL", DEFAULT_FALLBACK_MODEL)
+
+
 def _post_json(url: str, payload: Dict[str, Any], headers: Dict[str, str], timeout: int) -> Dict[str, Any]:
     body = json.dumps(payload).encode("utf-8")
     request = urllib.request.Request(url, data=body, method="POST")
@@ -99,7 +105,12 @@ def _is_transient(message: str) -> bool:
     )
 
 
-def call_nemotron(payload: Dict[str, Any], api_key: str, include_images: bool = True) -> Dict[str, Any]:
+def call_nemotron(
+    payload: Dict[str, Any],
+    api_key: str,
+    include_images: bool = True,
+    model: Optional[str] = None,
+) -> Dict[str, Any]:
     """Ask Nemotron for a per-scene colour decision.
 
     When ``include_images`` is False the request carries the measured
@@ -160,7 +171,7 @@ def call_nemotron(payload: Dict[str, Any], api_key: str, include_images: bool = 
     response = _post_json(
         NVIDIA_URL,
         {
-            "model": nvidia_model(),
+            "model": model or nvidia_model(),
             "messages": messages,
             "temperature": 0.2,
             "max_tokens": 4096,
@@ -176,20 +187,41 @@ def call_nemotron(payload: Dict[str, Any], api_key: str, include_images: bool = 
 
 
 def review_scenes(payload: Dict[str, Any], api_key: str) -> Tuple[Dict[str, Any], List[str]]:
-    """Run the AI review, degrading from vision to a text-only review."""
+    """Run the AI review, degrading from vision to a text-only review.
+
+    The chain is: the vision model with the keyframes, the same model from the
+    measured statistics only, then the text only fallback model. Only a
+    complete failure returns no answer at all.
+    """
     notes: List[str] = []
     wants_images = any(scene.get("keyframe") for scene in payload.get("scenes", []))
+
+    if wants_images:
+        try:
+            return call_nemotron(payload, api_key, True), notes
+        except Exception as exc:  # noqa: BLE001
+            message = str(exc)
+            if _is_image_error(message):
+                notes.append(
+                    "The vision model could not read the keyframes, so the review "
+                    "used the measured statistics only."
+                )
+            elif _is_transient(message):
+                notes.append(
+                    "The vision endpoint was busy, so the review used the measured "
+                    "statistics only."
+                )
+            else:
+                raise
+
     try:
-        return call_nemotron(payload, api_key, wants_images), notes
+        return call_nemotron(payload, api_key, False), notes
     except Exception as exc:  # noqa: BLE001
         message = str(exc)
-        if not wants_images or not (_is_image_error(message) or _is_transient(message)):
+        if not (_is_transient(message) or _is_image_error(message)):
             raise
-        notes.append(
-            "The model could not read the keyframes, so the review used the "
-            "measured statistics only."
-        )
-        return call_nemotron(payload, api_key, False), notes
+        notes.append("The primary model was unavailable, so the fallback model ran the review.")
+        return call_nemotron(payload, api_key, False, model=nvidia_fallback_model()), notes
 
 
 def _parse_json_object(text: str) -> Dict[str, Any]:

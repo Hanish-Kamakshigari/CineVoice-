@@ -6,7 +6,14 @@
 // returns it as JSON. When no API key is configured, or the model call
 // fails, the deterministic plan that came in with the request is returned
 // untouched, so the editor always has a usable grade.
-const MODEL = process.env.NEMOTRON_MODEL || 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning';
+// The vision model reads the keyframes. The fallback model is text only and
+// covers the case where the vision worker pool is saturated.
+const MODELS = [
+  { id: process.env.NEMOTRON_MODEL || 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning' },
+  { id: process.env.NEMOTRON_FALLBACK_MODEL || 'nvidia/nemotron-3-ultra-550b-a55b' },
+];
+// The function limit is 60s, so the whole review chain gets a 50s budget.
+const TOTAL_BUDGET_MS = 50000;
 const NVIDIA_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
 
 const SYSTEM_PROMPT =
@@ -170,21 +177,34 @@ function isTransient(message) {
   );
 }
 
-async function callNemotron(payload, apiKey, includeImages) {
-  const response = await fetch(NVIDIA_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-      Accept: 'application/json',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: buildMessages(payload, includeImages),
-      temperature: 0.2,
-      max_tokens: 4096,
-    }),
-  });
+async function callNemotron(payload, apiKey, model, includeImages, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+  try {
+    response = await fetch(NVIDIA_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        messages: buildMessages(payload, includeImages),
+        temperature: 0.2,
+        max_tokens: 4096,
+      }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timer);
+    if (err && err.name === 'AbortError') {
+      throw new Error(`Nemotron request timed out after ${Math.round(timeoutMs / 1000)}s`);
+    }
+    throw err;
+  }
+  clearTimeout(timer);
   if (!response.ok) {
     const body = await response.text().catch(() => '');
     throw new Error(`Nemotron ${response.status}: ${body.slice(0, 300)}`);
@@ -197,24 +217,54 @@ async function callNemotron(payload, apiKey, includeImages) {
   return parsed;
 }
 
-// Runs the review and degrades gracefully: vision -> text-only -> offline plan.
+// Runs the review and degrades gracefully:
+//   1. the vision model with the keyframes,
+//   2. the same model from the measured statistics only,
+//   3. the fallback text model when the vision pool is saturated,
+//   4. the deterministic plan when no model answers.
+// The whole chain shares one time budget so the function always replies
+// inside the platform limit instead of being cut off mid request.
 async function reviewScenes(payload, apiKey) {
   const wantsImages = hasImages(payload);
-  let notes = [];
-  try {
-    const answer = await callNemotron(payload, apiKey, wantsImages);
-    return { answer, notes, degraded: false };
-  } catch (err) {
-    if (!wantsImages) throw err;
-    if (!isImageError(err.message) && !isTransient(err.message)) throw err;
-    notes.push(
-      isImageError(err.message)
-        ? 'The configured model rejected the keyframes, so the review ran from the measured statistics only.'
-        : 'The vision endpoint was unavailable, so the review ran from the measured statistics only.'
-    );
-    const answer = await callNemotron(payload, apiKey, false);
-    return { answer, notes, degraded: true };
+  const notes = [];
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
+
+  const call = (model, includeImages) =>
+    callNemotron(payload, apiKey, model, includeImages, Math.max(2000, deadline - Date.now()));
+
+  if (wantsImages) {
+    try {
+      const answer = await call(MODELS[0].id, true);
+      return { answer, notes, degraded: false };
+    } catch (err) {
+      if (isImageError(err.message)) {
+        notes.push('The vision model could not read the keyframes, so the review ran from the measured statistics only.');
+      } else if (isTransient(err.message)) {
+        notes.push('The vision endpoint was busy, so the review ran from the measured statistics only.');
+      } else {
+        throw err;
+      }
+    }
   }
+
+  if (deadline - Date.now() < 12000) {
+    throw new Error('Nemotron timed out before the review could finish');
+  }
+
+  try {
+    const answer = await call(MODELS[0].id, false);
+    return { answer, notes, degraded: notes.length > 0 };
+  } catch (err) {
+    if (!isTransient(err.message) && !isImageError(err.message)) throw err;
+    notes.push('The primary model was unavailable, so the fallback model ran the review.');
+  }
+
+  if (deadline - Date.now() < 12000) {
+    throw new Error('Nemotron timed out before the fallback model could run');
+  }
+
+  const answer = await call(MODELS[1].id, false);
+  return { answer, notes, degraded: true };
 }
 
 module.exports = async (req, res) => {

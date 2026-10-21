@@ -63,6 +63,19 @@ def _allowed_origins() -> set[str]:
     return {item.strip().rstrip("/").lower() for item in raw.split(",") if item.strip()}
 
 
+def _origin_allowed(host, origin) -> bool:
+    """Only loopback hosts may be driven, and only by local or allowlisted pages."""
+    host = (host or "").split(":", 1)[0].lower().strip("[]")
+    if host not in {"localhost", "127.0.0.1"}:
+        return False
+    if not origin or origin == "null":
+        return True
+    parsed = urllib.parse.urlparse(origin)
+    if parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"}:
+        return True
+    return origin.rstrip("/").lower() in _allowed_origins()
+
+
 def _safe_name(name):
     name = Path(name or "upload.bin").name
     name = re.sub(r"[^A-Za-z0-9._-]", "_", name)[:100]
@@ -85,20 +98,7 @@ class EditorHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def _origin_ok(self):
-        host = self.headers.get("Host", "").split(":", 1)[0].lower().strip("[]")
-        if host not in {"localhost", "127.0.0.1"}:
-            return False
-        origin = self.headers.get("Origin")
-        if origin:
-            if origin == "null":
-                return True
-            parsed = urllib.parse.urlparse(origin)
-            if parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"}:
-                return True
-            if origin.rstrip("/").lower() in _allowed_origins():
-                return True
-            return False
-        return True
+        return _origin_allowed(self.headers.get("Host", ""), self.headers.get("Origin"))
 
     def _body(self, limit=MAX_JSON):
         try:

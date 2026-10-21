@@ -3,6 +3,9 @@
   "functions": {
     "api/coach.js": {
       "maxDuration": 30
+    },
+    "api/colorist.js": {
+      "maxDuration": 60
     }
   },
   "headers": [

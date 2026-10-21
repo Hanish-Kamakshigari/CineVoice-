@@ -16,6 +16,7 @@ from pathlib import Path
 import edge_tts
 
 from editor_render import RenderJobs, MAX_ASSET_BYTES, _asset_path, _number, MAX_SEGMENTS, MAX_NARRATION
+from editor_colorist import ColoristJobs
 from video_enhancer import process_video_enhancement
 
 
@@ -24,7 +25,8 @@ RUNTIME = ROOT / ".cinevoice-editor"
 ASSETS = RUNTIME / "assets"
 EXPORTS = RUNTIME / "exports"
 TMP = RUNTIME / "tmp"
-for folder in (ASSETS, EXPORTS, TMP):
+COLORIST_REPORTS = RUNTIME / "colorist"
+for folder in (ASSETS, EXPORTS, TMP, COLORIST_REPORTS):
     folder.mkdir(parents=True, exist_ok=True)
 
 MAX_JSON = 256 * 1024
@@ -37,6 +39,7 @@ ALLOWED_STATIC = {
 }
 PUBLIC_ASSET_DIRS = {"cinematic_film_assets"}
 JOBS = RenderJobs(RUNTIME)
+COLORIST = ColoristJobs(RUNTIME)
 
 
 def _json(handler, status, value):
@@ -44,6 +47,9 @@ def _json(handler, status, value):
     handler.send_response(status)
     handler.send_header("Content-Type", "application/json; charset=utf-8")
     handler.send_header("Content-Length", str(len(raw)))
+    handler.send_header("Access-Control-Allow-Origin", "*")
+    handler.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+    handler.send_header("Access-Control-Allow-Headers", "Content-Type")
     handler.end_headers()
     handler.wfile.write(raw)
 
@@ -57,17 +63,24 @@ def _safe_name(name):
 class EditorHandler(BaseHTTPRequestHandler):
     server_version = "CineVoiceEditor/1"
 
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
     def _origin_ok(self):
         host = self.headers.get("Host", "").split(":", 1)[0].lower().strip("[]")
         if host not in {"localhost", "127.0.0.1"}:
             return False
         origin = self.headers.get("Origin")
         if origin:
+            if origin == "null":
+                return True
             parsed = urllib.parse.urlparse(origin)
             if parsed.scheme != "http" or parsed.hostname not in {"localhost", "127.0.0.1"}:
-                return False
-            # A browser can use either loopback spelling, but must use this port.
-            if parsed.port not in (None, self.server.server_port):
                 return False
         return True
 
@@ -89,6 +102,11 @@ class EditorHandler(BaseHTTPRequestHandler):
         if parsed.path.startswith("/api/jobs/"):
             value = JOBS.get(parsed.path.rsplit("/", 1)[-1])
             return _json(self, 200 if value else 404, value or {"error": "job not found"})
+        if parsed.path.startswith("/api/colorist/jobs/"):
+            value = COLORIST.get(parsed.path.rsplit("/", 1)[-1])
+            return _json(self, 200 if value else 404, value or {"error": "job not found"})
+        if parsed.path.startswith("/api/colorist/report/"):
+            return self._colorist_report(parsed.path)
         if parsed.path.startswith("/media/"):
             return self._file(ASSETS / parsed.path.rsplit("/", 1)[-1], allow_range=True)
         if parsed.path.startswith("/exports/"):
@@ -145,6 +163,7 @@ class EditorHandler(BaseHTTPRequestHandler):
                     pass
             self.send_header("Content-Type", ctype or "application/octet-stream")
             self.send_header("Content-Length", str(end - start + 1))
+            self.send_header("Access-Control-Allow-Origin", "*")
             if status == 206: self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
             self.end_headers()
             with path.open("rb") as fh:
@@ -166,6 +185,8 @@ class EditorHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/narration": return self._narration()
             if parsed.path == "/api/export": return self._export()
             if parsed.path == "/api/enhance": return self._enhance()
+            if parsed.path == "/api/colorist/analyze": return self._colorist_analyze()
+            if parsed.path == "/api/colorist/apply": return self._colorist_apply()
             _json(self, 404, {"error": "not found"})
         except (ValueError, json.JSONDecodeError) as exc:
             _json(self, 400, {"error": str(exc)})
@@ -251,6 +272,8 @@ class EditorHandler(BaseHTTPRequestHandler):
                 scene_enhancement=True
             )
         except Exception as exc:
+            import traceback
+            traceback.print_exc()
             raise ValueError(f"Video enhancement failed: {exc}")
 
         _json(self, 200, {
@@ -260,6 +283,72 @@ class EditorHandler(BaseHTTPRequestHandler):
             "path": str(target_path),
             "message": "Video enhanced successfully"
         })
+
+    # ------------------------------------------------------------------
+    # AI Colorist
+    # ------------------------------------------------------------------
+    def _colorist_analyze(self):
+        value = json.loads(self._body())
+        if not isinstance(value, dict): raise ValueError("request must be an object")
+        video_id = value.get("videoId")
+        if not video_id: raise ValueError("videoId is required")
+        # Validate the asset before the job is queued.
+        _asset_path(RUNTIME, video_id)
+        preset = value.get("preset", "cinematic")
+        if not isinstance(preset, str): raise ValueError("preset must be a string")
+        job_id = COLORIST.submit_analysis({"videoId": video_id, "preset": preset})
+        _json(self, 202, {"id": job_id})
+
+    def _colorist_apply(self):
+        value = json.loads(self._body())
+        if not isinstance(value, dict): raise ValueError("request must be an object")
+        report_id = value.get("reportId")
+        if not isinstance(report_id, str) or not report_id: raise ValueError("reportId is required")
+        report = COLORIST.load_report(report_id)
+        if not report: raise ValueError("colorist report not found")
+        video_id = value.get("videoId") or report.get("video_id")
+        if not video_id: raise ValueError("videoId is required")
+        _asset_path(RUNTIME, video_id)
+        encode_preset = value.get("encodePreset", "fast")
+        job_id = COLORIST.submit_render({
+            "reportId": report_id,
+            "videoId": video_id,
+            "encodePreset": encode_preset,
+        })
+        _json(self, 202, {"id": job_id})
+
+    def _colorist_report(self, path):
+        parts = [part for part in path.split("/") if part]
+        # /api/colorist/report/<id>/<artefact>
+        if len(parts) != 5: return _json(self, 404, {"error": "not found"})
+        report_id, artefact = parts[3], parts[4]
+        if not re.fullmatch(r"[0-9a-f]{32}", report_id): return _json(self, 404, {"error": "not found"})
+        report = COLORIST.load_report(report_id)
+        if not report: return _json(self, 404, {"error": "not found"})
+        preset = report.get("preset", "cinematic")
+        if artefact == "lut":
+            return self._download(f"cinevoice_{preset}.cube", report.get("lut", ""), "text/plain")
+        if artefact == "tone.cube":
+            return self._download(f"cinevoice_{preset}_tone.cube", report.get("lut_tone", ""), "text/plain")
+        if artefact == "filtergraph":
+            return self._download(f"cinevoice_{preset}.ffgraph", report.get("timeline_filtergraph", ""), "text/plain")
+        if artefact == "scene-filtergraph":
+            return self._download(f"cinevoice_{preset}_scenes.ffgraph", report.get("filtergraph", ""), "text/plain")
+        if artefact == "script":
+            return self._download("colorist_grade.py", report.get("python_script", ""), "text/x-python")
+        if artefact == "recipe":
+            return self._download(f"cinevoice_{preset}_resolve.txt", report.get("resolve_recipe", ""), "text/plain")
+        return _json(self, 404, {"error": "not found"})
+
+    def _download(self, filename, text, content_type):
+        raw = text.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", content_type + "; charset=utf-8")
+        self.send_header("Content-Length", str(len(raw)))
+        self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(raw)
 
 
 def serve(host="127.0.0.1", port=8080):

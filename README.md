@@ -50,6 +50,29 @@ Added in v1.2. Pause the video on any scene and the coach analyses the current s
 - **Mobile Friendly**: Panel fits 360 px wide screens.
 - **Auto-trigger**: Pausing the video automatically opens the coach after 600 ms (debounced).
 
+### AI Colorist - Scene Analysis, Restoration Grade & LUTs (`video_colorist.py`)
+- **Scene detection**: FFmpeg `scdet` finds the hard cuts, then every scene is measured (luma histogram, black/highlight clipping, contrast, noise, colour cast, saturation, skin tone, sharpness, on-screen text/UI activity).
+- **Deterministic grade**: each scene gets its own exposure, contrast, saturation, white balance, toe lift, highlight roll-off, denoise and sharpen recipe. Presets: `cinematic`, `natural`, `documentary`, `text_clean`, `vintage`, `broadcast`.
+- **Optional AI review**: NVIDIA Nemotron 3 Nano Omni (`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`) reviews one keyframe per scene and returns a diagnosis plus a grade. The AI answer is always clamped to safe limits and merged over the measured plan, so the result never degrades when the model is unreachable.
+- **Deliverables**: a DaVinci Resolve 3D `.cube` LUT, a 1D tone `.cube`, the FFmpeg filtergraph, a standalone Python grading script and a Resolve node recipe - all downloadable from the editor.
+- **Rendering**: the timeline graph applies every scene's correction inside its own time window, so the source keeps its exact timing and only one decode pass is needed. Output is `libx264` with the original audio copied.
+
+#### AI Colorist in the local editor
+- `POST /api/colorist/analyze` - `{ "videoId": "...", "preset": "cinematic" }` returns a job id; the scene breakdown, plan and artefacts are polled through `GET /api/colorist/jobs/<id>`.
+- `POST /api/colorist/apply` - `{ "reportId": "...", "videoId": "..." }` renders the graded master and returns a job id. The result is copied into the asset library so it can be used as the next edit's source.
+- `GET /api/colorist/report/<id>/<artefact>` - downloads `lut`, `tone.cube`, `filtergraph`, `scene-filtergraph`, `script` or `recipe`.
+
+#### AI Colorist environment variables
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `NVIDIA_API_KEY` | Calls Nemotron directly from the local server. Falls back to the Vercel proxy when unset. | - |
+| `COLORIST_PROXY_URL` | Serverless proxy used when no local key is available. | `https://cine-voice-puce.vercel.app/api/colorist` |
+| `NEMOTRON_MODEL` | Model used for the AI review. | `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` |
+
+The local server reads `.env` automatically (existing environment variables always win). The proxy in `api/colorist.js` needs `NVIDIA_API_KEY` in the Vercel project environment; without it the function answers with the deterministic plan instead of failing.
+
+---
+
 ### Automated Movie Rendering Pipeline (`render_movie.py`)
 - **HD Video Synthesis**: 1920×1080 at 24 fps, composed frame-by-frame with Pillow and encoded through FFmpeg (bundled via `imageio-ffmpeg`).
 - **Neural Text-to-Speech**: Edge-TTS with male and female neural voices, tuned speech rate and pitch. Requires network access on first synthesis.
@@ -68,6 +91,10 @@ CineVoice/
 ├── cinematic_film_assets/                    # Source artwork for the 12 film scenes
 ├── index.html                                # Entire web studio (markup, styles, logic)
 ├── render_movie.py                           # Python/FFmpeg rendering pipeline
+├── video_colorist.py                         # AI colorist engine: measurement, grading, LUTs
+├── editor_colorist.py                        # Background colorist jobs + Nemotron client
+├── editor_server.py / editor.html / editor.js / editor.css  # Local narration video editor
+├── api/colorist.js                           # Vercel proxy for the Nemotron colorist pass
 ├── requirements.txt                          # Python rendering dependencies
 ├── site.webmanifest                          # PWA manifest
 ├── vercel.json                               # Vercel routing, cache, and security headers

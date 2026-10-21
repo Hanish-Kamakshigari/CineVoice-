@@ -1977,6 +1977,10 @@
         --text-muted: #c3ccd8;
       }
     }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 
@@ -2013,6 +2017,12 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
         </svg>
         Download Video
+      </button>
+      <button class="btn btn-gold" id="btnHeaderEnhanceVideo" style="border-color:rgba(168,85,247,0.5); color:#fff; background:linear-gradient(135deg, rgba(168,85,247,0.32), rgba(126,34,206,0.25)); box-shadow:0 0 15px rgba(168,85,247,0.25);" title="AI Video Enhancement (Color grading, contrast & sharpness)">
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.857L13 21l-2.286-6.857L5 12l5.714-2.857L13 3z" />
+        </svg>
+        ✨ Enhance Video
       </button>
       <a class="btn btn-gold" href="editor.html" id="btnHeaderEditorLink" style="border-color:var(--accent-gold); color:#fff; background:linear-gradient(135deg, rgba(245,158,11,0.32), rgba(217,119,6,0.25)); box-shadow:0 0 15px rgba(245,158,11,0.25); text-decoration:none; display:inline-flex; align-items:center; gap:6px;" title="Open the narration-led video editor">
         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2282,6 +2292,9 @@
             </button>
             <button class="pill-btn" id="btnOpenSubtitlesDeck" title="Open Subtitle Suite">
               💬 Subtitles
+            </button>
+            <button class="pill-btn" id="btnEnhanceVideo" style="border-color:rgba(168,85,247,0.5); color:#d8b4fe;" title="Enhance video with AI cinematic tone curves and grading">
+              ✨ AI Enhance
             </button>
             <button class="pill-btn" id="btnChangeVideo" title="Upload a different video">
               <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2675,6 +2688,64 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
         <button class="btn" id="btnCancelSceneModal">Cancel</button>
         <button class="btn btn-gold" id="btnApplySceneScript" style="padding:0.55rem 1.3rem;">
           ✨ Apply Scene Script to Video
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Video Enhancement Modal -->
+  <div class="modal-backdrop" id="enhancementModal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="enhancementModalTitle">
+    <div class="modal-card" style="max-width:640px; width:94%;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:0.65rem;">
+          <span style="font-size:1.4rem;" aria-hidden="true">✨</span>
+          <div>
+            <div id="enhancementModalTitle" style="font-family:var(--font-serif); font-size:1.1rem; color:#fff; font-weight:700;">AI CINEMATIC VIDEO ENHANCEMENT</div>
+            <div style="font-size:0.75rem; color:var(--text-muted);">FFmpeg filtergraph grading, tone curves, and neural style presets</div>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="btnCloseEnhanceModal" title="Close modal" aria-label="Close enhancement modal">✕</button>
+      </div>
+
+      <div class="modal-body" style="display:flex; flex-direction:column; gap:1.1rem;">
+        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--card-border); border-radius:10px; padding:0.9rem 1.1rem;">
+          <div style="font-family:var(--font-mono); font-size:0.72rem; color:var(--accent-gold); margin-bottom:0.35rem; text-transform:uppercase; letter-spacing:0.05em;">ACTIVE SOURCE:</div>
+          <div id="enhanceSourceFilename" style="font-weight:600; font-size:0.9rem; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">No video loaded</div>
+        </div>
+
+        <div>
+          <label for="modalEnhancePresetSelect" style="font-family:var(--font-mono); font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:0.45rem;">
+            Select Enhancement Preset:
+          </label>
+          <select id="modalEnhancePresetSelect" class="btn" style="width:100%; padding:0.65rem 0.9rem; border-radius:8px; background:#121720; border:1px solid var(--card-border); color:#fff; font-size:0.85rem;">
+            <option value="nvidia_nemotron_ai">⚡ AI Autonomous (NVIDIA Nemotron Intelligent Grading)</option>
+            <option value="modern_cinematic" selected>🎬 Modern Cinematic (Vibrant, balanced contrast & unsharp mask)</option>
+            <option value="vintage_film">🎞️ Vintage Film (Warm analog tones & classic film curve)</option>
+            <option value="dramatic">🎭 Dramatic (High contrast, deep shadows & cool undertones)</option>
+            <option value="television_style">📺 Television Style (Clean, broadcast neutral contrast)</option>
+            <option value="neutral">⚖️ Neutral (Minimal enhancement, subtle clarity polish)</option>
+          </select>
+        </div>
+
+        <div id="enhancePresetDescription" style="font-size:0.8rem; color:var(--text-muted); background:rgba(229,179,100,0.06); border-left:3px solid var(--accent-gold); padding:0.6rem 0.9rem; border-radius:0 6px 6px 0; line-height:1.45;">
+          Balances dynamic range with rich cinematic colors, gentle highlight roll-off, and subtle unsharp clarity.
+        </div>
+
+        <div id="enhanceProcessingIndicator" style="display:none; flex-direction:column; gap:0.5rem; align-items:center; justify-content:center; padding:1.2rem; background:rgba(0,0,0,0.4); border-radius:8px; border:1px dashed rgba(229,179,100,0.4);">
+          <div class="spinner" style="width:28px; height:28px; border:3px solid rgba(229,179,100,0.2); border-top-color:var(--accent-gold); border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+          <div id="enhanceProgressText" style="font-size:0.82rem; color:var(--accent-gold); font-weight:500;">Applying cinematic filtergraph...</div>
+          <div style="font-size:0.72rem; color:var(--text-muted);">Please keep editor server running in terminal (python editor_server.py)</div>
+        </div>
+
+        <div id="enhanceServerWarning" style="display:none; font-size:0.78rem; color:#f87171; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); border-radius:8px; padding:0.6rem 0.85rem; line-height:1.4;">
+          ⚠️ <strong>Local backend required:</strong> Run <code>python editor_server.py</code> in your project directory to perform FFmpeg video enhancement.
+        </div>
+      </div>
+
+      <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--card-border); padding-top:0.85rem; margin-top:0.35rem;">
+        <button class="btn" id="btnCancelEnhanceModal">Cancel</button>
+        <button class="btn btn-gold" id="btnApplyEnhancement" style="padding:0.55rem 1.3rem; border-color:rgba(168,85,247,0.6); background:linear-gradient(135deg, rgba(168,85,247,0.35), rgba(126,34,206,0.25)); box-shadow:0 0 15px rgba(168,85,247,0.3);">
+          ✨ Run Enhancement
         </button>
       </div>
     </div>
@@ -3173,6 +3244,20 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
     const ccStatusText = document.getElementById('ccStatusText');
     const btnOpenSubtitlesDeck = document.getElementById('btnOpenSubtitlesDeck');
 
+    // Video Enhancement Modal Elements
+    const enhancementModal = document.getElementById('enhancementModal');
+    const btnEnhanceVideo = document.getElementById('btnEnhanceVideo');
+    const btnHeaderEnhanceVideo = document.getElementById('btnHeaderEnhanceVideo');
+    const btnCloseEnhanceModal = document.getElementById('btnCloseEnhanceModal');
+    const btnCancelEnhanceModal = document.getElementById('btnCancelEnhanceModal');
+    const btnApplyEnhancement = document.getElementById('btnApplyEnhancement');
+    const modalEnhancePresetSelect = document.getElementById('modalEnhancePresetSelect');
+    const enhancePresetDescription = document.getElementById('enhancePresetDescription');
+    const enhanceSourceFilename = document.getElementById('enhanceSourceFilename');
+    const enhanceProcessingIndicator = document.getElementById('enhanceProcessingIndicator');
+    const enhanceProgressText = document.getElementById('enhanceProgressText');
+    const enhanceServerWarning = document.getElementById('enhanceServerWarning');
+
     // Subtitle Suite Deck elements
     const tabSubtitles = document.getElementById('tabSubtitles');
     const viewSubtitles = document.getElementById('viewSubtitles');
@@ -3244,6 +3329,8 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
     let currentAudioMode = 'male'; // 'male', 'female', 'custom', 'native'
     let isVideoLoaded = false;
     let videoBlobUrl = null;
+    let currentActiveVideoFile = null;
+    let isDemoVideoLoaded = false;
     let lastSpokenCueId = null;
 let spokenCursor = -1;
 let lastCueCheckTime = -1;
@@ -3427,6 +3514,8 @@ let speakRetries = 0;
         videoLoadWatchdog = null;
       }
       isVideoLoaded = false;
+      currentActiveVideoFile = null;
+      isDemoVideoLoaded = false;
       mainVideoPlayer.onloadedmetadata = null;
       mainVideoPlayer.onerror = null;
       mainVideoPlayer.classList.remove('active');
@@ -3450,6 +3539,9 @@ let speakRetries = 0;
 
     function loadVideoFromFile(file) {
       if (!file) return;
+
+      currentActiveVideoFile = file;
+      isDemoVideoLoaded = false;
 
       if (videoLoadWatchdog) {
         clearTimeout(videoLoadWatchdog);
@@ -3553,6 +3645,8 @@ let speakRetries = 0;
 
       function onDemoReady() {
         isVideoLoaded = true;
+        isDemoVideoLoaded = true;
+        currentActiveVideoFile = null;
         mainVideoPlayer.classList.add('active');
         videoDropzone.style.display = 'none';
         videoHudTop.style.display = 'flex';
@@ -5673,6 +5767,145 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
     if (btnHudDownloadVideo) btnHudDownloadVideo.addEventListener('click', downloadCurrentVideo);
     if (btnDownloadCurrentVideo) btnDownloadCurrentVideo.addEventListener('click', downloadCurrentVideo);
     if (btnDeckDownloadVideo) btnDeckDownloadVideo.addEventListener('click', downloadCurrentVideo);
+
+    // -------------------------------------------------------------
+    // VIDEO ENHANCEMENT SUITE
+    // -------------------------------------------------------------
+    const ENHANCE_PRESET_DESCRIPTIONS = {
+      nvidia_nemotron_ai: 'Autonomous AI video analysis via NVIDIA Nemotron: mathematically computes scene-adaptive tone curves, contrast matrix, and sharpening.',
+      modern_cinematic: 'Balances dynamic range with rich cinematic colors, gentle highlight roll-off, and subtle unsharp clarity.',
+      vintage_film: 'Warm analog color tones, softened highlight roll-off, and classic 35mm film emulation curve.',
+      dramatic: 'High contrast, deep theatrical shadows, desaturated warm midtones, and cool undertones.',
+      television_style: 'Clean, broadcast-calibrated contrast with crisp sharpening and neutral color temperature.',
+      neutral: 'Subtle baseline polish with minimal color alteration for uncompressed masters.'
+    };
+
+    function openEnhancementModal() {
+      if (!isVideoLoaded) {
+        showToast('Please upload or load a video first before enhancing.', true);
+        return;
+      }
+      if (enhancementModal) {
+        enhancementModal.style.display = 'flex';
+        if (enhanceSourceFilename) enhanceSourceFilename.textContent = videoFilenameLabel.textContent || 'Active Video';
+        if (enhanceProcessingIndicator) enhanceProcessingIndicator.style.display = 'none';
+        if (enhanceServerWarning) enhanceServerWarning.style.display = 'none';
+        if (btnApplyEnhancement) {
+          btnApplyEnhancement.disabled = false;
+          btnApplyEnhancement.textContent = '✨ Run Enhancement';
+        }
+        updateEnhancePresetDescription();
+      }
+    }
+
+    function closeEnhancementModal() {
+      if (enhancementModal) {
+        enhancementModal.style.display = 'none';
+        if (enhanceProcessingIndicator) enhanceProcessingIndicator.style.display = 'none';
+        if (enhanceServerWarning) enhanceServerWarning.style.display = 'none';
+        if (btnApplyEnhancement) btnApplyEnhancement.disabled = false;
+      }
+    }
+
+    function updateEnhancePresetDescription() {
+      if (!modalEnhancePresetSelect || !enhancePresetDescription) return;
+      const preset = modalEnhancePresetSelect.value;
+      enhancePresetDescription.textContent = ENHANCE_PRESET_DESCRIPTIONS[preset] || 'High quality cinematic enhancement';
+    }
+
+    async function applyVideoEnhancement() {
+      if (!isVideoLoaded) {
+        showToast('No video is currently loaded to enhance.', true);
+        return;
+      }
+
+      const preset = modalEnhancePresetSelect ? modalEnhancePresetSelect.value : 'modern_cinematic';
+      const backendBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port === '8080'
+        ? ''
+        : 'http://127.0.0.1:8080';
+
+      if (enhanceServerWarning) enhanceServerWarning.style.display = 'none';
+      if (enhanceProcessingIndicator) enhanceProcessingIndicator.style.display = 'flex';
+      if (enhanceProgressText) enhanceProgressText.textContent = 'Preparing video asset for enhancement...';
+      if (btnApplyEnhancement) btnApplyEnhancement.disabled = true;
+
+      try {
+        let videoId = null;
+
+        if (currentActiveVideoFile) {
+          if (enhanceProgressText) enhanceProgressText.textContent = `Uploading "${currentActiveVideoFile.name}" to enhancement engine...`;
+          const uploadResp = await fetch(`${backendBase}/api/upload?name=${encodeURIComponent(currentActiveVideoFile.name)}`, {
+            method: 'POST',
+            body: currentActiveVideoFile
+          });
+          if (!uploadResp.ok) throw new Error(`Asset upload failed (${uploadResp.status}): run python editor_server.py`);
+          const uploadData = await uploadResp.json();
+          videoId = uploadData.id;
+        } else {
+          // If demo video or URL stream is loaded, fetch its blob
+          if (enhanceProgressText) enhanceProgressText.textContent = 'Preparing video stream for enhancement...';
+          const currentSrc = mainVideoPlayer.currentSrc || mainVideoPlayer.src;
+          const fetchResp = await fetch(currentSrc);
+          if (!fetchResp.ok) throw new Error('Could not fetch active video stream.');
+          const blob = await fetchResp.blob();
+          const uploadResp = await fetch(`${backendBase}/api/upload?name=cinema_source.mp4`, {
+            method: 'POST',
+            body: blob
+          });
+          if (!uploadResp.ok) throw new Error(`Upload failed (${uploadResp.status}): run python editor_server.py`);
+          const uploadData = await uploadResp.json();
+          videoId = uploadData.id;
+        }
+
+        if (enhanceProgressText) enhanceProgressText.textContent = `Processing FFmpeg filtergraphs (${preset})...`;
+        const enhanceResp = await fetch(`${backendBase}/api/enhance`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ videoId, presetType: preset })
+        });
+
+        if (!enhanceResp.ok) {
+          const errData = await enhanceResp.json().catch(() => ({ error: 'Enhancement failed' }));
+          throw new Error(errData.error || `Server error (${enhanceResp.status})`);
+        }
+
+        const enhanceData = await enhanceResp.json();
+        const enhancedUrl = enhanceData.url.startsWith('http') ? enhanceData.url : `${backendBase}${enhanceData.url}`;
+
+        // Hot swap enhanced stream into the player
+        const wasPlaying = !mainVideoPlayer.paused;
+        const curTime = mainVideoPlayer.currentTime;
+        mainVideoPlayer.src = enhancedUrl;
+        mainVideoPlayer.onloadedmetadata = () => {
+          mainVideoPlayer.currentTime = Math.min(curTime, mainVideoPlayer.duration || 9999);
+          if (wasPlaying) mainVideoPlayer.play().catch(() => {});
+        };
+
+        const originalName = videoFilenameLabel.textContent.replace(/^✨ Enhanced \([^)]+\) - /, '');
+        videoFilenameLabel.textContent = `✨ Enhanced (${preset}) - ${originalName}`;
+        showToast(`✓ Video successfully enhanced with ${preset}!`);
+        closeEnhancementModal();
+      } catch (err) {
+        console.error('Enhancement error:', err);
+        if (enhanceProcessingIndicator) enhanceProcessingIndicator.style.display = 'none';
+        if (enhanceServerWarning) {
+          enhanceServerWarning.style.display = 'block';
+          enhanceServerWarning.innerHTML = `⚠️ <strong>Enhancement failed:</strong> ${err.message}<br><span style="display:inline-block; margin-top:4px;">Please restart the server in your terminal (press <strong>Ctrl+C</strong> then run <code>python editor_server.py</code>) or open <a href="http://localhost:8080/index.html" style="color:var(--accent-gold); text-decoration:underline;" target="_blank">http://localhost:8080/index.html</a>.</span>`;
+        }
+        if (btnApplyEnhancement) {
+          btnApplyEnhancement.disabled = false;
+          btnApplyEnhancement.textContent = 'Retry Enhancement';
+        }
+        showToast(`Enhancement failed: ${err.message || 'Check terminal server'}`, true);
+      }
+    }
+
+    if (btnEnhanceVideo) btnEnhanceVideo.addEventListener('click', openEnhancementModal);
+    if (btnHeaderEnhanceVideo) btnHeaderEnhanceVideo.addEventListener('click', openEnhancementModal);
+    if (btnCloseEnhanceModal) btnCloseEnhanceModal.addEventListener('click', closeEnhancementModal);
+    if (btnCancelEnhanceModal) btnCancelEnhanceModal.addEventListener('click', closeEnhancementModal);
+    if (modalEnhancePresetSelect) modalEnhancePresetSelect.addEventListener('change', updateEnhancePresetDescription);
+    if (btnApplyEnhancement) btnApplyEnhancement.addEventListener('click', applyVideoEnhancement);
 
     // -------------------------------------------------------------
     // KEYBOARD SHORTCUTS

@@ -243,6 +243,7 @@ def process_video_enhancement(
         "-pix_fmt", "yuv420p",
         "-c:a", "copy",
         "-movflags", "+faststart",
+        "-f", "mp4",
         str(out_path),
     ]
 
@@ -261,12 +262,31 @@ def process_video_enhancement(
                 "-c:a", "aac",
                 "-b:a", "192k",
                 "-movflags", "+faststart",
+                "-f", "mp4",
                 str(out_path),
             ]
             fallback_proc = subprocess.run(fallback_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
             if fallback_proc.returncode != 0:
-                err_msg = fallback_proc.stderr.decode("utf-8", errors="replace")
-                raise RuntimeError(f"FFmpeg enhancement failed: {err_msg[:400]}")
+                # If audio encoding failed (e.g. video has no audio track), retry with video-only (-an)
+                no_audio_cmd = [
+                    ffmpeg,
+                    "-y",
+                    "-i", str(in_path),
+                    "-vf", filter_str,
+                    "-c:v", "libx264",
+                    "-preset", "veryfast",
+                    "-pix_fmt", "yuv420p",
+                    "-an",
+                    "-movflags", "+faststart",
+                    "-f", "mp4",
+                    str(out_path),
+                ]
+                no_audio_proc = subprocess.run(no_audio_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+                if no_audio_proc.returncode != 0:
+                    err_msg = no_audio_proc.stderr.decode("utf-8", errors="replace").strip()
+                    tail_lines = [l.strip() for l in err_msg.splitlines() if l.strip() and not l.startswith("configuration:")]
+                    tail_err = " | ".join(tail_lines[-4:]) if tail_lines else err_msg[-300:]
+                    raise RuntimeError(f"FFmpeg enhancement failed: {tail_err}")
     except subprocess.TimeoutExpired:
         raise TimeoutError(f"Video enhancement exceeded timeout of {timeout} seconds.")
 

@@ -2738,7 +2738,7 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
         </div>
 
         <div id="enhanceServerWarning" style="display:none; font-size:0.78rem; color:#f87171; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); border-radius:8px; padding:0.6rem 0.85rem; line-height:1.4;">
-          ⚠️ <strong>Local backend required:</strong> Run <code>python editor_server.py</code> in your project directory to perform FFmpeg video enhancement.
+          ⚠️ <strong>Local backend required:</strong> Run <code>python editor_server.py</code> in your project directory and open <a href="http://localhost:8080/index.html" style="color:var(--accent-gold); text-decoration:underline;" target="_blank">http://localhost:8080/index.html</a> to perform FFmpeg video enhancement.
         </div>
       </div>
 
@@ -5857,10 +5857,10 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
     function enhanceBackendMessage() {
       const localLink = '<a href="http://localhost:8080/index.html" style="color:var(--accent-gold); text-decoration:underline;" target="_blank">http://localhost:8080/index.html</a>';
       if (location.protocol === 'https:') {
-        return `Start <code>python editor_server.py</code> in the project directory and keep it running — the hosted page calls <code>http://127.0.0.1:${ENHANCE_BACKEND_PORT}</code>. `
-          + `If it still cannot connect, open ${localLink} instead; some browsers block a hosted page from reaching the local server.`;
+        return `Browsers block hosted web pages from directly accessing local servers. `
+          + `To use AI Video Enhance, run <code>python editor_server.py</code> in the project directory, then open ${localLink}.`;
       }
-      return `Could not reach the local enhancement server at <code>http://127.0.0.1:${ENHANCE_BACKEND_PORT}</code>. `
+      return `Could not reach the local enhancement server. `
         + `Run <code>python editor_server.py</code> in the project directory, then open ${localLink}.`;
     }
 

@@ -119,7 +119,7 @@ function extractJson(text) {
   }
 }
 
-function buildMessages(payload) {
+function buildMessages(payload, includeImages) {
   const summary = (payload.scenes || []).map((scene) => ({
     index: scene.index,
     start: scene.start,
@@ -140,18 +140,37 @@ function buildMessages(payload) {
         'texture. You may look at the attached keyframes.',
     },
   ];
-  (payload.scenes || []).forEach((scene) => {
-    if (!scene.keyframe) return;
-    content.push({ type: 'text', text: `Scene ${scene.index} keyframe:` });
-    content.push({ type: 'image_url', image_url: { url: scene.keyframe } });
-  });
+  if (includeImages) {
+    (payload.scenes || []).forEach((scene) => {
+      if (!scene.keyframe) return;
+      content.push({ type: 'text', text: `Scene ${scene.index} keyframe:` });
+      content.push({ type: 'image_url', image_url: { url: scene.keyframe } });
+    });
+  }
   return [
     { role: 'system', content: SYSTEM_PROMPT },
     { role: 'user', content },
   ];
 }
 
-async function callNemotron(payload, apiKey) {
+function hasImages(payload) {
+  return (payload.scenes || []).some((scene) => scene && scene.keyframe);
+}
+
+// The model can refuse image input (text-only build, multimodal disabled) and
+// the vision worker pool can be saturated. Both are recoverable: the measured
+// statistics carry enough signal to grade the scene from text alone.
+function isImageError(message) {
+  return /image|multimodal|vision|modality/i.test(String(message || ''));
+}
+
+function isTransient(message) {
+  return /503|502|504|429|ResourceExhausted|rate limit|temporarily|high demand/i.test(
+    String(message || '')
+  );
+}
+
+async function callNemotron(payload, apiKey, includeImages) {
   const response = await fetch(NVIDIA_URL, {
     method: 'POST',
     headers: {
@@ -161,7 +180,7 @@ async function callNemotron(payload, apiKey) {
     },
     body: JSON.stringify({
       model: MODEL,
-      messages: buildMessages(payload),
+      messages: buildMessages(payload, includeImages),
       temperature: 0.2,
       max_tokens: 4096,
     }),
@@ -176,6 +195,26 @@ async function callNemotron(payload, apiKey) {
   const parsed = extractJson(text);
   if (!parsed) throw new Error('Nemotron did not return JSON');
   return parsed;
+}
+
+// Runs the review and degrades gracefully: vision -> text-only -> offline plan.
+async function reviewScenes(payload, apiKey) {
+  const wantsImages = hasImages(payload);
+  let notes = [];
+  try {
+    const answer = await callNemotron(payload, apiKey, wantsImages);
+    return { answer, notes, degraded: false };
+  } catch (err) {
+    if (!wantsImages) throw err;
+    if (!isImageError(err.message) && !isTransient(err.message)) throw err;
+    notes.push(
+      isImageError(err.message)
+        ? 'The configured model rejected the keyframes, so the review ran from the measured statistics only.'
+        : 'The vision endpoint was unavailable, so the review ran from the measured statistics only.'
+    );
+    const answer = await callNemotron(payload, apiKey, false);
+    return { answer, notes, degraded: true };
+  }
 }
 
 module.exports = async (req, res) => {
@@ -214,8 +253,11 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const answer = await callNemotron(body, apiKey);
-    res.status(200).json(sanitizeAnswer(answer, body));
+    const { answer, notes, degraded } = await reviewScenes(body, apiKey);
+    const result = sanitizeAnswer(answer, body);
+    if (notes.length) result.global_notes = notes.concat(result.global_notes || []).slice(0, 8);
+    if (degraded) result.degraded = true;
+    res.status(200).json(result);
   } catch (err) {
     console.warn('Falling back to the deterministic colorist plan:', err.message);
     res.status(200).json(offlineAnswer(body, err.message));

@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
 
 import numpy as np
@@ -462,6 +463,95 @@ class PayloadTests(unittest.TestCase):
             }]
         }
         json.dumps(report)
+
+
+class ReviewFallbackTests(unittest.TestCase):
+    """The AI review must survive models that cannot read the keyframes."""
+
+    def setUp(self):
+        self.payload = {
+            "preset": "cinematic",
+            "scenes": [{
+                "index": 0,
+                "start": 0.0,
+                "end": 5.0,
+                "stats": {"luma_mean": 0.4},
+                "keyframe": "data:image/jpeg;base64,AAA",
+            }],
+        }
+        self.answer = {
+            "scenes": [{
+                "index": 0,
+                "diagnosis": ["flat contrast"],
+                "severity": "low",
+                "grade": {"exposure": 0.1},
+            }],
+            "film_summary": "A short film.",
+            "global_notes": [],
+        }
+
+    def _patch(self, recorder, reject_images=True):
+        def fake_post(url, body, headers, timeout):
+            recorder.append(body)
+            sends_images = any(
+                part.get("type") == "image_url"
+                for message in body["messages"]
+                for part in (message["content"] if isinstance(message["content"], list) else [])
+            )
+            if reject_images and sends_images:
+                raise urllib.error.HTTPError(
+                    url, 400, "Received multimodal data but multimodal processing is not enabled",
+                    None, None,
+                )
+            return {"choices": [{"message": {"content": json.dumps(self.answer)}}]}
+        return fake_post
+
+    def test_review_retries_without_keyframes_when_images_are_rejected(self):
+        import editor_colorist
+
+        calls = []
+        original = editor_colorist._post_json
+        editor_colorist._post_json = self._patch(calls)
+        try:
+            answer, notes = editor_colorist.review_scenes(self.payload, "key")
+        finally:
+            editor_colorist._post_json = original
+
+        self.assertEqual(len(calls), 2)
+        self.assertTrue(notes)
+        self.assertIn("measured statistics", notes[0])
+        self.assertEqual(answer["film_summary"], "A short film.")
+
+    def test_review_keeps_the_keyframes_when_the_model_accepts_them(self):
+        import editor_colorist
+
+        calls = []
+        original = editor_colorist._post_json
+        editor_colorist._post_json = self._patch(calls, reject_images=False)
+        try:
+            answer, notes = editor_colorist.review_scenes(self.payload, "key")
+        finally:
+            editor_colorist._post_json = original
+
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(notes, [])
+        self.assertEqual(answer["scenes"][0]["index"], 0)
+
+    def test_review_does_not_retry_without_images_when_no_keyframe_was_sent(self):
+        import editor_colorist
+
+        payload = {"preset": "cinematic", "scenes": [dict(self.payload["scenes"][0])]}
+        payload["scenes"][0].pop("keyframe")
+
+        calls = []
+        original = editor_colorist._post_json
+        editor_colorist._post_json = self._patch(calls)
+        try:
+            editor_colorist.review_scenes(payload, "key")
+        finally:
+            editor_colorist._post_json = original
+
+        self.assertEqual(len(calls), 1)
 
 
 if __name__ == "__main__":

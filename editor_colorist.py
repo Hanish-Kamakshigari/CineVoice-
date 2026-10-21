@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import tempfile
 import threading
@@ -21,7 +22,7 @@ import urllib.error
 import urllib.request
 import uuid
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import video_colorist
 from editor_render import MAX_ASSET_BYTES, _asset_path
@@ -82,8 +83,28 @@ def _post_json(url: str, payload: Dict[str, Any], headers: Dict[str, str], timeo
     return json.loads(raw)
 
 
-def call_nemotron(payload: Dict[str, Any], api_key: str) -> Dict[str, Any]:
-    """Ask Nemotron for a per-scene colour decision."""
+def _is_image_error(message: str) -> bool:
+    """True when the model refused the keyframes because it cannot read images."""
+    return bool(re.search(r"image|multimodal|vision|modality", str(message), re.IGNORECASE))
+
+
+def _is_transient(message: str) -> bool:
+    """True for temporary provider failures such as a saturated worker pool."""
+    return bool(
+        re.search(
+            r"503|502|504|429|ResourceExhausted|rate limit|temporarily|high demand",
+            str(message),
+            re.IGNORECASE,
+        )
+    )
+
+
+def call_nemotron(payload: Dict[str, Any], api_key: str, include_images: bool = True) -> Dict[str, Any]:
+    """Ask Nemotron for a per-scene colour decision.
+
+    When ``include_images`` is False the request carries the measured
+    statistics only, which is the fallback for models that cannot read images.
+    """
     messages = [
         {
             "role": "system",
@@ -128,11 +149,12 @@ def call_nemotron(payload: Dict[str, Any], api_key: str) -> Dict[str, Any]:
             ),
         }
     ]
-    for scene in payload["scenes"]:
-        keyframe = scene.get("keyframe")
-        if keyframe:
-            content.append({"type": "text", "text": f"Scene {scene['index']} keyframe:"})
-            content.append({"type": "image_url", "image_url": {"url": keyframe}})
+    if include_images:
+        for scene in payload["scenes"]:
+            keyframe = scene.get("keyframe")
+            if keyframe:
+                content.append({"type": "text", "text": f"Scene {scene['index']} keyframe:"})
+                content.append({"type": "image_url", "image_url": {"url": keyframe}})
 
     messages.append({"role": "user", "content": content})
     response = _post_json(
@@ -151,6 +173,23 @@ def call_nemotron(payload: Dict[str, Any], api_key: str) -> Dict[str, Any]:
         raise RuntimeError("Nemotron returned no choices")
     text = (choices[0].get("message") or {}).get("content") or ""
     return _parse_json_object(text)
+
+
+def review_scenes(payload: Dict[str, Any], api_key: str) -> Tuple[Dict[str, Any], List[str]]:
+    """Run the AI review, degrading from vision to a text-only review."""
+    notes: List[str] = []
+    wants_images = any(scene.get("keyframe") for scene in payload.get("scenes", []))
+    try:
+        return call_nemotron(payload, api_key, wants_images), notes
+    except Exception as exc:  # noqa: BLE001
+        message = str(exc)
+        if not wants_images or not (_is_image_error(message) or _is_transient(message)):
+            raise
+        notes.append(
+            "The model could not read the keyframes, so the review used the "
+            "measured statistics only."
+        )
+        return call_nemotron(payload, api_key, False), notes
 
 
 def _parse_json_object(text: str) -> Dict[str, Any]:
@@ -176,7 +215,10 @@ def request_ai_review(report: Dict[str, Any]) -> Dict[str, Any]:
     api_key = _environment("NVIDIA_API_KEY")
     try:
         if api_key:
-            answer = call_nemotron(payload, api_key)
+            answer, notes = review_scenes(payload, api_key)
+            if notes:
+                answer.setdefault("global_notes", [])
+                answer["global_notes"] = (notes + list(answer["global_notes"]))[:8]
         else:
             url = proxy_url()
             if not url:

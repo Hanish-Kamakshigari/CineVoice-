@@ -49,6 +49,7 @@ Press `?` in the app for the shortcut reminder. Speech synthesis quality depends
 - **Detection and measurement** — FFmpeg `scdet` locates the cuts; every scene is measured for exposure, clipping, contrast, noise, color cast, saturation, skin tone, sharpness and on-screen text.
 - **Deterministic grade** — each scene receives its own exposure, contrast, saturation, white balance, toe lift, highlight roll-off, denoise and sharpen recipe. Presets: `cinematic`, `natural`, `documentary`, `text_clean`, `vintage`, `broadcast`.
 - **Optional AI review** — NVIDIA Nemotron reviews one keyframe per scene and returns a diagnosis plus a grade. The answer is clamped to safe limits and merged over the measured plan, so quality never degrades when the model is unreachable.
+- **Graceful degradation** — if the model rejects the keyframes or the vision pool is saturated, the review is retried from the measured statistics alone and the response is flagged as degraded; only a complete failure falls back to the deterministic plan.
 - **Deliverables** — a DaVinci Resolve 3D `.cube` LUT, a 1D tone `.cube`, the FFmpeg filtergraph, a standalone Python grading script and a Resolve node recipe.
 - **Rendering** — every scene correction is applied inside its own time window in a single decode pass; output is `libx264` with the original audio copied.
 - **LUT fidelity** — the LUTs are baked from the same control points FFmpeg's `curves` filter receives, using identical `pchip` interpolation. The test suite re-parses them with a strict Iridas/Adobe parser and re-applies them through FFmpeg's own `lut3d` and `lut1d` filters.
@@ -128,7 +129,7 @@ vercel env add NVIDIA_API_KEY      # required for the live colorist proxy
 vercel --prod
 ```
 
-Both keys stay server-side. If Gemini is unreachable the prompt coach falls back to a rule-based generator; if Nemotron is unreachable the colorist returns the deterministic measurement plan.
+Both keys stay server-side. If Gemini is unreachable the prompt coach falls back to a rule-based generator; if Nemotron is unreachable the colorist returns the deterministic measurement plan. A model that cannot read images is retried without the keyframes first, so a single missing capability never disables the AI review.
 
 ---
 

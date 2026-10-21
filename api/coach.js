@@ -213,6 +213,23 @@ function ruleBasedFullVideo(scenes, aspectInfo = {}) {
   };
 }
 
+// A model without image support rejects the keyframes. The measured scene
+// statistics are enough for a text-only analysis, so the request is retried
+// without images instead of failing outright.
+function isImageError(message) {
+  return /image|multimodal|vision|modality|inline_data/i.test(String(message || ''));
+}
+
+function stripImages(scenes) {
+  return (Array.isArray(scenes) ? scenes : []).map((scene) => {
+    const copy = Object.assign({}, scene);
+    delete copy.image;
+    delete copy.images;
+    delete copy.keyframe;
+    return copy;
+  });
+}
+
 // --- Gemini API Call: Single Scene ---
 async function callGeminiSingleScene(images, stats, aspectInfo, modelName) {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -492,11 +509,18 @@ module.exports = async (req, res) => {
         result = await callGeminiFullVideo(scenes, aspectInfo, configuredModel);
       } catch (primaryErr) {
         console.warn(`Primary full video call (${configuredModel}) failed:`, primaryErr.message);
-        const fallbackModel = (configuredModel === 'gemini-2.5-flash') ? 'gemini-flash-latest' : 'gemini-2.5-flash';
-        if (process.env.GEMINI_API_KEY) {
-          result = await callGeminiFullVideo(scenes, aspectInfo, fallbackModel);
+        if (isImageError(primaryErr.message)) {
+          console.warn('Retrying without keyframes:', primaryErr.message);
+          result = await callGeminiFullVideo(stripImages(scenes), aspectInfo, configuredModel);
+          result.images_skipped = true;
+          result.note = 'The configured model cannot read images, so the analysis used the measured scene statistics only.';
         } else {
-          throw primaryErr;
+          const fallbackModel = (configuredModel === 'gemini-2.5-flash') ? 'gemini-flash-latest' : 'gemini-2.5-flash';
+          if (process.env.GEMINI_API_KEY) {
+            result = await callGeminiFullVideo(scenes, aspectInfo, fallbackModel);
+          } else {
+            throw primaryErr;
+          }
         }
       }
       res.status(200).json(result);
@@ -532,11 +556,20 @@ module.exports = async (req, res) => {
       result = await callGeminiSingleScene(images, stats, aspectInfo, configuredModel);
     } catch (primaryErr) {
       console.warn(`Primary Gemini call (${configuredModel}) failed:`, primaryErr.message);
-      const fallbackModel = (configuredModel === 'gemini-2.5-flash') ? 'gemini-flash-latest' : 'gemini-2.5-flash';
-      if (process.env.GEMINI_API_KEY) {
-        result = await callGeminiSingleScene(images, stats, aspectInfo, fallbackModel);
+      // A model without image support cannot see the keyframes. The measured
+      // brightness and motion still allow a text-only analysis.
+      if (isImageError(primaryErr.message)) {
+        console.warn('Retrying without keyframes:', primaryErr.message);
+        result = await callGeminiSingleScene([], stats, aspectInfo, configuredModel);
+        result.images_skipped = true;
+        result.note = 'The configured model cannot read images, so the analysis used the measured scene statistics only.';
       } else {
-        throw primaryErr;
+        const fallbackModel = (configuredModel === 'gemini-2.5-flash') ? 'gemini-flash-latest' : 'gemini-2.5-flash';
+        if (process.env.GEMINI_API_KEY) {
+          result = await callGeminiSingleScene(images, stats, aspectInfo, fallbackModel);
+        } else {
+          throw primaryErr;
+        }
       }
     }
     res.status(200).json(result);

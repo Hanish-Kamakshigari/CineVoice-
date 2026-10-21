@@ -1,216 +1,167 @@
 # CineVoice
-> **AI Video and Voiceover Studio** — Script-to-screen authoring with browser speech auditioning, automated scene analysis, subtitle tooling, and an offline FFmpeg rendering pipeline.
 
-**Live Studio Web Application**: [https://cine-voice-puce.vercel.app/](https://cine-voice-puce.vercel.app/)
+**AI video and voiceover studio** — script-to-screen authoring, automated scene analysis, AI color grading, and an offline FFmpeg rendering pipeline.
+
+Live studio: [https://cine-voice-puce.vercel.app/](https://cine-voice-puce.vercel.app/)
 
 ---
 
-## Features
+## Capabilities
 
-### Cinematic Web Studio Interface (`index.html`)
-A single self-contained file — no build step, no bundler, no framework.
+| Area | Summary |
+| --- | --- |
+| **Script editor** | Import `json`, `txt`, `fountain`, `csv` or `srt` and organise narration cues with start time, duration and on-screen text. |
+| **Voiceover audition** | Audition any cue in the browser through the Web Speech API, with selectable voices and automatic chunking of long lines. |
+| **Playback** | Scrubbable timeline, drag-and-drop playback, letterbox (2.39:1) and fullscreen modes. |
+| **Scene analysis** | Frame sampling, automatic cut detection and thumbnails that can be converted into narration cues. |
+| **Subtitles** | On-screen overlay, import/export (SRT, VTT, `.txt`, `.sub`), live capture while playing, and auto-sync from existing cues. |
+| **Narration editor** | Local editor for trimming and reordering source ranges, layering narration with music ducking, and exporting a new MP4. |
+| **AI colorist** | Per-scene measurement and restoration grading, delivered as a Resolve-ready 3D `.cube` LUT, a 1D tone LUT and a filtergraph. |
+| **Prompt coach** | Frame-by-frame review of the paused scene that returns an improved AI-generation prompt. |
+| **Studio enhancement** | One-click cinematic pass over an uploaded clip, with optional Nemotron-driven grading. |
+| **Film pipeline** | 1080p composition, neural narration, Ken Burns motion, procedural score and burned-in subtitles. |
 
-- **Multi-Scene Script Editor**: Write, import (`json` / `txt` / `fountain` / `csv` / `srt`), and organise narration cues with per-cue start time, duration, and on-screen text.
-- **Live Voiceover Auditioning**: Audition any cue in the browser via the Web Speech API, with selectable system voices, automatic long-text chunking, and automatic scrolling to the active cue during playback.
-- **Cinematic Viewport & Media Player**: Playback with drag-and-drop or file-picker upload, plus **letterbox** (2.39:1 bars) and **fullscreen** toggles.
-- **Interactive Timeline**: Scrubbable, keyboard-operable seek bar with time readout.
-- **Frame-by-Frame Scene Analysis**: Samples video frames to a canvas, detects visual scene cuts, and generates thumbnails you can turn into narration cues.
-- **Subtitle Suite**: On-screen caption overlay, SRT/VTT/`.txt`/`.sub` import, SRT and VTT export, live subtitle line capture while playing, and auto-sync of subtitles from existing cues.
-- **Export Deck**: Narration script as JSON or plain text, plus SRT and VTT subtitle files.
-- **Direct Download**: Download the current video from the header, the cinema HUD, the playback toolbar, or the export deck.
-- **Narration-Led Editor**: Open `editor.html` through the local editor server to trim and reorder source ranges, add real narration clips with waveforms, duck music under speech, preview the synchronized output, and export a new MP4.
-- **Automatic Persistence**: Cues, subtitles, and subtitle styling are saved to `localStorage` and restored on reload, with a clear warning if storage quota is exceeded.
-- **Keyboard Shortcuts** (press `?` in the app for a reminder):
+---
 
-  | Key | Action |
-  | --- | --- |
-  | `Space` / `K` | Play / pause |
-  | `←` / `→` | Seek ∓5s (hold `Shift` for 10s) |
-  | `↑` / `↓` | Volume ±5% |
-  | `M` | Mute / unmute |
-  | `C` | Toggle captions |
-  | `F` | Fullscreen |
-  | `L` | Letterbox |
-  | `/` | Focus the timeline |
+## Studio Interface
 
-- **Accessibility**: Visible focus rings, labelled controls, ARIA roles on custom cards, live-region status toasts, a focus-trapped modal with `Escape` to close and focus restoration, plus `prefers-reduced-motion` and `prefers-contrast` support.
+`index.html` is a single self-contained file — no build step, no bundler, no framework. Cues, subtitles and styling persist in `localStorage`.
 
-> Speech synthesis quality and the available voice list vary by browser. Chrome and Edge provide the most reliable results.
+| Key | Action |
+| --- | --- |
+| `Space` / `K` | Play / pause |
+| `←` / `→` | Seek ∓5s (hold `Shift` for 10s) |
+| `↑` / `↓` | Volume ±5% |
+| `M` | Mute / unmute |
+| `C` | Toggle captions |
+| `F` | Fullscreen |
+| `L` | Letterbox |
+| `/` | Focus the timeline |
 
-### Prompt Coach — Scene Improvement Analysis (`coach.js` + `/api/coach.js`)
-Added in v1.2. Pause the video on any scene and the coach analyses the current scene frame-by-frame, then suggests an improved AI-video-generation prompt.
+Press `?` in the app for the shortcut reminder. Speech synthesis quality depends on the browser; Chrome and Edge give the most reliable results.
 
-- **Frame Sampling**: Creates a hidden `<video>` clone with the same source, samples grayscale 32×18 thumbnails every 0.5 s in an 16-second window around the paused time, and detects hard scene cuts via per-frame pixel deltas (threshold ≈0.18).
-- **Scene Stats**: Computes average brightness (0–1) and average motion (0–1) for the detected scene.
-- **Keyframe Capture**: Captures 3 JPEG keyframes (scene start, middle, end) at 512 px wide.
-- **AI Prompt Generation** (powered by Gemini): POSTs the 3 images + stats to `POST /api/coach`, which calls the Gemini API to describe weaknesses and write a concrete, cinematography-focused improved prompt (<90 words).
-- **Offline Fallback**: If the Gemini API is unreachable or quota is exhausted, the serverless function returns a rule-based prompt derived from the brightness and motion numbers, labelled "offline mode".
-- **Floating Panel**: Dark theme (#07090c) with gold accent (#d4a73a), shows timestamps, weaknesses, improved prompt, negative prompt, camera tip, and a Copy button.
-- **XSS Safe**: All model output is escaped via `textContent` before inserting into the page.
-- **Mobile Friendly**: Panel fits 360 px wide screens.
-- **Auto-trigger**: Pausing the video automatically opens the coach after 600 ms (debounced).
+---
 
-### AI Colorist - Scene Analysis, Restoration Grade & LUTs (`video_colorist.py`)
-- **Scene detection**: FFmpeg `scdet` finds the hard cuts, then every scene is measured (luma histogram, black/highlight clipping, contrast, noise, colour cast, saturation, skin tone, sharpness, on-screen text/UI activity).
-- **Deterministic grade**: each scene gets its own exposure, contrast, saturation, white balance, toe lift, highlight roll-off, denoise and sharpen recipe. Presets: `cinematic`, `natural`, `documentary`, `text_clean`, `vintage`, `broadcast`.
-- **Optional AI review**: NVIDIA Nemotron 3 Nano Omni (`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`) reviews one keyframe per scene and returns a diagnosis plus a grade. The AI answer is always clamped to safe limits and merged over the measured plan, so the result never degrades when the model is unreachable.
-- **Deliverables**: a DaVinci Resolve 3D `.cube` LUT, a 1D tone `.cube`, the FFmpeg filtergraph, a standalone Python grading script and a Resolve node recipe - all downloadable from the editor.
-- **Rendering**: the timeline graph applies every scene's correction inside its own time window, so the source keeps its exact timing and only one decode pass is needed. Output is `libx264` with the original audio copied.
-- **LUT fidelity**: the `.cube` files are baked from the very same control points that FFmpeg's `curves` filter receives, using the identical monotone cubic (`pchip`) interpolation, so the LUT and the rendered master agree. The test suite parses the files with a strict Iridas/Adobe parser and re-applies them through FFmpeg's own `lut3d`/`lut1d` filters to prove the round trip.
+## AI Colorist
 
-#### AI Colorist in the local editor
-- `POST /api/colorist/analyze` - `{ "videoId": "...", "preset": "cinematic" }` returns a job id; the scene breakdown, plan and artefacts are polled through `GET /api/colorist/jobs/<id>`.
-- `POST /api/colorist/apply` - `{ "reportId": "...", "videoId": "..." }` renders the graded master and returns a job id. The result is copied into the asset library so it can be used as the next edit's source.
-- `GET /api/colorist/report/<id>/<artefact>` - downloads `lut`, `tone.cube`, `filtergraph`, `scene-filtergraph`, `script` or `recipe`.
+`video_colorist.py` analyses the footage and produces an executable grade.
 
-#### AI Colorist environment variables
-| Variable | Purpose | Default |
+- **Detection and measurement** — FFmpeg `scdet` locates the cuts; every scene is measured for exposure, clipping, contrast, noise, color cast, saturation, skin tone, sharpness and on-screen text.
+- **Deterministic grade** — each scene receives its own exposure, contrast, saturation, white balance, toe lift, highlight roll-off, denoise and sharpen recipe. Presets: `cinematic`, `natural`, `documentary`, `text_clean`, `vintage`, `broadcast`.
+- **Optional AI review** — NVIDIA Nemotron reviews one keyframe per scene and returns a diagnosis plus a grade. The answer is clamped to safe limits and merged over the measured plan, so quality never degrades when the model is unreachable.
+- **Deliverables** — a DaVinci Resolve 3D `.cube` LUT, a 1D tone `.cube`, the FFmpeg filtergraph, a standalone Python grading script and a Resolve node recipe.
+- **Rendering** — every scene correction is applied inside its own time window in a single decode pass; output is `libx264` with the original audio copied.
+- **LUT fidelity** — the LUTs are baked from the same control points FFmpeg's `curves` filter receives, using identical `pchip` interpolation. The test suite re-parses them with a strict Iridas/Adobe parser and re-applies them through FFmpeg's own `lut3d` and `lut1d` filters.
+
+### Endpoints
+
+| Method | Path | Purpose |
 | --- | --- | --- |
-| `NVIDIA_API_KEY` | Calls Nemotron directly from the local server. Falls back to the Vercel proxy when unset. | - |
-| `COLORIST_PROXY_URL` | Serverless proxy used when no local key is available. | `https://cine-voice-puce.vercel.app/api/colorist` |
-| `NEMOTRON_MODEL` | Model used for the AI review. | `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` |
+| `POST` | `/api/colorist/analyze` | Analyse an asset; returns a job id. |
+| `GET` | `/api/colorist/jobs/{id}` | Poll the scene breakdown, plan and artefacts. |
+| `POST` | `/api/colorist/apply` | Render the graded master from a report; returns a job id. |
+| `GET` | `/api/colorist/report/{id}/{artefact}` | Download `lut`, `tone.cube`, `filtergraph`, `scene-filtergraph`, `script` or `recipe`. |
+| `POST` | `/api/enhance` | Render a one-click enhanced copy of an asset. |
 
-The local server reads `.env` automatically (existing environment variables always win). The proxy in `api/colorist.js` needs `NVIDIA_API_KEY` in the Vercel project environment; without it the function answers with the deterministic plan instead of failing.
+### Configuration
 
----
+| Variable | Used by | Purpose |
+| --- | --- | --- |
+| `NVIDIA_API_KEY` | Local server, Vercel | Nemotron access. Without it the colorist falls back to the deterministic plan. |
+| `NEMOTRON_MODEL` | Local server, Vercel | Overrides the review model. |
+| `COLORIST_PROXY_URL` | Local server | Proxy used when no local key is configured. |
+| `GEMINI_API_KEY` | Vercel | Gemini access for the prompt coach. |
+| `GEMINI_MODEL` | Vercel | Overrides the coach model. |
 
-### Studio Enhancement - One-Click Cinematic Pass (`video_enhancer.py`)
-- **Endpoint**: `POST /api/enhance` - `{ "videoId": "...", "presetType": "modern_cinematic" }` renders an enhanced copy of the uploaded clip and returns the new asset id and media URL.
-- **Presets**: `modern_cinematic`, `vintage_film`, `dramatic`, `television_style`, plus the `nvidia_nemotron_ai` mode that asks Nemotron for bespoke brightness/contrast/saturation/sharpening values.
-- **Pipeline**: a single FFmpeg pass applies `eq`, `colorbalance` and `unsharp`, encodes `libx264`/`yuv420p` with `+faststart` and copies the original audio. If the source audio cannot be copied it falls back to AAC, and to video-only when the clip has no audio track.
-- **Timeouts**: the FFmpeg budget scales with the length of the clip (300s base, +4s per second of footage, 1800s cap), so a full-length 1080p clip no longer dies on the default budget.
-
----
-
-### Automated Movie Rendering Pipeline (`render_movie.py`)
-- **HD Video Synthesis**: 1920×1080 at 24 fps, composed frame-by-frame with Pillow and encoded through FFmpeg (bundled via `imageio-ffmpeg`).
-- **Neural Text-to-Speech**: Edge-TTS with male and female neural voices, tuned speech rate and pitch. Requires network access on first synthesis.
-- **Ken Burns Motion Engine**: Per-scene interpolated zoom and pan.
-- **Procedural Soundtrack**: Multi-act clock-tick foley, a glass-crack hit, a deliberate silent beat, a sub-bass drone with chord progressions and string swells, automatic ducking under narration, and soft-clipping normalisation.
-- **Cinematic Finishing**: 2.39:1 anamorphic bars, per-scene timecode badges, and burned-in subtitles.
-- **Robust Rendering**: Cross-platform font resolution, voice-over that is clipped rather than silently dropped when it overruns the film, checked FFmpeg exit codes, and a narration cache that re-synthesises automatically when the script text changes.
-- **Flexible CLI**: `--voice`, `--script`, `--custom-audio`, `--force-voice`, and `--out` for headless batch runs.
-
----
-
-## Repository Structure
-
-```text
-CineVoice/
-├── cinematic_film_assets/                    # Source artwork for the 12 film scenes
-├── index.html                                # Entire web studio (markup, styles, logic)
-├── render_movie.py                           # Python/FFmpeg rendering pipeline
-├── video_colorist.py                         # AI colorist engine: measurement, grading, LUTs
-├── editor_colorist.py                        # Background colorist jobs + Nemotron client
-├── editor_server.py / editor.html / editor.js / editor.css  # Local narration video editor
-├── api/colorist.js                           # Vercel proxy for the Nemotron colorist pass
-├── requirements.txt                          # Python rendering dependencies
-├── site.webmanifest                          # PWA manifest
-├── vercel.json                               # Vercel routing, cache, and security headers
-├── generate_favicons.py                      # Favicon generator
-├── favicon.svg / .ico / apple-touch-icon.png
-├── android-chrome-192x192.png / android-chrome-512x512.png
-├── master_soundtrack.wav                     # Reference soundtrack
-├── THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4 # Pre-rendered demonstration film
-├── Open_Film_And_Download.bat                # Windows launcher: copy the film to Downloads and open the studio
-├── LICENSE                                   # MIT license text
-└── audio_cache/                              # Generated voice-over cache (git-ignored)
-```
+The local server reads a `.env` file in the repository root; existing environment variables always take precedence. Keys are never committed.
 
 ---
 
 ## Getting Started
 
-### 1. Web Studio Application
-Open `index.html` directly in a modern browser, or deploy the repository as static files to Vercel or any static host.
+### Studio
 
-> **Windows:** double-click `Open_Film_And_Download.bat`. It copies the film to your Downloads folder, then starts a local web server on `http://localhost:8080` (bound to `127.0.0.1` only) and opens the studio. If Python is not installed it opens `index.html` straight from disk instead, which works because the studio is a single self-contained file.
+Open `index.html` in a browser, or deploy the repository as static files to any host.
 
-### 2. Local Rendering Pipeline
+> **Windows:** double-click `Open_Film_And_Download.bat`. It copies the demonstration film to your Downloads folder, starts a loopback-only server on `http://localhost:8080` and opens the studio. Without Python it opens `index.html` directly from disk.
 
-```bash
-pip install -r requirements.txt
-python render_movie.py --voice male
-```
+### Local editor
 
-Optional arguments:
-
-| Argument | Description |
-| --- | --- |
-| `--voice male\|female` | Narrator voice (default `male`) |
-| `--script path/to/script.json` | Narration/subtitle script; a JSON array of `{ "id", "vo", "subtitle" }` |
-| `--custom-audio path/to/voice.wav` | Use your own narration instead of neural TTS |
-| `--force-voice` | Re-synthesise all voice-over even if cached |
-| `--out path/to/output.mp4` | Output filename |
-
-Scene IDs in `--script` must match the scene definitions in `render_movie.py`. Unrecognised IDs and malformed entries are reported as warnings; a script that matches no scene is a hard error rather than a silent render.
-
-### 3. Narration-Led Video Editor
-
-The editor uses a small loopback-only local server because a static browser page cannot safely upload local media or run FFmpeg:
+A static page cannot upload local media or run FFmpeg, so the editor is served by a small loopback-only server:
 
 ```bash
 pip install -r requirements.txt
 python editor_server.py
 ```
 
-Open [http://127.0.0.1:8080/editor.html](http://127.0.0.1:8080/editor.html). Upload a video, add one or more source ranges to the output timeline, upload or generate narration, optionally add music, then export the synchronized MP4. Runtime uploads and exports are stored in `.cinevoice-editor/` and are not committed.
+Open [http://127.0.0.1:8080/editor.html](http://127.0.0.1:8080/editor.html), upload a video, define the output ranges, add narration and optional music, then export the synchronized MP4. Runtime uploads and exports live in `.cinevoice-editor/` and are not committed.
+
+### Film pipeline
+
+```bash
+pip install -r requirements.txt
+python render_movie.py --voice male
+```
+
+| Argument | Description |
+| --- | --- |
+| `--voice male\|female` | Narrator voice (default `male`). |
+| `--script path/to/script.json` | Narration and subtitle script; a JSON array of `{ "id", "vo", "subtitle" }`. |
+| `--custom-audio path/to/voice.wav` | Use your own narration instead of neural TTS. |
+| `--force-voice` | Re-synthesise all narration even if cached. |
+| `--out path/to/output.mp4` | Output filename. |
+
+Scene IDs must match the scene definitions in `render_movie.py`. Unknown IDs and malformed entries are reported as warnings; a script that matches no scene is a hard error rather than a silent render.
+
+---
+
+## Deployment
+
+Static hosting on Vercel is preconfigured through `vercel.json`. The two serverless functions need API keys:
+
+```bash
+npm i -g vercel
+vercel login
+vercel link
+vercel env add GEMINI_API_KEY
+vercel env add NVIDIA_API_KEY      # required for the live colorist proxy
+vercel --prod
+```
+
+Both keys stay server-side. If Gemini is unreachable the prompt coach falls back to a rule-based generator; if Nemotron is unreachable the colorist returns the deterministic measurement plan.
+
+---
+
+## Project Layout
+
+```text
+CineVoice/
+├── index.html                 # Web studio (markup, styles, logic)
+├── editor.html / editor.js / editor.css / editor_server.py
+│                              # Local narration editor and its loopback server
+├── render_movie.py            # 1080p film rendering pipeline
+├── video_colorist.py          # Colorist engine: measurement, grading, LUTs
+├── editor_colorist.py         # Colorist job runner and Nemotron client
+├── video_enhancer.py          # Studio enhancement pipeline
+├── editor_render.py           # Timeline rendering and asset handling
+├── api/coach.js / api/colorist.js
+│                              # Vercel serverless functions
+├── tests/                     # unittest suite, including LUT conformance tests
+├── requirements.txt
+├── vercel.json
+├── cinematic_film_assets/     # Source artwork for the film scenes
+├── THE_LAST_24_HOURS_CINEMATIC_SHORT_FILM.mp4
+└── Open_Film_And_Download.bat
+```
 
 ---
 
 ## Tech Stack
 
-- **Frontend**: HTML5, vanilla CSS (glassmorphism / cine-dark theme), vanilla JavaScript — Web Speech API, HTML5 Canvas, `localStorage`.
-- **Video & Audio Pipeline**: Python, Pillow (`PIL`), Edge-TTS, NumPy, SciPy, FFmpeg (`imageio-ffmpeg`).
-- **Deployment**: Vercel static hosting, configured via `vercel.json`.
-- **AI Prompt Coach**: Vercel serverless function (`/api/coach.js`) + Gemini API.
-
----
-
-## Prompt Coach — Deployment Setup
-
-The Prompt Coach feature requires a Gemini API key set as a Vercel environment variable.
-
-### 1. Get a Gemini API key
-
-1. Go to [Google AI Studio](https://aistudio.google.com/apikey).
-2. Click **Create API Key** and choose a Google Cloud project (or create one).
-3. Copy the key (it starts with `AIza...`).
-
-### 2. Set the environment variables on Vercel
-
-```bash
-# Install Vercel CLI if you haven't
-npm i -g vercel
-
-# Log in
-vercel login
-
-# Link your project
-vercel link
-
-# Add the API key (never commit it)
-vercel env add GEMINI_API_KEY
-
-# Optionally set the model (default: gemini-2.5-flash)
-vercel env add GEMINI_MODEL
-
-# Or set them in the Vercel Dashboard → Project → Settings → Environment Variables:
-#   Key:   GEMINI_API_KEY
-#   Value: AIza...
-```
-
-### 3. Redeploy
-
-```bash
-git add .
-git commit -m "Add Prompt Coach feature"
-git push
-# Vercel auto-deploys. Or run:
-vercel --prod
-```
-
-The Gemini API key stays server-side — the browser never sees it. If the API quota is exhausted or the service is unreachable, the coach falls back to a rule-based prompt generator ("offline mode").
+- **Frontend** — HTML5, vanilla CSS, vanilla JavaScript (Web Speech API, Canvas, `localStorage`).
+- **Pipeline** — Python, Pillow, Edge-TTS, NumPy, SciPy, FFmpeg via `imageio-ffmpeg`.
+- **AI** — NVIDIA Nemotron (colorist), Gemini (prompt coach), both proxied through Vercel functions.
+- **Hosting** — Vercel static hosting and serverless functions.
 
 ---
 

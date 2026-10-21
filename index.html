@@ -5857,8 +5857,8 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
     function enhanceBackendMessage() {
       const localLink = '<a href="http://localhost:8080/index.html" style="color:var(--accent-gold); text-decoration:underline;" target="_blank">http://localhost:8080/index.html</a>';
       if (location.protocol === 'https:') {
-        return `This page is served over HTTPS, and browsers block it from reaching the local server at <code>http://127.0.0.1:${ENHANCE_BACKEND_PORT}</code>. `
-          + `Run <code>python editor_server.py</code> in the project directory and open ${localLink} to use AI enhancement.`;
+        return `Start <code>python editor_server.py</code> in the project directory and keep it running — the hosted page calls <code>http://127.0.0.1:${ENHANCE_BACKEND_PORT}</code>. `
+          + `If it still cannot connect, open ${localLink} instead; some browsers block a hosted page from reaching the local server.`;
       }
       return `Could not reach the local enhancement server at <code>http://127.0.0.1:${ENHANCE_BACKEND_PORT}</code>. `
         + `Run <code>python editor_server.py</code> in the project directory, then open ${localLink}.`;

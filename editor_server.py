@@ -30,6 +30,10 @@ for folder in (ASSETS, EXPORTS, TMP, COLORIST_REPORTS):
     folder.mkdir(parents=True, exist_ok=True)
 
 MAX_JSON = 256 * 1024
+# The studio may also be opened from its hosted deployment, which is a
+# different origin. Only these origins may drive the loopback server; add
+# more with CINEVOICE_ALLOWED_ORIGINS (comma separated) if needed.
+DEFAULT_ALLOWED_ORIGINS = "https://cine-voice-puce.vercel.app"
 ALLOWED_STATIC = {
     "index.html", "editor.html", "editor.js", "editor.css", "coach.js", "favicon.svg",
     "favicon.ico", "favicon-16x16.png", "favicon-32x32.png", "site.webmanifest",
@@ -54,6 +58,11 @@ def _json(handler, status, value):
     handler.wfile.write(raw)
 
 
+def _allowed_origins() -> set[str]:
+    raw = os.environ.get("CINEVOICE_ALLOWED_ORIGINS", DEFAULT_ALLOWED_ORIGINS)
+    return {item.strip().rstrip("/").lower() for item in raw.split(",") if item.strip()}
+
+
 def _safe_name(name):
     name = Path(name or "upload.bin").name
     name = re.sub(r"[^A-Za-z0-9._-]", "_", name)[:100]
@@ -68,6 +77,10 @@ class EditorHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        # Chrome gates public pages calling loopback behind a private network
+        # access preflight; this opt-in lets the hosted studio reach the server.
+        if self.headers.get("Access-Control-Request-Private-Network", "").lower() == "true":
+            self.send_header("Access-Control-Allow-Private-Network", "true")
         self.send_header("Content-Length", "0")
         self.end_headers()
 
@@ -80,8 +93,11 @@ class EditorHandler(BaseHTTPRequestHandler):
             if origin == "null":
                 return True
             parsed = urllib.parse.urlparse(origin)
-            if parsed.scheme != "http" or parsed.hostname not in {"localhost", "127.0.0.1"}:
-                return False
+            if parsed.scheme == "http" and parsed.hostname in {"localhost", "127.0.0.1"}:
+                return True
+            if origin.rstrip("/").lower() in _allowed_origins():
+                return True
+            return False
         return True
 
     def _body(self, limit=MAX_JSON):

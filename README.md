@@ -72,6 +72,7 @@ Press `?` in the app for the shortcut reminder. Speech synthesis quality depends
 | `NEMOTRON_MODEL` | Local server, Vercel | Overrides the vision review model. |
 | `NEMOTRON_FALLBACK_MODEL` | Local server, Vercel | Text only model used when the vision pool is saturated. |
 | `COLORIST_PROXY_URL` | Local server | Proxy used when no local key is configured. |
+| `CINEVOICE_ALLOWED_ORIGINS` | Local server | Extra origins allowed to call the loopback API (comma separated). The hosted studio is allowed by default. |
 | `GEMINI_API_KEY` | Vercel | Gemini access for the prompt coach. |
 | `GEMINI_MODEL` | Vercel | Overrides the coach model. |
 

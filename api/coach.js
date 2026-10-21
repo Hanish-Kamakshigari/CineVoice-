@@ -5,6 +5,9 @@
 const https = require('https');
 const http = require('http');
 
+// The function limit is 30s, so the whole retry chain gets a 25s budget.
+const COACH_BUDGET_MS = 25000;
+
 // --- Helper: HTTP Request wrapper (compatible with all Node versions) ---
 function requestUrl(url, opts = {}) {
   return new Promise((resolve, reject) => {
@@ -218,6 +221,43 @@ function ruleBasedFullVideo(scenes, aspectInfo = {}) {
 // without images instead of failing outright.
 function isImageError(message) {
   return /image|multimodal|vision|modality|inline_data/i.test(String(message || ''));
+}
+
+// High demand and rate limit errors clear up within seconds, so the same
+// model is worth one more try before another model is used.
+function isTransientError(message) {
+  return /503|502|504|429|high demand|rate limit|temporarily|timeout|ECONNRESET|ENOTFOUND/i.test(
+    String(message || '')
+  );
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Runs a call against the primary model and then the fallback model. A
+// transient provider error gets one extra attempt on the same model, because
+// the demand spikes that cause them clear within seconds.
+async function callWithFallback(attempt, primaryModel, deadline) {
+  const fallbackModel = primaryModel === 'gemini-2.5-flash' ? 'gemini-flash-latest' : 'gemini-2.5-flash';
+  let lastError;
+  for (const model of [primaryModel, fallbackModel]) {
+    for (let round = 0; round < 2; round += 1) {
+      try {
+        return await attempt(model);
+      } catch (err) {
+        lastError = err;
+        if (!isTransientError(err.message)) throw err;
+        console.warn(`Gemini call (${model}) failed:`, err.message);
+        if (round === 0) {
+          if (deadline && Date.now() + 1200 > deadline) break;
+          await wait(1200);
+        }
+      }
+    }
+    if (deadline && Date.now() > deadline) break;
+  }
+  throw lastError;
 }
 
 function stripImages(scenes) {
@@ -514,13 +554,14 @@ module.exports = async (req, res) => {
           result = await callGeminiFullVideo(stripImages(scenes), aspectInfo, configuredModel);
           result.images_skipped = true;
           result.note = 'The configured model cannot read images, so the analysis used the measured scene statistics only.';
+        } else if (process.env.GEMINI_API_KEY) {
+          result = await callWithFallback(
+            (model) => callGeminiFullVideo(scenes, aspectInfo, model),
+            configuredModel,
+            Date.now() + COACH_BUDGET_MS
+          );
         } else {
-          const fallbackModel = (configuredModel === 'gemini-2.5-flash') ? 'gemini-flash-latest' : 'gemini-2.5-flash';
-          if (process.env.GEMINI_API_KEY) {
-            result = await callGeminiFullVideo(scenes, aspectInfo, fallbackModel);
-          } else {
-            throw primaryErr;
-          }
+          throw primaryErr;
         }
       }
       res.status(200).json(result);
@@ -563,13 +604,14 @@ module.exports = async (req, res) => {
         result = await callGeminiSingleScene([], stats, aspectInfo, configuredModel);
         result.images_skipped = true;
         result.note = 'The configured model cannot read images, so the analysis used the measured scene statistics only.';
+      } else if (process.env.GEMINI_API_KEY) {
+        result = await callWithFallback(
+          (model) => callGeminiSingleScene(images, stats, aspectInfo, model),
+          configuredModel,
+          Date.now() + COACH_BUDGET_MS
+        );
       } else {
-        const fallbackModel = (configuredModel === 'gemini-2.5-flash') ? 'gemini-flash-latest' : 'gemini-2.5-flash';
-        if (process.env.GEMINI_API_KEY) {
-          result = await callGeminiSingleScene(images, stats, aspectInfo, fallbackModel);
-        } else {
-          throw primaryErr;
-        }
+        throw primaryErr;
       }
     }
     res.status(200).json(result);

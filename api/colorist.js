@@ -80,12 +80,19 @@ function sanitizeAnswer(answer, payload) {
 
 function offlineAnswer(payload, reason) {
   // The deterministic plan computed by video_colorist.py is the fallback.
-  const scenes = (payload.scenes || []).map((scene) => ({
-    index: scene.index,
-    diagnosis: (scene.planned_issues || []).slice(0, 6),
-    severity: 'medium',
-    grade: scene.planned_grade || null,
-  }));
+  // It is sanitised as well, so a caller cannot smuggle extreme values in
+  // through the request body.
+  const scenes = (Array.isArray(payload.scenes) ? payload.scenes : [])
+    .filter((scene) => scene && Number.isInteger(scene.index))
+    .map((scene) => ({
+      index: scene.index,
+      diagnosis: (Array.isArray(scene.planned_issues) ? scene.planned_issues : [])
+        .slice(0, 6)
+        .map((item) => String(item).slice(0, 200)),
+      severity: 'medium',
+      grade: sanitizeGrade(scene.planned_grade),
+    }))
+    .filter((scene) => scene.grade);
   return {
     scenes,
     film_summary: 'Offline technical analysis: every correction was derived from measured exposure, noise, white balance and contrast data.',

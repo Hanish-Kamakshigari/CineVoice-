@@ -848,8 +848,21 @@ def render_filtergraph(
 # --------------------------------------------------------------------------
 
 def _apply_curve_samples(samples: Sequence[Tuple[float, float]], values: np.ndarray) -> np.ndarray:
+    """Interpolate the curve control points the way FFmpeg's ``pchip`` does.
+
+    FFmpeg receives the very same control points through the ``curves`` filter
+    with ``interp=pchip``, so using the identical monotone cubic interpolation
+    here keeps the baked LUT and the rendered video in agreement.
+    """
     xs = np.array([p[0] for p in samples], dtype=np.float64)
     ys = np.array([p[1] for p in samples], dtype=np.float64)
+    if len(xs) >= 3:
+        try:
+            from scipy.interpolate import PchipInterpolator  # type: ignore
+
+            return np.asarray(PchipInterpolator(xs, ys)(values), dtype=np.float64)
+        except Exception:  # pragma: no cover - SciPy is optional
+            pass
     return np.interp(values, xs, ys)
 
 
@@ -858,7 +871,7 @@ def bake_cube_lut(grade: Dict[str, Any], size: int = LUT_SIZE) -> str:
     levels = np.linspace(0.0, 1.0, size)
     blue, green, red = np.meshgrid(levels, levels, levels, indexing="ij")
 
-    curves = [channel_curve(grade, channel, points=256) for channel in range(3)]
+    curves = [channel_curve(grade, channel) for channel in range(3)]
     r = _apply_curve_samples(curves[0], red)
     g = _apply_curve_samples(curves[1], green)
     b = _apply_curve_samples(curves[2], blue)
@@ -895,7 +908,7 @@ def bake_cube_lut(grade: Dict[str, Any], size: int = LUT_SIZE) -> str:
 
 def bake_1d_cube_lut(grade: Dict[str, Any], size: int = 1024) -> str:
     """Bake the tone curve of a grade into a 1D ``.cube`` LUT."""
-    curves = [channel_curve(grade, channel, points=256) for channel in range(3)]
+    curves = [channel_curve(grade, channel) for channel in range(3)]
     levels = np.linspace(0.0, 1.0, size)
     lines = [
         'TITLE "CineVoice Colorist Tone"',

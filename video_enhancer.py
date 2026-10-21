@@ -8,11 +8,18 @@ with audio preservation and fast-start streaming for web playback.
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 from pathlib import Path
 import imageio_ffmpeg
 import numpy as np
 from PIL import Image, ImageEnhance
+
+# Enhancement renders are CPU bound, so the budget has to grow with the clip
+# length. A 1080p minute takes roughly 120s of filtering on a normal machine.
+BASE_TIMEOUT = 300
+TIMEOUT_PER_SECOND = 4
+MAX_TIMEOUT = 1800
 
 PRESET_FILTERS = {
     "modern_cinematic": {
@@ -56,6 +63,32 @@ PRESET_FILTERS = {
 def _ffmpeg_exe() -> str:
     """Retrieve bundled FFmpeg binary path."""
     return imageio_ffmpeg.get_ffmpeg_exe()
+
+
+def _probe_duration(video_path: str) -> float:
+    """Read the duration of a clip in seconds (0.0 when it is unknown)."""
+    try:
+        proc = subprocess.run(
+            [_ffmpeg_exe(), "-hide_banner", "-i", str(video_path)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=60,
+        )
+    except Exception:
+        return 0.0
+    text = proc.stderr.decode("utf-8", "replace")
+    match = re.search(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", text)
+    if not match:
+        return 0.0
+    return int(match.group(1)) * 3600 + int(match.group(2)) * 60 + float(match.group(3))
+
+
+def _enhancement_timeout(video_path: str) -> int:
+    """Scale the FFmpeg timeout with the length of the clip."""
+    duration = _probe_duration(video_path)
+    if duration <= 0:
+        return BASE_TIMEOUT
+    return int(min(MAX_TIMEOUT, max(BASE_TIMEOUT, duration * TIMEOUT_PER_SECOND + 60)))
 
 
 def build_filtergraph(preset_type: str = "modern_cinematic", presets: dict | None = None) -> str:
@@ -195,7 +228,7 @@ def process_video_enhancement(
     presets: dict | None = None,
     preset_type: str = "modern_cinematic",
     scene_enhancement: bool = True,
-    timeout: int = 300,
+    timeout: int | None = None,
 ) -> str:
     """Enhance a video using high-speed FFmpeg filtergraphs.
 
@@ -205,7 +238,8 @@ def process_video_enhancement(
         presets: Optional dictionary of brightness, contrast, saturation adjustments.
         preset_type: Preset style ("modern_cinematic", "vintage_film", "dramatic", "nvidia_nemotron_ai", etc.).
         scene_enhancement: Whether scene-appropriate tone curves should be applied.
-        timeout: Subprocess execution timeout in seconds.
+        timeout: Subprocess execution timeout in seconds. Defaults to a budget
+            that scales with the length of the clip.
 
     Returns:
         Absolute path to the enhanced video.
@@ -219,6 +253,8 @@ def process_video_enhancement(
 
     out_path = Path(output_path).resolve()
     out_path.parent.mkdir(parents=True, exist_ok=True)
+    if timeout is None:
+        timeout = _enhancement_timeout(in_path)
 
     # If AI Autonomous enhancement via NVIDIA Nemotron is requested, compute custom parameters
     if preset_type in ("nvidia_nemotron_ai", "nemotron_ai"):

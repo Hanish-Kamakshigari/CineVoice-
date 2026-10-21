@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -12,8 +14,11 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import video_colorist as vc  # noqa: E402
+from cube_parser import CubeError, apply_cube, parse_cube  # noqa: E402
 
 
 def synthetic_frame(width=160, height=90, luma=0.45, cast=(1.0, 1.0, 1.0), noise=0.0, seed=3):
@@ -69,10 +74,10 @@ class CurveTests(unittest.TestCase):
         grade["exposure"] = 0.25
         grade["contrast"] = 1.1
         grade["saturation"] = 1.05
-        curve = vc.channel_curve(grade, 0, points=256)
+        curve = vc.channel_curve(grade, 0)
         matrix = vc.saturation_matrix(grade["saturation"])
         for value in (0.0, 0.25, 0.5, 0.75, 1.0):
-            expected = float(np.interp([value], [p[0] for p in curve], [p[1] for p in curve])[0])
+            expected = float(vc._apply_curve_samples(curve, np.array([value]))[0])
             grey = matrix["rr"] * expected + matrix["rg"] * expected + matrix["rb"] * expected
             self.assertAlmostEqual(grey, expected, places=6)
 
@@ -107,12 +112,10 @@ class LUTTests(unittest.TestCase):
         text = vc.bake_1d_cube_lut(grade, size=65)
         rows = [line for line in text.strip().splitlines()[4:] if line.strip()]
         self.assertEqual(len(rows), 65)
-        curve = vc.channel_curve(grade, 1, points=256)
-        xs = [p[0] for p in curve]
-        ys = [p[1] for p in curve]
+        curve = vc.channel_curve(grade, 1)
         for index, row in enumerate(rows):
             value = index / 64.0
-            expected = float(np.interp([value], xs, ys)[0])
+            expected = float(vc._apply_curve_samples(curve, np.array([value]))[0])
             self.assertAlmostEqual(float(row.split()[1]), expected, places=5)
 
     def test_three_dimensional_lut_matches_the_ffmpeg_chain(self):
@@ -125,13 +128,12 @@ class LUTTests(unittest.TestCase):
             line for line in vc.bake_cube_lut(grade, size=size).strip().splitlines()[5:]
             if line.strip()
         ]
-        curves = [vc.channel_curve(grade, channel, points=256) for channel in range(3)]
+        curves = [vc.channel_curve(grade, channel) for channel in range(3)]
         matrix = vc.saturation_matrix(grade["saturation"])
         for index in (0, 4, 8, 12, 16):
             value = index / (size - 1)
             sampled = [
-                float(np.interp([value], [p[0] for p in curve], [p[1] for p in curve])[0])
-                for curve in curves
+                float(vc._apply_curve_samples(curve, np.array([value]))[0]) for curve in curves
             ]
             expected = [
                 matrix["rr"] * sampled[0] + matrix["rg"] * sampled[1] + matrix["rb"] * sampled[2],
@@ -149,6 +151,144 @@ class LUTTests(unittest.TestCase):
         rows = [line for line in text.strip().splitlines()[4:] if line.strip()]
         values = [float(row.split()[1]) for row in rows]
         self.assertTrue(all(b >= a for a, b in zip(values, values[1:])))
+
+
+class CubeFormatTests(unittest.TestCase):
+    """The .cube files must follow the Iridas/Adobe spec so Resolve can read them."""
+
+    def setUp(self):
+        self.grade = vc._blank_grade(vc.PRESETS["cinematic"])
+        self.grade.update({"exposure": 0.2, "contrast": 1.08, "saturation": 1.05})
+
+    def test_cube_parses_with_a_strict_parser(self):
+        cube = parse_cube(vc.bake_cube_lut(self.grade, size=17))
+        self.assertEqual(cube["size"], 17)
+        self.assertEqual(len(cube["data"]), 17 ** 3)
+        self.assertEqual(cube["domain_min"], (0.0, 0.0, 0.0))
+        self.assertEqual(cube["domain_max"], (1.0, 1.0, 1.0))
+        self.assertTrue(cube["title"])
+
+    def test_cube_data_is_ordered_red_fastest(self):
+        size = 9
+        cube = parse_cube(vc.bake_cube_lut(self.grade, size=size))
+        data = cube["data"]
+        # The first entry is black, the last one is white.
+        self.assertEqual(tuple(round(value, 5) for value in data[0]), (0.0, 0.0, 0.0))
+        self.assertEqual(tuple(round(value, 5) for value in data[-1]), (1.0, 1.0, 1.0))
+        # The red index moves fastest, so the second entry only shifts red.
+        self.assertGreater(data[1][0], data[0][0])
+        self.assertAlmostEqual(data[1][1], data[0][1], places=5)
+        self.assertAlmostEqual(data[1][2], data[0][2], places=5)
+
+    def test_tone_cube_parses_with_a_strict_parser(self):
+        cube = parse_cube(vc.bake_1d_cube_lut(self.grade, size=64))
+        self.assertEqual(cube["size_1d"], 64)
+        self.assertEqual(cube["input_range"], (0.0, 1.0))
+        self.assertEqual(len(cube["data"]), 64)
+
+    def test_parser_rejects_broken_files(self):
+        with self.assertRaises(CubeError):
+            parse_cube("LUT_3D_SIZE 2\n0.0 0.0\n")
+        with self.assertRaises(CubeError):
+            parse_cube("LUT_3D_SIZE 2\nWHAT 1 2 3\n")
+        with self.assertRaises(CubeError):
+            parse_cube("LUT_3D_SIZE 1\n")
+
+    def test_cube_applies_the_same_grade_as_the_filter_chain(self):
+        cube = parse_cube(vc.bake_cube_lut(self.grade, size=33))
+        matrix = vc.saturation_matrix(self.grade["saturation"])
+        curves = [vc.channel_curve(self.grade, channel) for channel in range(3)]
+        for probe in ((0.0, 0.0, 0.0), (1.0, 1.0, 1.0), (0.5, 0.5, 0.5), (0.2, 0.4, 0.6)):
+            sampled = [
+                float(vc._apply_curve_samples(curve, np.array([probe[channel]]))[0])
+                for channel, curve in enumerate(curves)
+            ]
+            expected = [
+                matrix["rr"] * sampled[0] + matrix["rg"] * sampled[1] + matrix["rb"] * sampled[2],
+                matrix["gr"] * sampled[0] + matrix["gg"] * sampled[1] + matrix["gb"] * sampled[2],
+                matrix["br"] * sampled[0] + matrix["bg"] * sampled[1] + matrix["bb"] * sampled[2],
+            ]
+            actual = apply_cube(cube, probe)
+            for channel in range(3):
+                self.assertAlmostEqual(actual[channel], expected[channel], delta=0.01)
+
+
+class FFmpegLutTests(unittest.TestCase):
+    """The LUT files must load in an independent implementation (FFmpeg)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="cinevoice-lut-"))
+        cls.grade = vc._blank_grade(vc.PRESETS["cinematic"])
+        cls.grade.update({"exposure": 0.25, "contrast": 1.1, "saturation": 1.05})
+        cls.grade["grain"] = 0
+        cls.grade["denoise_luma"] = 0
+        cls.grade["denoise_chroma"] = 0
+        cls.grade["sharpen"] = 0
+        cls.grade["normalize"] = False
+        cls.cube = cls.tmp / "grade.cube"
+        cls.cube.write_text(vc.bake_cube_lut(cls.grade, size=33), encoding="utf-8")
+        cls.tone = cls.tmp / "tone.cube"
+        cls.tone.write_text(vc.bake_1d_cube_lut(cls.grade, size=256), encoding="utf-8")
+
+    @classmethod
+    def tearDownClass(cls):
+        import shutil
+
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def _pixel(self, filename, rgb, filter_name="lut3d"):
+        colour = "0x" + "".join(f"{int(round(value * 255)):02X}" for value in rgb)
+        proc = subprocess.run(
+            [
+                vc.ffmpeg_binary(), "-hide_banner", "-y",
+                "-f", "lavfi", "-i", f"color=c={colour}:s=16x16:d=0.04",
+                "-vf", f"format=rgb24,{filter_name}=file={filename},format=rgb24",
+                "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-",
+            ],
+            capture_output=True,
+            cwd=str(self.tmp),
+        )
+        if proc.returncode != 0 or len(proc.stdout) < 3:
+            return None
+        return [value / 255.0 for value in proc.stdout[:3]]
+
+    def test_ffmpeg_loads_the_three_dimensional_cube(self):
+        self.assertIsNotNone(self._pixel(self.cube.name, (0.5, 0.5, 0.5)))
+
+    def test_ffmpeg_loads_the_one_dimensional_tone_cube(self):
+        self.assertIsNotNone(self._pixel(self.tone.name, (0.5, 0.5, 0.5), "lut1d"))
+
+    def test_ffmpeg_applies_the_cube_like_the_filter_chain(self):
+        matrix = vc.saturation_matrix(self.grade["saturation"])
+        curves = [vc.channel_curve(self.grade, channel) for channel in range(3)]
+        for probe in ((0.0, 0.0, 0.0), (1.0, 1.0, 1.0), (0.5, 0.5, 0.5), (0.2, 0.4, 0.6)):
+            sampled = [
+                float(vc._apply_curve_samples(curve, np.array([probe[channel]]))[0])
+                for channel, curve in enumerate(curves)
+            ]
+            expected = [
+                matrix["rr"] * sampled[0] + matrix["rg"] * sampled[1] + matrix["rb"] * sampled[2],
+                matrix["gr"] * sampled[0] + matrix["gg"] * sampled[1] + matrix["gb"] * sampled[2],
+                matrix["br"] * sampled[0] + matrix["bg"] * sampled[1] + matrix["bb"] * sampled[2],
+            ]
+            actual = self._pixel(self.cube.name, probe)
+            self.assertIsNotNone(actual, "FFmpeg could not apply the cube")
+            for channel in range(3):
+                # The probe colour is 8 bit, so allow a small tolerance.
+                self.assertAlmostEqual(actual[channel], expected[channel], delta=0.02)
+
+    def test_ffmpeg_applies_the_tone_cube_like_the_curve(self):
+        curves = [vc.channel_curve(self.grade, channel) for channel in range(3)]
+        for probe in ((0.0, 0.0, 0.0), (1.0, 1.0, 1.0), (0.5, 0.5, 0.5), (0.2, 0.4, 0.6)):
+            expected = [
+                float(vc._apply_curve_samples(curve, np.array([probe[channel]]))[0])
+                for channel, curve in enumerate(curves)
+            ]
+            actual = self._pixel(self.tone.name, probe, "lut1d")
+            self.assertIsNotNone(actual, "FFmpeg could not apply the tone cube")
+            for channel in range(3):
+                self.assertAlmostEqual(actual[channel], expected[channel], delta=0.02)
 
 
 class MeasurementTests(unittest.TestCase):

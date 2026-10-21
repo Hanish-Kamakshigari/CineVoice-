@@ -56,6 +56,7 @@ Added in v1.2. Pause the video on any scene and the coach analyses the current s
 - **Optional AI review**: NVIDIA Nemotron 3 Nano Omni (`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`) reviews one keyframe per scene and returns a diagnosis plus a grade. The AI answer is always clamped to safe limits and merged over the measured plan, so the result never degrades when the model is unreachable.
 - **Deliverables**: a DaVinci Resolve 3D `.cube` LUT, a 1D tone `.cube`, the FFmpeg filtergraph, a standalone Python grading script and a Resolve node recipe - all downloadable from the editor.
 - **Rendering**: the timeline graph applies every scene's correction inside its own time window, so the source keeps its exact timing and only one decode pass is needed. Output is `libx264` with the original audio copied.
+- **LUT fidelity**: the `.cube` files are baked from the very same control points that FFmpeg's `curves` filter receives, using the identical monotone cubic (`pchip`) interpolation, so the LUT and the rendered master agree. The test suite parses the files with a strict Iridas/Adobe parser and re-applies them through FFmpeg's own `lut3d`/`lut1d` filters to prove the round trip.
 
 #### AI Colorist in the local editor
 - `POST /api/colorist/analyze` - `{ "videoId": "...", "preset": "cinematic" }` returns a job id; the scene breakdown, plan and artefacts are polled through `GET /api/colorist/jobs/<id>`.
@@ -70,6 +71,14 @@ Added in v1.2. Pause the video on any scene and the coach analyses the current s
 | `NEMOTRON_MODEL` | Model used for the AI review. | `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` |
 
 The local server reads `.env` automatically (existing environment variables always win). The proxy in `api/colorist.js` needs `NVIDIA_API_KEY` in the Vercel project environment; without it the function answers with the deterministic plan instead of failing.
+
+---
+
+### Studio Enhancement - One-Click Cinematic Pass (`video_enhancer.py`)
+- **Endpoint**: `POST /api/enhance` - `{ "videoId": "...", "presetType": "modern_cinematic" }` renders an enhanced copy of the uploaded clip and returns the new asset id and media URL.
+- **Presets**: `modern_cinematic`, `vintage_film`, `dramatic`, `television_style`, plus the `nvidia_nemotron_ai` mode that asks Nemotron for bespoke brightness/contrast/saturation/sharpening values.
+- **Pipeline**: a single FFmpeg pass applies `eq`, `colorbalance` and `unsharp`, encodes `libx264`/`yuv420p` with `+faststart` and copies the original audio. If the source audio cannot be copied it falls back to AAC, and to video-only when the clip has no audio track.
+- **Timeouts**: the FFmpeg budget scales with the length of the clip (300s base, +4s per second of footage, 1800s cap), so a full-length 1080p clip no longer dies on the default budget.
 
 ---
 

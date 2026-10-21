@@ -83,9 +83,18 @@ The local server reads a `.env` file in the repository root; existing environmen
 
 ### Studio
 
-Open `index.html` in a browser, or deploy the repository as static files to any host.
+`index.html` renders on its own, and the repository can be deployed as static files to any host.
 
-> **Windows:** double-click `Open_Film_And_Download.bat`. It copies the demonstration film to your Downloads folder, starts a loopback-only server on `http://localhost:8080` and opens the studio. Without Python it opens `index.html` directly from disk.
+> **Uploads, AI enhancement and the colorist need the local server.** Browsers block a page served over HTTPS from calling `http://127.0.0.1:8080`, so run the studio from the local server when you want those features:
+>
+> ```bash
+> pip install -r requirements.txt
+> python editor_server.py
+> ```
+>
+> Then open [http://localhost:8080/index.html](http://localhost:8080/index.html).
+
+> **Windows:** double-click `Open_Film_And_Download.bat`. It copies the demonstration film to your Downloads folder, starts `editor_server.py` on `http://localhost:8080` and opens the studio. Without Python it opens `index.html` directly from disk, where the AI features are unavailable.
 
 ### Local editor
 

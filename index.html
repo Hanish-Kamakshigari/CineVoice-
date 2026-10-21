@@ -5795,6 +5795,10 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
           btnApplyEnhancement.textContent = '✨ Run Enhancement';
         }
         updateEnhancePresetDescription();
+        probeEnhanceBackend(true).then((base) => {
+          if (!enhancementModal || enhancementModal.style.display === 'none') return;
+          if (base === null) showEnhanceBackendUnavailable();
+        });
       }
     }
 
@@ -5813,6 +5817,64 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       enhancePresetDescription.textContent = ENHANCE_PRESET_DESCRIPTIONS[preset] || 'High quality cinematic enhancement';
     }
 
+    // The enhancement engine is the local Python server (FFmpeg), so the page
+    // may be served from anywhere. Probe the same origin first, then the
+    // default local port, instead of guessing a single URL.
+    const ENHANCE_BACKEND_PORT = '8080';
+    let enhanceBackendBase;
+    let enhanceBackendProbe;
+
+    function enhanceBackendCandidates() {
+      const bases = [];
+      if (location.protocol === 'http:' || location.protocol === 'https:') bases.push('');
+      bases.push(`http://127.0.0.1:${ENHANCE_BACKEND_PORT}`, `http://localhost:${ENHANCE_BACKEND_PORT}`);
+      return Array.from(new Set(bases));
+    }
+
+    async function probeEnhanceBackend(force) {
+      if (!force && enhanceBackendProbe) return enhanceBackendProbe;
+      enhanceBackendProbe = (async () => {
+        for (const base of enhanceBackendCandidates()) {
+          try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 1500);
+            const response = await fetch(`${base}/api/health`, { cache: 'no-store', signal: controller.signal });
+            clearTimeout(timer);
+            if (response.ok) {
+              enhanceBackendBase = base;
+              return base;
+            }
+          } catch (_) {
+            // Candidate unreachable; try the next one.
+          }
+        }
+        enhanceBackendBase = null;
+        return null;
+      })();
+      return enhanceBackendProbe;
+    }
+
+    function enhanceBackendMessage() {
+      const localLink = '<a href="http://localhost:8080/index.html" style="color:var(--accent-gold); text-decoration:underline;" target="_blank">http://localhost:8080/index.html</a>';
+      if (location.protocol === 'https:') {
+        return `This page is served over HTTPS, and browsers block it from reaching the local server at <code>http://127.0.0.1:${ENHANCE_BACKEND_PORT}</code>. `
+          + `Run <code>python editor_server.py</code> in the project directory and open ${localLink} to use AI enhancement.`;
+      }
+      return `Could not reach the local enhancement server at <code>http://127.0.0.1:${ENHANCE_BACKEND_PORT}</code>. `
+        + `Run <code>python editor_server.py</code> in the project directory, then open ${localLink}.`;
+    }
+
+    function showEnhanceBackendUnavailable() {
+      if (enhanceServerWarning) {
+        enhanceServerWarning.style.display = 'block';
+        enhanceServerWarning.innerHTML = `⚠️ <strong>Local backend required:</strong> ${enhanceBackendMessage()}`;
+      }
+      if (btnApplyEnhancement) {
+        btnApplyEnhancement.disabled = true;
+        btnApplyEnhancement.textContent = 'Enhancement server offline';
+      }
+    }
+
     async function applyVideoEnhancement() {
       if (!isVideoLoaded) {
         showToast('No video is currently loaded to enhance.', true);
@@ -5820,16 +5882,19 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       }
 
       const preset = modalEnhancePresetSelect ? modalEnhancePresetSelect.value : 'modern_cinematic';
-      const backendBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && window.location.port === '8080'
-        ? ''
-        : 'http://127.0.0.1:8080';
 
       if (enhanceServerWarning) enhanceServerWarning.style.display = 'none';
       if (enhanceProcessingIndicator) enhanceProcessingIndicator.style.display = 'flex';
-      if (enhanceProgressText) enhanceProgressText.textContent = 'Preparing video asset for enhancement...';
+      if (enhanceProgressText) enhanceProgressText.textContent = 'Connecting to the local enhancement server...';
       if (btnApplyEnhancement) btnApplyEnhancement.disabled = true;
 
       try {
+        const backendBase = await probeEnhanceBackend(true);
+        if (backendBase === null) {
+          showEnhanceBackendUnavailable();
+          throw new Error(`The local enhancement server at 127.0.0.1:${ENHANCE_BACKEND_PORT} is not reachable.`);
+        }
+
         let videoId = null;
 
         if (currentActiveVideoFile) {
@@ -5888,6 +5953,12 @@ VOICE: Add your summary, closing thoughts, or conclusion dialogue here.`;
       } catch (err) {
         console.error('Enhancement error:', err);
         if (enhanceProcessingIndicator) enhanceProcessingIndicator.style.display = 'none';
+        const offline = enhanceBackendBase === null || /networkerror|failed to fetch|load failed/i.test(err.message || '');
+        if (offline) {
+          showEnhanceBackendUnavailable();
+          showToast('Local enhancement server is not reachable.', true);
+          return;
+        }
         if (enhanceServerWarning) {
           enhanceServerWarning.style.display = 'block';
           enhanceServerWarning.innerHTML = `⚠️ <strong>Enhancement failed:</strong> ${err.message}<br><span style="display:inline-block; margin-top:4px;">Please restart the server in your terminal (press <strong>Ctrl+C</strong> then run <code>python editor_server.py</code>) or open <a href="http://localhost:8080/index.html" style="color:var(--accent-gold); text-decoration:underline;" target="_blank">http://localhost:8080/index.html</a>.</span>`;

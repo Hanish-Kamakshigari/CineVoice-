@@ -71,12 +71,14 @@ if not defined PY (
     goto :done
 )
 
-echo [3] Starting a local web server on port %PORT%...
+echo [3] Starting the studio server on port %PORT%...
+rem editor_server.py serves the studio and the /api endpoints (upload, AI
+rem enhancement, colorist). A plain static server would break those buttons.
 rem Bound to 127.0.0.1 so the project folder is not exposed to the network.
 rem pushd lets the child inherit the project folder, which keeps the quoted
 rem command to a single invocation (an "cd /d .. &&" form breaks quoting here).
 pushd "%ROOT%"
-start "CineVoice Studio Server" /min cmd /k ""%PY%" -m http.server %PORT% --bind 127.0.0.1"
+start "CineVoice Studio Server" /min cmd /k ""%PY%" editor_server.py --port %PORT%"
 popd
 
 rem Wait for the port to accept connections before opening the browser.
@@ -88,8 +90,12 @@ for /l %%i in (1,1,25) do (
 
 :server_ready
 if not defined READY (
-    echo [3] WARNING: the server did not start in time.
-    echo     Opening the studio directly from disk instead...
+    echo [3] WARNING: the studio server did not start in time.
+    echo     Check the "CineVoice Studio Server" window for the error.
+    echo     Install the dependencies first with:
+    echo         python -m pip install -r requirements.txt
+    echo     Opening the studio directly from disk instead; upload, AI
+    echo     enhancement and the colorist need the server.
     if exist "%INDEX%" start "" "%INDEX%"
     goto :done
 )

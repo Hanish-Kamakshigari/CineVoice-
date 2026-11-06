@@ -1,4 +1,4 @@
-# --- Local-only Python tooling (not deployed as serverless functions) ---
+# --- Local Python tooling (not deployed as serverless functions) ---
 editor_server.py
 editor_render.py
 editor_colorist.py
@@ -9,11 +9,6 @@ generate_favicons.py
 demo_enhancement.py
 fix_editor.py
 requirements.txt
-
-# --- Local editor UI (served by editor_server.py, not Vercel) ---
-editor.html
-editor.css
-editor.js
 
 # --- Tests, CI and scratch runtimes ---
 tests/

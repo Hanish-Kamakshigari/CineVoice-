@@ -15,7 +15,7 @@ Live studio: [https://cine-voice-puce.vercel.app/](https://cine-voice-puce.verce
 | **Playback** | Scrubbable timeline, drag-and-drop playback, letterbox (2.39:1) and fullscreen modes. |
 | **Scene analysis** | Frame sampling, automatic cut detection and thumbnails that can be converted into narration cues. |
 | **Subtitles** | On-screen overlay, import/export (SRT, VTT, `.txt`, `.sub`), live capture while playing, and auto-sync from existing cues. |
-| **Narration editor** | Local editor for trimming and reordering source ranges, layering narration with music ducking, and exporting a new MP4. |
+| **Video editor** | Fully client-side editor: trim, split and reorder source ranges, layer narration and a ducked music bed, preview the cut, and export a new MP4 — rendered in the browser, nothing uploaded. AI Enhance &amp; Colorist optionally use the local server. |
 | **AI colorist** | Per-scene measurement and restoration grading, delivered as a Resolve-ready 3D `.cube` LUT, a 1D tone LUT and a filtergraph. |
 | **Prompt coach** | Frame-by-frame review of the paused scene that returns an improved AI-generation prompt. |
 | **Reference match** | Upload your video plus a reference clip or stills; the browser computes numeric look metrics locally, a Gemini route receives only small JPEG frames, and you get prioritized grade suggestions, a similarity score and an improved generative prompt (with rule-based fallback when the AI is unavailable). |
@@ -87,7 +87,7 @@ The local server reads a `.env` file in the repository root; existing environmen
 
 `index.html` renders on its own, and the repository can be deployed as static files to any host.
 
-> **Uploads, AI enhancement and the colorist need the local server.** Browsers block a page served over HTTPS from calling `http://127.0.0.1:8080`, so run the studio from the local server when you want those features:
+> **AI enhancement and the colorist need the local server.** Browsers block a page served over HTTPS from calling `http://127.0.0.1:8080`, so run the studio from the local server when you want those features:
 >
 > ```bash
 > pip install -r requirements.txt
@@ -98,16 +98,18 @@ The local server reads a `.env` file in the repository root; existing environmen
 
 > **Windows:** double-click `Open_Film_And_Download.bat`. It copies the demonstration film to your Downloads folder, starts `editor_server.py` on `http://localhost:8080` and opens the studio. Without Python it opens `index.html` directly from disk, where the AI features are unavailable.
 
-### Local editor
+### Video editor
 
-A static page cannot upload local media or run FFmpeg, so the editor is served by a small loopback-only server:
+`editor.html` is a fully client-side editor, also deployed with the site: upload footage, trim with In/Out, split at the playhead, reorder ranges, layer narration clips and a looping music bed, preview the assembled cut (source audio, voice and music mix), and export a new MP4 — rendered entirely in the browser with FFmpeg (ffmpeg.wasm; the small wrapper is vendored in `vendor/ffmpeg/`, the ~30 MB core streams from CDN). Nothing is uploaded to any server.
+
+The optional AI Enhance and Colorist tools still run against the loopback server:
 
 ```bash
 pip install -r requirements.txt
 python editor_server.py
 ```
 
-Open [http://127.0.0.1:8080/editor.html](http://127.0.0.1:8080/editor.html), upload a video, define the output ranges, add narration and optional music, then export the synchronized MP4. Runtime uploads and exports live in `.cinevoice-editor/` and are not committed.
+Open [http://127.0.0.1:8080/editor.html](http://127.0.0.1:8080/editor.html). Without the server, the editor works fully offline-capable; only those two AI panels are disabled and explain why.
 
 ### Film pipeline
 
@@ -150,8 +152,9 @@ Both keys stay server-side. If Gemini is unreachable the prompt coach falls back
 ```text
 CineVoice/
 ├── index.html                 # Web studio (markup, styles, logic)
-├── editor.html / editor.js / editor.css / editor_server.py
-│                              # Local narration editor and its loopback server
+├── editor.html / editor.js / editor.css    # In-browser video editor (deployed)
+├── editor_server.py                  # Loopback server for optional AI enhance / colorist
+├── vendor/ffmpeg/                    # Vendored ffmpeg.wasm wrapper (core streams from CDN)
 ├── render_movie.py            # 1080p film rendering pipeline
 ├── video_colorist.py          # Colorist engine: measurement, grading, LUTs
 ├── editor_colorist.py         # Colorist job runner and Nemotron client
@@ -171,7 +174,7 @@ CineVoice/
 
 ## Tech Stack
 
-- **Frontend** — HTML5, vanilla CSS, vanilla JavaScript (Web Speech API, Canvas, `localStorage`).
+- **Frontend** - HTML5, vanilla CSS, vanilla JavaScript (Web Speech API, Canvas, `localStorage`, ffmpeg.wasm for in-browser MP4 export).
 - **Pipeline** — Python, Pillow, Edge-TTS, NumPy, SciPy, FFmpeg via `imageio-ffmpeg`.
 - **AI** — NVIDIA Nemotron (colorist), Gemini (prompt coach), both proxied through Vercel functions.
 - **Hosting** — Vercel static hosting and serverless functions.

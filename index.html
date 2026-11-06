@@ -1981,14 +1981,569 @@
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
     }
+
+    /* ==================================================================
+       Studio redesign — layout + design system (presentation only)
+       Tokens: 4/8/12/16/24/32 spacing · 12px cards / 8px buttons ·
+       gold = active tab + active voice card + primary button only ·
+       violet (--accent-ai) = AI features only.
+       ================================================================== */
+    :root {
+      --bg: #07090c;
+      --surface: rgba(15, 19, 26, 0.9);
+      --surface-2: rgba(255, 255, 255, 0.05);
+      --border: rgba(255, 255, 255, 0.1);
+      --text: #f1f5f9;
+      --text-muted: #9aa7b8;
+      --accent: #e5b364;
+      --accent-ai: #a78bfa;
+    }
+
+    /* Shared shell */
+    main {
+      width: 100%;
+    }
+
+    /* ---------- Top bar (56px) ---------- */
+    header.topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      height: 56px;
+      padding: 0 clamp(16px, 2.5vw, 32px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(7, 9, 12, 0.92);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+    }
+
+    header.topbar .brand {
+      gap: 0.75rem;
+    }
+
+    header.topbar .brand-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      box-shadow: none;
+    }
+
+    header.topbar .brand-icon img {
+      width: 22px;
+      height: 22px;
+    }
+
+    header.topbar .title-group h1 {
+      font-size: 0.95rem;
+      letter-spacing: 0.14em;
+    }
+
+    header.topbar .title-group span {
+      font-size: 0.6rem;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Buttons: 40px default, 32px compact; visible keyboard focus */
+    .btn {
+      min-height: 40px;
+      border-radius: 8px;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-ghost:hover {
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.3);
+      background: var(--surface-2);
+    }
+
+    header.topbar .btn {
+      min-height: 36px;
+      font-size: 0.8rem;
+      padding: 6px 14px;
+    }
+
+    .btn:focus-visible,
+    .side-tab:focus-visible,
+    .pill-btn:focus-visible,
+    .menu-item:focus-visible,
+    .video-dropzone:focus-visible,
+    .audio-card:focus-visible,
+    .tab-btn:focus-visible,
+    [role="slider"]:focus-visible,
+    .export-toggle:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* ---------- Export dropdown ---------- */
+    .export-wrap {
+      position: relative;
+    }
+
+    .export-menu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 8px);
+      min-width: 240px;
+      display: none;
+      flex-direction: column;
+      padding: 8px;
+      background: #0e131b;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.65);
+      z-index: 70;
+    }
+
+    .export-menu.open {
+      display: flex;
+    }
+
+    .menu-label {
+      font-size: 0.62rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 6px 10px 3px;
+      font-family: var(--font-mono);
+    }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 36px;
+      padding: 8px 10px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-size: 0.85rem;
+      text-align: left;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .menu-item svg {
+      color: var(--text-muted);
+      flex: 0 0 auto;
+    }
+
+    .menu-item:hover {
+      background: var(--surface-2);
+      color: #fff;
+    }
+
+    .menu-sep {
+      height: 1px;
+      background: var(--border);
+      margin: 6px 4px;
+    }
+
+    /* ---------- Two-column stage ---------- */
+    .stage-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.63fr) minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+      padding: 24px clamp(16px, 2.5vw, 32px) 32px;
+      width: 100%;
+    }
+
+    .stage-left {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .stage-left .cinema-wrapper {
+      width: min(100%, calc(60vh * 16 / 9));
+      margin-inline: auto;
+      max-height: 60vh;
+    }
+
+    /* ---------- Sidebar (sticky) ---------- */
+    .side-pane {
+      position: sticky;
+      top: 80px;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      max-height: calc(100vh - 104px);
+      overflow: hidden;
+    }
+
+    .side-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      flex: 0 0 auto;
+    }
+
+    .side-tab {
+      flex: 1;
+      min-height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 6px;
+      background: transparent;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .side-tab svg {
+      flex: 0 0 auto;
+    }
+
+    .side-tab:hover {
+      color: var(--text);
+      background: var(--surface-2);
+    }
+
+    .side-tab.active {
+      color: #fff;
+      border-bottom-color: var(--accent);
+      background: rgba(229, 179, 100, 0.05);
+    }
+
+    /* narration sub-tabs (Timed Cues / Master Script / Subtitle Suite):
+       active state is neutral, gold stays reserved for the main tab */
+    .side-panel .tab-btn.active {
+      background: var(--surface-2);
+      border-color: rgba(255, 255, 255, 0.25);
+      color: #fff;
+      box-shadow: none;
+    }
+
+    .side-panels {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .side-panel {
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .side-panel.active {
+      display: flex;
+    }
+
+    /* Panels-in-pane: transparent, no double card chrome */
+    .side-panel .deck-panel {
+      background: transparent;
+      border: 0;
+      padding: 0;
+      gap: 16px;
+      backdrop-filter: none;
+    }
+
+    .side-panel .panel-header {
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    /* Voice selector: single-column radio cards */
+    .side-panel .audio-cards-grid {
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .side-panel .audio-card {
+      border-color: var(--border);
+    }
+
+    /* Advanced sections (details) */
+    .adv-details {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface-2);
+      padding: 2px 12px 6px;
+    }
+
+    .adv-details > summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 10px 0;
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .adv-details > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .adv-details > summary::after {
+      content: "▸";
+      font-size: 0.8rem;
+      transition: transform 0.15s ease;
+    }
+
+    .adv-details[open] > summary::after {
+      transform: rotate(90deg);
+    }
+
+    /* Custom-audio upload: visible only for the custom mode (glue toggles) */
+    #audioUploadBox {
+      display: none;
+    }
+
+    #audioUploadBox.mode-visible {
+      display: flex;
+    }
+
+    /* ---------- Control row (icon tools) ---------- */
+    #ccStatusText,
+    #letterboxStatusText {
+      display: none;
+    }
+
+    .control-row .pill-btn {
+      width: 40px;
+      padding: 0;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .control-row .pill-btn svg {
+      flex: 0 0 auto;
+    }
+
+    /* AI Enhance: violet AI-accent primary */
+    #btnEnhanceVideo {
+      border-color: rgba(167, 139, 250, 0.55);
+      color: #fff;
+      background: linear-gradient(135deg, rgba(167, 139, 250, 0.35), rgba(126, 34, 206, 0.3));
+      width: auto;
+      padding: 0 0.9rem;
+      gap: 6px;
+      font-weight: 600;
+    }
+
+    #btnEnhanceVideo:hover {
+      box-shadow: 0 0 18px rgba(167, 139, 250, 0.35);
+    }
+
+    /* Coach's own injected launch button: superseded by the Coach tab */
+    .control-row #coachLaunchBtn {
+      display: none !important;
+    }
+
+    /* ---------- Reference Match = AI violet ---------- */
+    .rm-panel .btn,
+    .rm-panel .menu-item {
+      border-radius: 8px;
+    }
+
+    .rm-panel #rmCompareBtn.btn-gold,
+    .rm-panel #rmSendCoach.btn-gold,
+    .rm-panel #rmCopyPrompt.btn-gold {
+      border-color: rgba(167, 139, 250, 0.55);
+      background: linear-gradient(135deg, rgba(167, 139, 250, 0.3), rgba(126, 34, 206, 0.25));
+      color: #fff;
+    }
+
+    .rm-panel .rm-slot:hover,
+    .rm-panel .rm-slot.filled {
+      border-color: var(--accent-ai);
+    }
+
+    .rm-panel .rm-slot-label {
+      color: var(--accent-ai);
+    }
+
+    .rm-panel .rm-score {
+      color: var(--accent-ai);
+    }
+
+    /* ---------- Scrollable lists inside the sidebar ---------- */
+    .cues-list,
+    .subtitles-list {
+      max-height: 360px;
+      overflow-y: auto;
+    }
+
+    /* cues list empty state */
+    #cuesContainer:empty::after {
+      content: "No cues yet — use “Add Cue”, upload a scene script, or run AI Frame Scan.";
+      display: block;
+      text-align: center;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 24px 12px;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    /* script toolbar (bottom of Narration pane) */
+    .narration-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    /* Banner slim (video-ready notice) */
+    .wf-banner-slim {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .wf-banner-slim > div:first-child {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .wf-banner-slim .workflow-banner-close {
+      display: inline-flex;
+      vertical-align: -3px;
+      margin-left: 6px;
+    }
+
+    .wf-banner-slim .btn-ghost {
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+
+    .wf-banner-slim strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .wf-banner-slim #bannerVideoFilename {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    /* ---------- Legacy element stubs (IDs must survive, kept unreachable) ---------- */
+    .legacy-anchor {
+      display: none !important;
+    }
+
+    /* HUD CC badge: state text now lives in the control-row icon button */
+    .video-hud-top #hudSubtitlesBadge {
+      display: none !important;
+    }
+
+    /* dropzone demo link inside the empty state */
+    .dropzone-demo-line {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dropzone-demo-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-muted);
+      font: inherit;
+      font-size: 0.72rem;
+      padding: 5px 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dropzone-demo-btn:hover {
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* ---------- Mobile: single column, scrollable segmented tabs ---------- */
+    @media (max-width: 1023px) {
+      .stage-grid {
+        grid-template-columns: 1fr;
+        padding: 16px 16px 24px;
+        gap: 16px;
+      }
+
+      .side-pane {
+        position: static;
+        max-height: none;
+      }
+
+      .side-tabs {
+        overflow-x: auto;
+        scrollbar-width: thin;
+      }
+
+      .side-tab {
+        flex: 0 0 auto;
+        padding: 12px 18px;
+      }
+    }
   </style>
 </head>
 
 <body>
   <div class="ambient-glow"></div>
 
-  <!-- Header -->
-  <header>
+  <!-- Top Bar -->
+  <header class="topbar">
     <div class="brand">
       <div class="brand-icon">
         <img src="favicon.svg" alt="CineVoice Studio Logo" width="26" height="26" style="display: block; border-radius: 6px;">
@@ -1999,37 +2554,57 @@
       </div>
     </div>
     <div class="header-actions">
-      <button class="btn btn-gold" id="btnHeaderUploadVideo">
-        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <button class="btn btn-ghost" id="btnHeaderUploadVideo" title="Upload a video file">
+        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
         </svg>
-        Upload Video
+        Upload
       </button>
-      <button class="btn" id="btnLoadDemoVideo">
-        <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M8 5v14l11-7z" />
-        </svg>
-        Load Demo Video
-      </button>
-      <button class="btn btn-gold" id="btnHeaderDownloadVideo" style="border-color:var(--accent-emerald); color:#fff; background:linear-gradient(135deg, rgba(16,185,129,0.32), rgba(5,150,105,0.25)); box-shadow:0 0 15px rgba(16,185,129,0.25);" title="Download the currently loaded or rendered video">
-        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-        </svg>
-        Download Video
-      </button>
-      <button class="btn btn-gold" id="btnHeaderEnhanceVideo" style="border-color:rgba(168,85,247,0.5); color:#fff; background:linear-gradient(135deg, rgba(168,85,247,0.32), rgba(126,34,206,0.25)); box-shadow:0 0 15px rgba(168,85,247,0.25);" title="AI Video Enhancement (Color grading, contrast & sharpness)">
-        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.857L13 21l-2.286-6.857L5 12l5.714-2.857L13 3z" />
-        </svg>
-        ✨ Enhance Video
-      </button>
-      <a class="btn btn-gold" href="editor.html" id="btnHeaderEditorLink" style="border-color:var(--accent-gold); color:#fff; background:linear-gradient(135deg, rgba(245,158,11,0.32), rgba(217,119,6,0.25)); box-shadow:0 0 15px rgba(245,158,11,0.25); text-decoration:none; display:inline-flex; align-items:center; gap:6px;" title="Open the narration-led video editor">
-        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-        </svg>
-        Edit &amp; Sync
-      </a>
+      <div class="export-wrap">
+        <button class="btn btn-ghost export-toggle" id="btnExportMenu" aria-haspopup="true" aria-expanded="false"
+          title="Export and open tools">
+          Export
+          <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        <div class="export-menu" id="exportMenu" role="menu" aria-label="Export">
+          <span class="menu-label">Export</span>
+          <button class="menu-item" id="btnHeaderDownloadVideo" role="menuitem" title="Download the currently loaded or rendered video">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download .mp4
+          </button>
+          <button class="menu-item" id="btnExportScriptJson" role="menuitem" title="Export script as JSON">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9h8v10H8zM9 3h6v4H9z" />
+            </svg>
+            Export JSON
+          </button>
+          <button class="menu-item" id="btnExportScriptTxt" role="menuitem" title="Export script as text">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6M6 20h12V4H6v16z" />
+            </svg>
+            Export Text
+          </button>
+          <div class="menu-sep" role="separator"></div>
+          <span class="menu-label">More</span>
+          <button class="menu-item" id="btnLoadDemoVideo" role="menuitem" title="Load the demo short film">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+            Load demo film
+          </button>
+          <a class="menu-item" href="editor.html" id="btnHeaderEditorLink" title="Open the narration-led video editor">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Open Edit &amp; Sync
+          </a>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -2041,23 +2616,39 @@
     <input type="file" id="subtitleFileInput" accept=".srt,.vtt,.txt,.sub" style="display:none;">
     <input type="file" id="sceneScriptFileInput" accept=".json,.txt,.fountain,.csv,.srt" style="display:none;">
 
-    <!-- Cinema Viewport -->
-    <div class="cinema-wrapper" id="cinemaViewport" tabindex="-1">
+    <!-- Two-column stage: video left, tool sidebar right -->
+    <div class="stage-grid">
+      <!-- Left column: video stage -->
+      <div class="stage-left">
+
+        <!-- Cinema Viewport -->
+        <div class="cinema-wrapper" id="cinemaViewport" tabindex="-1">
       <div class="letterbox-top" id="boxTop"></div>
       <div class="letterbox-bottom" id="boxBottom"></div>
 
       <!-- Video Upload Dropzone (Shown when no video loaded) -->
       <div class="video-dropzone" id="videoDropzone" role="button" tabindex="0" aria-label="Upload your video file">
-        <div class="dropzone-pulse" aria-hidden="true">🎬</div>
-        <div class="dropzone-title">UPLOAD YOUR VIDEO</div>
-        <div class="dropzone-sub selectable">Drag and drop your video file here or click to browse. Easily upload scene-by-scene scripts, trigger AI frame-by-frame visual analysis, add subtitles, and direct your audio voiceover.</div>
+        <div class="dropzone-pulse" aria-hidden="true">
+          <svg width="26" height="26" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"
+              d="M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2zm8 2v2m0 10v2m-8-7h10" />
+          </svg>
+        </div>
+        <div class="dropzone-title">Drop your film to begin</div>
         <div class="dropzone-tags" aria-hidden="true">
           <span class="dropzone-tag">MP4</span>
           <span class="dropzone-tag">WEBM</span>
           <span class="dropzone-tag">MOV</span>
           <span class="dropzone-tag">MKV</span>
-          <span class="dropzone-tag" style="color:var(--accent-gold); border-color:rgba(229,179,100,0.35);">📜 SCENE SCRIPT</span>
-          <span class="dropzone-tag" style="color:var(--accent-cyan); border-color:rgba(56,189,248,0.35);">⚡ AI FRAME SCAN</span>
+        </div>
+        <div class="dropzone-demo-line">
+          or
+          <button class="dropzone-demo-btn" id="btnDropzoneDemo" type="button" title="Load the bundled demo short film">
+            <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+            Load demo film
+          </button>
         </div>
       </div>
 
@@ -2070,12 +2661,7 @@
             <span>VIDEO:</span> <strong id="videoFilenameLabel">custom_video.mp4</strong>
           </div>
         <div style="display:flex; gap:0.5rem; align-items:center;">
-          <button class="video-badge" id="btnHudDownloadVideo" style="cursor:pointer; pointer-events:auto; color:var(--accent-emerald); border-color:rgba(16,185,129,0.4); background:rgba(16,185,129,0.15);" title="Download this video">
-            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:2px;" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            <span>DOWNLOAD</span>
-          </button>
+          <!-- CC badge is kept for JS state text; visually replaced by the control-row CC button -->
           <button class="video-badge" id="hudSubtitlesBadge" style="cursor:pointer; pointer-events:auto;"
             title="Click to configure subtitles" aria-pressed="false">
             <span>CC:</span> <strong id="hudSubtitlesStatus">OFF (0 CUES)</strong>
@@ -2154,79 +2740,13 @@
 
       <!-- Smart Video Workflow Banner Upon Video Upload -->
       <div class="video-workflow-banner" id="videoWorkflowBanner" style="display:none;">
-        <div class="workflow-banner-header">
-          <div class="workflow-banner-badge">
-            <span>🎬</span> VIDEO READY • SCRIPT &amp; DIRECTION
+        <div class="wf-banner-slim">
+          <div>
+            Script options for <span id="bannerVideoFilename">Your Video</span> — build narration in the Narration tab, or keep your existing screenplay.
+            <button class="workflow-banner-close" id="btnWorkflowDismiss" title="Dismiss banner" aria-label="Dismiss banner">✕</button>
           </div>
-          <button class="workflow-banner-close" id="btnWorkflowDismiss" title="Dismiss banner">✕</button>
-        </div>
-
-        <div class="workflow-banner-body">
-          <div class="workflow-banner-title">
-            Script Options for: <span id="bannerVideoFilename" style="color:var(--accent-gold);">Your Video</span>
-          </div>
-          <div class="workflow-banner-desc">
-            How would you like to develop the screenplay and voiceover narration for your uploaded video?
-          </div>
-        </div>
-
-        <!-- Dual Option Cards Grid -->
-        <div class="workflow-cards-grid">
-          <!-- Card 1: Upload Scene-by-Scene Script -->
-          <div class="workflow-card" id="cardUploadSceneScript">
-            <div class="workflow-card-icon">📜</div>
-            <div class="workflow-card-content">
-              <div class="workflow-card-head">
-                <span class="workflow-card-tag">CUSTOM SCREENPLAY</span>
-                <h3 class="workflow-card-title">Upload Scene-by-Scene Script</h3>
-              </div>
-              <p class="workflow-card-desc">
-                Upload your scene screenplay (.txt, .json, .csv, .fountain) or enter custom scene timestamps and visual actions.
-              </p>
-              <div class="workflow-card-actions">
-                <button class="btn btn-gold" id="btnWorkflowUploadScript">
-                  📥 Upload Script File
-                </button>
-                <button class="btn" id="btnWorkflowOpenSceneEditor">
-                  ✍️ Scene Importer
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card 2: AI Frame-by-Frame Video Analysis -->
-          <div class="workflow-card highlight" id="cardAiFrameAnalysis">
-            <div class="workflow-card-icon" style="color:var(--accent-cyan);">👁️</div>
-            <div class="workflow-card-content">
-              <div class="workflow-card-head">
-                <span class="workflow-card-tag" style="color:var(--accent-cyan); border-color:rgba(56,189,248,0.4); background:rgba(56,189,248,0.12);">VISION AI 2.0</span>
-                <h3 class="workflow-card-title">AI Frame-by-Frame Video Analysis</h3>
-              </div>
-              <p class="workflow-card-desc">
-                AI scans video frames across playback, detects scene cuts, motion dynamics, lighting moods, and auto-generates a synchronized scene script.
-              </p>
-              <div class="workflow-card-actions">
-                <button class="btn" id="btnWorkflowStartFrameScan" style="background:linear-gradient(135deg, rgba(56,189,248,0.25), rgba(168,85,247,0.22)); border-color:var(--accent-cyan); color:#fff; box-shadow:0 0 15px rgba(56,189,248,0.25);">
-                  ⚡ Analyze Frames &amp; Generate Script
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Banner Footer Options -->
-        <div class="workflow-banner-footer">
-          <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
-            <span style="font-size:0.75rem; color:var(--text-muted);">Subtitle options:</span>
-            <button class="btn sub-action-btn" id="btnWorkflowSubtitlesSuite" style="font-size:0.73rem; padding:0.3rem 0.75rem;">
-              💬 Subtitle Suite
-            </button>
-            <button class="btn sub-action-btn" id="btnWorkflowAutoSubs" style="font-size:0.73rem; padding:0.3rem 0.75rem;">
-              🤖 AI Develop Subtitles
-            </button>
-          </div>
-          <button class="btn sub-action-btn" id="btnWorkflowKeepCurrent" style="font-size:0.73rem; padding:0.3rem 0.75rem; color:var(--text-muted);">
-            Keep Existing Screenplay ✕
+          <button class="btn btn-ghost" id="btnWorkflowKeepCurrent" style="min-height:32px; font-size:0.75rem; padding:4px 12px;" title="Dismiss and keep the existing screenplay">
+            Keep Existing
           </button>
         </div>
       </div>
@@ -2264,65 +2784,72 @@
           </div>
         </div>
 
-        <!-- Audio of Choice Toolbar & Subtitles Controls -->
-        <div class="audio-choice-toolbar">
-          <div class="choice-group">
-            <span class="choice-label">AUDIO CHOICE:</span>
-            <button class="choice-btn active" id="btnAudioMale" data-mode="male">👨 Male AI Voice</button>
-            <button class="choice-btn" id="btnAudioFemale" data-mode="female">👩 Female AI Voice</button>
-            <button class="choice-btn" id="btnAudioCustom" data-mode="custom">🎙️ Custom Audio</button>
-            <button class="choice-btn" id="btnAudioNative" data-mode="native">🔊 Video Native Audio</button>
-          </div>
-
-          <div style="display:flex; align-items:center; gap:0.45rem; flex-wrap:wrap;">
-            <button class="pill-btn" id="btnToggleCC" title="Toggle Closed Captions On/Off" aria-pressed="false">
-              <span class="cc-badge-inactive" id="ccBadgeDot"></span>
-              <span style="font-weight:700; font-family:var(--font-mono); letter-spacing:0.04em;">CC</span>
-              <span id="ccStatusText">Subtitles: OFF</span>
-            </button>
-            <button class="pill-btn" id="btnToggleLetterbox" title="Toggle 2.39:1 cinematic letterbox bars" aria-pressed="true">
-              <span style="font-weight:700; font-family:var(--font-mono); letter-spacing:0.04em;">2.39:1</span>
-              <span id="letterboxStatusText">Letterbox: ON</span>
-            </button>
-            <button class="pill-btn" id="btnToggleFullscreen" title="Toggle fullscreen (F)" aria-pressed="false">
-              <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 9V4h5M20 9V4h-5M4 15v5h5m11-5v5h-5" />
-              </svg>
-              Fullscreen
-            </button>
-            <button class="pill-btn" id="btnOpenSubtitlesDeck" title="Open Subtitle Suite">
-              💬 Subtitles
-            </button>
-            <button class="pill-btn" id="btnEnhanceVideo" style="border-color:rgba(168,85,247,0.5); color:#d8b4fe;" title="Enhance video with AI cinematic tone curves and grading">
-              ✨ AI Enhance
-            </button>
-            <button class="pill-btn" id="btnChangeVideo" title="Upload a different video">
-              <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-              Replace Video
-            </button>
-            <button class="pill-btn" id="btnDownloadCurrentVideo" style="border-color:rgba(16,185,129,0.5); color:var(--accent-emerald);" title="Download currently loaded or rendered video">
-              <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              Download Video
-            </button>
-          </div>
+        <!-- Player tool icons (CC / letterbox / fullscreen) + AI primary -->
+        <div style="display:flex; align-items:center; gap:0.45rem;">
+          <button class="pill-btn" id="btnToggleCC" title="Toggle Closed Captions On/Off" aria-pressed="false">
+            <span class="cc-badge-inactive" id="ccBadgeDot"></span>
+            <span style="font-weight:700; font-family:var(--font-mono); letter-spacing:0.04em;">CC</span>
+            <span id="ccStatusText">Subtitles: OFF</span>
+          </button>
+          <button class="pill-btn" id="btnToggleLetterbox" title="Toggle 2.39:1 cinematic letterbox bars" aria-pressed="true">
+            <span style="font-weight:700; font-family:var(--font-mono); letter-spacing:0.04em;">2.39:1</span>
+            <span id="letterboxStatusText">Letterbox: ON</span>
+          </button>
+          <button class="pill-btn" id="btnToggleFullscreen" title="Toggle fullscreen (F)" aria-pressed="false">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 9V4h5M20 9V4h-5M4 15v5h5m11-5v5h-5" />
+            </svg>
+          </button>
+          <button class="pill-btn" id="btnEnhanceVideo" style="color:#d8b4fe;" title="Enhance video with AI cinematic tone curves and grading">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.857L13 21l-2.286-6.857L5 12l5.714-2.857L13 3z" />
+            </svg>
+            AI Enhance
+          </button>
         </div>
       </div>
     </div>
+      </div>
 
-    <!-- Studio Deck: Audio Direction & Script Editor -->
-    <div class="studio-deck">
-      <!-- Left Panel: Audio Configuration of Choice -->
-      <div class="deck-panel">
+      <!-- Right column: tool sidebar -->
+      <aside class="side-pane">
+        <div class="side-tabs" role="tablist" aria-label="Studio tool sections">
+          <button class="side-tab active" id="sideTabNarration" data-pane="paneNarration" role="tab" aria-selected="true" aria-controls="paneNarration" title="Narration script, cues & subtitles">
+            <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h7" />
+            </svg>
+            Narration
+          </button>
+          <button class="side-tab" id="sideTabVoice" data-pane="paneVoice" role="tab" aria-selected="false" aria-controls="paneVoice" title="Voice and audio direction">
+            <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15a3 3 0 003-3V6a3 3 0 10-6 0v6a3 3 0 003 3zm7-3a7 7 0 01-14 0m7 7v4" />
+            </svg>
+            Voice
+          </button>
+          <button class="side-tab" id="sideTabReference" data-pane="paneReference" role="tab" aria-selected="false" aria-controls="paneReference" title="Compare looks against a reference">
+            <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="3" width="10" height="18" rx="1.5" />
+              <path d="M17 8h4v14h-9" stroke-linecap="round" />
+            </svg>
+            Reference Match
+          </button>
+          <button class="side-tab" id="sideTabCoach" data-pane="paneCoach" role="tab" aria-selected="false" aria-controls="paneCoach" title="Prompt Coach — scene analysis and improved prompts">
+            <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
+            </svg>
+            Coach
+          </button>
+        </div>
+        <div class="side-panels">
+
+          <!-- Voice Pane: single voice selector + advanced tuning -->
+          <div class="side-panel" id="paneVoice" role="tabpanel" aria-labelledby="sideTabVoice">
+          <div class="deck-panel">
         <div class="panel-header">
           <div class="panel-title">
-            <span>1. SELECT AUDIO &amp; VOICE DIRECTION</span>
+            <span id="voicePaneTitle">Voice</span>
           </div>
-          <span style="font-family:var(--font-mono); font-size:0.7rem; color:var(--accent-gold);"
+          <span style="font-family:var(--font-mono); font-size:0.7rem; color:var(--text-muted);"
             id="deckActiveAudioLabel">👨 MALE AI</span>
         </div>
 
@@ -2332,7 +2859,12 @@
           <div class="audio-card active" id="cardMale" data-mode="male" role="button" tabindex="0" aria-pressed="true">
             <div class="audio-card-head">
               <div class="audio-card-info">
-                <div class="audio-card-icon">👨</div>
+                <div class="audio-card-icon" aria-hidden="true">
+                  <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="12" cy="8" r="3.5" />
+                    <path stroke-linecap="round" d="M5 20c1.5-3.5 4-5 7-5s5.5 1.5 7 5" />
+                  </svg>
+                </div>
                 <div>
                   <div class="audio-card-name">Male AI Narrator (Marcus / Christopher)</div>
                   <div class="audio-card-desc">Deep, resonant trailer-style voice. High clarity and dramatic pacing.
@@ -2347,7 +2879,12 @@
           <div class="audio-card" id="cardFemale" data-mode="female" role="button" tabindex="0" aria-pressed="false">
             <div class="audio-card-head">
               <div class="audio-card-info">
-                <div class="audio-card-icon">👩</div>
+                <div class="audio-card-icon" aria-hidden="true">
+                  <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="12" cy="8" r="3.5" />
+                    <path stroke-linecap="round" d="M6 20c1.5-3.2 3.8-4.8 6-4.8s4.5 1.6 6 4.8" />
+                  </svg>
+                </div>
                 <div>
                   <div class="audio-card-name">Female AI Narrator (Elena / Jenny)</div>
                   <div class="audio-card-desc">Clear, articulate and expressive voice with emotional poise.</div>
@@ -2361,7 +2898,12 @@
           <div class="audio-card" id="cardCustom" data-mode="custom" role="button" tabindex="0" aria-pressed="false">
             <div class="audio-card-head">
               <div class="audio-card-info">
-                <div class="audio-card-icon" style="color:var(--accent-cyan);">🎙️</div>
+                <div class="audio-card-icon" style="color:var(--accent-cyan);" aria-hidden="true">
+                  <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0l-4 4m4-4l4 4" />
+                    <path stroke-linecap="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                  </svg>
+                </div>
                 <div>
                   <div class="audio-card-name">Upload Custom Audio / Voiceover Track</div>
                   <div class="audio-card-desc" id="customAudioDesc">Upload an MP3, WAV, or M4A file to play in exact
@@ -2376,7 +2918,12 @@
           <div class="audio-card" id="cardNative" data-mode="native" role="button" tabindex="0" aria-pressed="false">
             <div class="audio-card-head">
               <div class="audio-card-info">
-                <div class="audio-card-icon" style="color:var(--accent-emerald);">🔊</div>
+                <div class="audio-card-icon" style="color:var(--accent-emerald);" aria-hidden="true">
+                  <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5L6 9H3v6h3l5 4V5z" />
+                    <path stroke-linecap="round" d="M15.5 8.5a5 5 0 010 7M18.5 6a9 9 0 010 12" />
+                  </svg>
+                </div>
                 <div>
                   <div class="audio-card-name">Original Video Native Audio Track</div>
                   <div class="audio-card-desc">Use the audio embedded directly in your uploaded video file.</div>
@@ -2397,10 +2944,12 @@
             soundtrack file</div>
         </div>
 
+        <!-- Advanced: AI speech parameters, closed by default -->
+        <details class="adv-details">
+          <summary>Advanced · Speech parameters &amp; system voices</summary>
         <!-- Voice Cadence & Tuning Controls -->
-        <div class="tuning-box" id="voiceTuningBox">
-          <div
-            style="font-size:0.72rem; font-family:var(--font-mono); color:var(--accent-gold); letter-spacing:0.08em; text-transform:uppercase;">
+        <div class="tuning-box" id="voiceTuningBox" style="margin-top:0.5rem;">
+          <div>
             AI Speech Parameters &amp; System Voices
           </div>
 
@@ -2431,17 +2980,23 @@
           </div>
 
           <div style="display:flex; gap:0.5rem; margin-top:0.2rem;">
-            <button class="btn btn-gold" id="btnAuditionVoice"
-              style="flex:1; justify-content:center; padding:0.45rem 1rem; font-size:0.76rem;">
-              🔊 Audition Selected Voice
+            <button class="btn" id="btnAuditionVoice"
+              style="flex:1; justify-content:center; padding:0.45rem 1rem; font-size:0.76rem;" title="Play a short sample of the selected system voice">
+              <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15a3 3 0 003-3V6a3 3 0 10-6 0v6a3 3 0 003 3zm7-3a7 7 0 01-14 0m7 7v4" />
+              </svg>
+              Audition Selected Voice
             </button>
           </div>
         </div>
+        </details>
 
+        <!-- Advanced: Audio Volume Mixer, closed by default -->
+        <details class="adv-details">
+          <summary>Advanced · Audio volume mixer</summary>
         <!-- Audio Volume Mixer -->
-        <div class="tuning-box">
-          <div
-            style="font-size:0.72rem; font-family:var(--font-mono); color:var(--accent-cyan); letter-spacing:0.08em; text-transform:uppercase;">
+        <div class="tuning-box" style="margin-top:0.5rem;">
+          <div>
             Audio Volume Mixer
           </div>
 
@@ -2461,10 +3016,13 @@
             <input type="range" class="slider" id="sliderNarrationVol" min="0" max="1" step="0.05" value="1">
           </div>
         </div>
-      </div>
+        </details>
+          </div>
+          </div>
 
-      <!-- Right Panel: Script Editor & Subtitle Suite -->
-      <div class="deck-panel" id="deckRightPanel">
+          <!-- Narration Pane: cues, master script, subtitle suite -->
+          <div class="side-panel active" id="paneNarration" role="tabpanel" aria-labelledby="sideTabNarration">
+          <div class="deck-panel" id="deckRightPanel">
         <div class="panel-header">
           <div class="panel-title">
             <span id="rightPanelTitle">2. NARRATION SCRIPT &amp; SUBTITLES</span>
@@ -2472,7 +3030,7 @@
           <div class="script-mode-tabs" style="border:none; padding:0;">
             <button class="tab-btn active" id="tabCues">Timed Voice Cues</button>
             <button class="tab-btn" id="tabFullText">Master Script Text</button>
-            <button class="tab-btn" id="tabSubtitles">💬 Subtitle Suite</button>
+            <button class="tab-btn" id="tabSubtitles"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a8 8 0 01-8 8H4l2.5-2.5A8 8 0 1121 12z" /></svg> Subtitle Suite</button>
           </div>
         </div>
 
@@ -2484,12 +3042,12 @@
             </span>
             <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
               <button class="btn" id="btnDeckUploadSceneScript" style="padding:0.35rem 0.75rem; font-size:0.72rem;" title="Upload or import scene screenplay">
-                📜 Upload Scene Script
+                <span style="display:inline-flex; vertical-align:-2px;"><svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 3h7l5 5v13H7zM14 3v5h5" /></svg></span> Upload Scene Script
               </button>
-              <button class="btn" id="btnDeckStartFrameScan" style="padding:0.35rem 0.75rem; font-size:0.72rem; border-color:var(--accent-cyan); color:var(--accent-cyan);" title="AI analyzes video frame-by-frame">
-                ⚡ AI Frame Scan
+              <button class="btn" id="btnDeckStartFrameScan" style="padding:0.35rem 0.75rem; font-size:0.72rem; border-color:rgba(167,139,250,0.45); color:var(--accent-ai);" title="AI analyzes video frame-by-frame">
+                <span style="display:inline-flex; vertical-align:-2px;"><svg width="13" height="13" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2v8h6l-8 12v-8H5l8-12z" /></svg></span> AI Frame Scan
               </button>
-              <button class="btn btn-gold" id="btnAddCue" style="padding:0.35rem 0.85rem; font-size:0.72rem;">
+              <button class="btn" id="btnAddCue" style="padding:0.35rem 0.85rem; font-size:0.72rem;">
                 + Add Cue
               </button>
             </div>
@@ -2510,13 +3068,13 @@
             placeholder="Write or paste your script here..."></textarea>
           <div style="display:flex; justify-content:flex-end; gap:0.55rem; flex-wrap:wrap;">
             <button class="btn" id="btnDeckFullTextUploadScene" style="font-size:0.75rem;">
-              📜 Import Scene Script
+              <span style="display:inline-flex; vertical-align:-2px;"><svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 3h7l5 5v13H7zM14 3v5h5" /></svg></span> Import Scene Script
             </button>
-            <button class="btn" id="btnDeckFullTextFrameScan" style="font-size:0.75rem; border-color:var(--accent-cyan); color:var(--accent-cyan);">
-              ⚡ AI Frame-by-Frame Scan
+            <button class="btn" id="btnDeckFullTextFrameScan" style="font-size:0.75rem; border-color:rgba(167,139,250,0.45); color:var(--accent-ai);">
+              <span style="display:inline-flex; vertical-align:-2px;"><svg width="13" height="13" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2v8h6l-8 12v-8H5l8-12z" /></svg></span> AI Frame-by-Frame Scan
             </button>
             <button class="btn" id="btnDistributeMasterText" style="font-size:0.75rem;">
-              ✨ Parse &amp; Distribute Cues
+              <span style="display:inline-flex; vertical-align:-2px;"><svg width="13" height="13" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" /></svg></span> Parse &amp; Distribute Cues
             </button>
           </div>
         </div>
@@ -2527,8 +3085,8 @@
           <div class="sub-config-box">
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <span
-                style="font-family:var(--font-mono); font-size:0.72rem; color:var(--accent-gold); letter-spacing:0.08em; text-transform:uppercase;">
-                📺 Subtitle Display &amp; Visual Styling
+                style="font-family:var(--font-mono); font-size:0.72rem; color:var(--text-muted); letter-spacing:0.08em; text-transform:uppercase;">
+                Subtitle Display &amp; Visual Styling
               </span>
               <span style="font-family:var(--font-mono); font-size:0.7rem; color:var(--text-muted);"
                 id="subCountReadout">
@@ -2580,12 +3138,8 @@
           <!-- Subtitle Action Tools -->
           <div class="sub-tools-row">
             <div class="sub-tools-group">
-              <button class="btn btn-gold" id="btnUploadSubFile" style="padding:0.35rem 0.85rem; font-size:0.74rem;">
-                📥 Upload .SRT / .VTT
-              </button>
-              <button class="btn btn-gold" id="btnAutoSyncSubtitles"
-                style="padding:0.35rem 0.85rem; font-size:0.74rem;">
-                🤖 AI Develop Subtitles from Script
+              <button class="btn" id="btnUploadSubFile" style="padding:0.35rem 0.85rem; font-size:0.74rem;">
+                <span style="display:inline-flex; vertical-align:-2px;"><svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg></span> Upload .SRT / .VTT
               </button>
               <button class="btn" id="btnAddSubLine" style="padding:0.35rem 0.85rem; font-size:0.74rem;">
                 + Add Subtitle Line
@@ -2605,29 +3159,30 @@
           </div>
         </div>
 
-        <!-- Script Toolbar & Export -->
-        <div
-          style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--card-border); padding-top:1rem; flex-wrap:wrap; gap:0.6rem;">
+        <!-- Script Toolbar & Primary Actions -->
+        <div class="narration-footer">
           <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-            <button class="btn" id="btnExportScriptJson" title="Export script as JSON">Export JSON</button>
-            <button class="btn" id="btnExportScriptTxt" title="Export script as text">Export Text</button>
-            <button class="btn" id="btnDeckDownloadVideo" style="border-color:var(--accent-emerald); color:var(--accent-emerald);" title="Download master video file">⬇ Download Video (.mp4)</button>
-            <button class="btn" id="btnResetScript">Clear Script</button>
+            <button class="btn btn-ghost" id="btnResetScript" style="min-height:32px; font-size:0.75rem;">Clear Script</button>
+            <button class="btn" id="btnAiDevelopSubsBottom"
+              style="min-height:32px; font-size:0.75rem; border-color:rgba(167,139,250,0.4); color:var(--accent-ai);"
+              title="AI generates subtitles from current audio script">
+              AI Develop Subtitles
+            </button>
           </div>
           <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-            <button class="btn" id="btnAiDevelopSubsBottom"
-              style="padding:0.55rem 1.1rem; border-color:var(--accent-gold); color:var(--accent-gold);"
-              title="AI generates subtitles from current audio script">
-              🤖 AI Develop Subtitles
-            </button>
             <button class="btn btn-gold" id="btnApplyScriptLive" style="padding:0.55rem 1.25rem;">
-              ✨ Apply Script to Video
+              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              Apply Script to Video
             </button>
           </div>
         </div>
       </div>
-    </div>
+          </div>
 
+          <!-- Reference Match Pane -->
+          <div class="side-panel" id="paneReference" role="tabpanel" aria-labelledby="sideTabReference">
     <!-- ===================== Reference Match ===================== -->
     <section class="rm-panel" id="rmPanel" aria-labelledby="rmTitle">
       <style>
@@ -2749,6 +3304,45 @@
         </div>
       </div>
     </section>
+          </div>
+
+          <!-- Coach Pane -->
+          <div class="side-panel" id="paneCoach" role="tabpanel" aria-labelledby="sideTabCoach">
+            <div class="deck-panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <span>Prompt Coach</span>
+                </div>
+              </div>
+              <p style="font-size:0.84rem; color:var(--text-muted); line-height:1.55;">
+                Scene-aware review of the paused frame — or your entire film — with weaknesses, fixes, and an improved generative prompt.
+              </p>
+              <button class="btn btn-gold" id="btnCoachOpen" style="align-self:flex-start;" title="Open Prompt Coach on the currently paused scene">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
+                </svg>
+                Open Prompt Coach
+              </button>
+              <p style="font-size:0.72rem; color:var(--text-muted); line-height:1.45;">
+                Pause the video on the scene you want reviewed, then open the Coach panel.
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </aside>
+    </div>
+
+    <!-- Legacy element stubs: IDs preserved for un-guarded JS bindings; never shown -->
+    <div class="legacy-anchor" aria-hidden="true">
+      <div class="choice-group">
+        <button class="choice-btn active" id="btnAudioMale" data-mode="male" type="button">Male AI Voice</button>
+        <button class="choice-btn" id="btnAudioFemale" data-mode="female" type="button">Female AI Voice</button>
+        <button class="choice-btn" id="btnAudioCustom" data-mode="custom" type="button">Custom Audio</button>
+        <button class="choice-btn" id="btnAudioNative" data-mode="native" type="button">Video Native Audio</button>
+      </div>
+      <button class="pill-btn" id="btnChangeVideo" type="button" title="Upload a different video">Replace Video</button>
+    </div>
   </main>
 
   <!-- Scene-by-Scene Script Importer Modal -->
@@ -2884,6 +3478,104 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
     <div style="font-size:0.84rem; line-height:1.4;" id="toastMsg" class="toast-message selectable">Ready</div>
   </div>
 
+  <script>
+    // -------------------------------------------------------------
+    // Presentation glue (UI only): sidebar tabs + arrow keys, export
+    // menu, dropzone demo shortcut, custom-audio upload visibility,
+    // Coach pane launch. No studio logic, state, or API behavior is
+    // modified here — it only reads/relays existing DOM state.
+    // -------------------------------------------------------------
+    (function () {
+      'use strict';
+
+      /* Sidebar tabs: click + arrow-key roving focus */
+      var tabs = Array.prototype.slice.call(document.querySelectorAll('.side-tab'));
+      var panes = tabs.map(function (t) { return document.getElementById(t.getAttribute('data-pane')); });
+
+      function selectTab(tab) {
+        tabs.forEach(function (t) {
+          var active = t === tab;
+          t.classList.toggle('active', active);
+          t.setAttribute('aria-selected', active ? 'true' : 'false');
+          t.tabIndex = active ? 0 : -1;
+        });
+        panes.forEach(function (p, i) {
+          if (p) p.classList.toggle('active', tabs[i] === tab);
+        });
+        if (tab) tab.focus();
+      }
+
+      tabs.forEach(function (tab, i) {
+        tab.tabIndex = i === 0 ? 0 : -1;
+        tab.addEventListener('click', function () { selectTab(tab); });
+        tab.addEventListener('keydown', function (e) {
+          var next = null;
+          if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = tabs[(i + 1) % tabs.length];
+          else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = tabs[(i - 1 + tabs.length) % tabs.length];
+          else if (e.key === 'Home') next = tabs[0];
+          else if (e.key === 'End') next = tabs[tabs.length - 1];
+          if (next) { e.preventDefault(); selectTab(next); }
+        });
+      });
+
+      /* Export menu open/close */
+      var toggle = document.getElementById('btnExportMenu');
+      var menu = document.getElementById('exportMenu');
+      function closeMenu() {
+        if (!menu) return;
+        menu.classList.remove('open');
+        if (toggle) toggle.setAttribute('aria-expanded', 'false');
+      }
+      if (toggle && menu) {
+        toggle.addEventListener('click', function (e) {
+          e.stopPropagation();
+          var open = menu.classList.toggle('open');
+          toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+        document.addEventListener('click', function (e) {
+          if (menu.classList.contains('open') && !menu.contains(e.target) && e.target !== toggle) closeMenu();
+        });
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape' && menu.classList.contains('open')) {
+            closeMenu();
+            toggle.focus();
+          }
+        });
+        menu.addEventListener('click', function (e) {
+          if (e.target.closest('.menu-item')) closeMenu();
+        });
+      }
+
+      /* Dropzone demo shortcut reuses the single demo loader */
+      var demo = document.getElementById('btnDropzoneDemo');
+      if (demo) demo.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var real = document.getElementById('btnLoadDemoVideo');
+        if (real) real.click();
+      });
+
+      /* Custom-audio upload box: visible only while Custom Audio is selected.
+         Reads the .audio-card.active state maintained by the studio script. */
+      var uploadBox = document.getElementById('audioUploadBox');
+      function syncAudioMode() {
+        if (!uploadBox) return;
+        var active = document.querySelector('.audio-card.active');
+        uploadBox.classList.toggle('mode-visible', !!active && active.getAttribute('data-mode') === 'custom');
+      }
+      if (uploadBox) {
+        document.addEventListener('click', function () { setTimeout(syncAudioMode, 0); });
+        document.addEventListener('keydown', function () { setTimeout(syncAudioMode, 0); });
+        syncAudioMode();
+      }
+
+      /* Coach pane button drives the coach's own launch button */
+      var coachOpen = document.getElementById('btnCoachOpen');
+      if (coachOpen) coachOpen.addEventListener('click', function () {
+        var launch = document.getElementById('coachLaunchBtn');
+        if (launch) launch.click();
+      });
+    })();
+  </script>
   <script src="reference_match.js"></script>
   <script>
     // -------------------------------------------------------------

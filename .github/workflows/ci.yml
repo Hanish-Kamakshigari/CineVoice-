@@ -41,3 +41,12 @@ jobs:
           print(scripts[-1])
           PY
           node --check /tmp/cinevoice-inline.js
+      - name: Check editor and reference-match scripts
+        run: |
+          node --check editor.js
+          node --check reference_match.js
+          node --check api/reference-match.js
+      - name: Run frontend and API tests
+        run: |
+          node tests/test_reference_match.js
+          node tests/test_reference_match_api.js

@@ -2627,6 +2627,128 @@
         </div>
       </div>
     </div>
+
+    <!-- ===================== Reference Match ===================== -->
+    <section class="rm-panel" id="rmPanel" aria-labelledby="rmTitle">
+      <style>
+        .rm-panel {
+          background: rgba(10, 14, 22, 0.85);
+          border: 1px solid var(--card-border);
+          border-radius: 14px;
+          padding: 1.4rem;
+        }
+        .rm-panel h2 {
+          font-family: var(--font-serif);
+          font-size: 1.05rem;
+          letter-spacing: 0.1em;
+          color: #fff;
+        }
+        .rm-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; margin-top: 1rem; }
+        @media (max-width: 760px) { .rm-slots { grid-template-columns: 1fr; } }
+        .rm-slot {
+          border: 1px dashed rgba(255, 255, 255, 0.22);
+          border-radius: 10px;
+          padding: 0.9rem;
+          cursor: pointer;
+          transition: border-color 0.2s ease;
+        }
+        .rm-slot:hover, .rm-slot.filled { border-color: var(--accent-gold); }
+        .rm-slot input[type=file] { display: none; }
+        .rm-slot-label { display: block; font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-gold); margin-bottom: 0.35rem; }
+        .rm-slot-hint { font-size: 0.75rem; color: var(--text-muted); }
+        .rm-thumbs { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-top: 0.55rem; }
+        .rm-thumbs img { width: 76px; height: auto; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); }
+        .rm-meta { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.4rem; }
+        .rm-toolbar { display: flex; align-items: center; gap: 0.75rem; margin-top: 1.1rem; flex-wrap: wrap; }
+        .rm-notes { flex: 1 1 260px; min-height: 2.6rem; background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); color: var(--text-main); border-radius: 8px; padding: 0.5rem 0.7rem; font-family: var(--font-sans); font-size: 0.8rem; resize: vertical; }
+        .rm-progress { font-size: 0.78rem; color: var(--accent-cyan); font-family: var(--font-mono); }
+        .rm-results { margin-top: 1.2rem; }
+        .rm-score-row { display: flex; align-items: center; gap: 0.8rem; }
+        .rm-score { font-family: var(--font-mono); font-size: 1.6rem; color: var(--accent-gold); }
+        .rm-scorebar-bg { flex: 1; height: 8px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
+        .rm-scorebar { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent-gold), var(--accent-amber)); transition: width 0.6s ease; }
+        .rm-summary { margin-top: 0.6rem; font-size: 0.85rem; color: var(--text-main); line-height: 1.5; }
+        .rm-fallback { margin-top: 0.5rem; font-size: 0.76rem; color: var(--accent-amber); }
+        .rm-palettes { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; margin-top: 1rem; }
+        @media (max-width: 760px) { .rm-palettes { grid-template-columns: 1fr; } }
+        .rm-palette-title { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.3rem; }
+        .rm-palette-strip { display: flex; gap: 3px; height: 26px; border-radius: 6px; overflow: hidden; }
+        .rm-palette-strip span { flex: 1; }
+        table.rm-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.78rem; }
+        table.rm-table th { text-align: left; color: var(--text-muted); font-weight: 500; letter-spacing: 0.06em; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--card-border); text-transform: uppercase; font-size: 0.68rem; }
+        table.rm-table td { padding: 0.42rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--text-main); }
+        table.rm-table td:nth-child(3), table.rm-table td:nth-child(4) { color: var(--text-muted); }
+        .rm-cards { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1rem; }
+        .rm-card { background: rgba(255,255,255,0.04); border: 1px solid var(--card-border); border-left: 3px solid var(--text-muted); border-radius: 8px; padding: 0.7rem 0.9rem; }
+        .rm-priority-high { border-left-color: var(--accent-red); }
+        .rm-priority-medium { border-left-color: var(--accent-amber); }
+        .rm-priority-low { border-left-color: var(--accent-emerald); }
+        .rm-card-head { display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.35rem; flex-wrap: wrap; }
+        .rm-card strong { display: block; font-size: 0.82rem; margin-bottom: 0.2rem; }
+        .rm-card p { font-size: 0.78rem; color: var(--text-muted); line-height: 1.45; }
+        .rm-chip { display: inline-block; font-size: 0.65rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.15rem 0.5rem; border-radius: 999px; border: 1px solid var(--card-border); color: var(--text-muted); background: rgba(255,255,255,0.04); }
+        .rm-chip.rm-ts { cursor: pointer; color: var(--accent-cyan); border-color: rgba(56,189,248,0.4); }
+        .rm-chip.rm-ts:hover { background: rgba(56,189,248,0.15); }
+        .rm-prompt-row { margin-top: 1rem; border-top: 1px solid var(--card-border); padding-top: 0.8rem; }
+        .rm-prompt { background: rgba(255,255,255,0.04); border: 1px solid var(--card-border); border-radius: 8px; padding: 0.7rem 0.9rem; font-size: 0.78rem; color: var(--text-main); line-height: 1.5; user-select: text; }
+        .rm-hidden { display: none !important; }
+      </style>
+
+      <h2 id="rmTitle">🎯 REFERENCE MATCH</h2>
+      <p class="rm-slot-hint" style="margin-top:0.3rem;">
+        Compare your video's look against a reference scene — sampling, metric math and frames stay in your browser; only tiny JPEGs go to the AI.
+      </p>
+
+      <div class="rm-slots">
+        <label class="rm-slot" id="rmSlotUploaded">
+          <span class="rm-slot-label">1 · Your video</span>
+          <input type="file" id="rmUploadedInput" accept="video/*" />
+          <span class="rm-slot-hint">MP4 / WebM / MOV · up to 100MB · processed locally</span>
+          <div data-thumbs class="rm-thumbs"></div>
+          <div class="rm-meta" id="rmUploadedMeta">No video yet</div>
+        </label>
+        <label class="rm-slot" id="rmSlotReference">
+          <span class="rm-slot-label">2 · Reference scene(s)</span>
+          <input type="file" id="rmReferenceInput" accept="video/*,image/*" multiple />
+          <span class="rm-slot-hint">A short clip or up to 8 still frames that show the style you want</span>
+          <div data-thumbs class="rm-thumbs"></div>
+          <div class="rm-meta" id="rmReferenceMeta">No reference yet</div>
+        </label>
+      </div>
+
+      <div class="rm-toolbar">
+        <textarea id="rmNotes" class="rm-notes" rows="1" placeholder="Optional notes for the AI, e.g. “I want a moody thriller feel”"></textarea>
+        <button class="btn btn-gold" id="rmCompareBtn">Compare</button>
+        <span class="rm-progress" id="rmProgress" role="status" aria-live="polite"></span>
+      </div>
+
+      <div id="rmResults" class="rm-results rm-hidden">
+        <div class="rm-score-row">
+          <span class="rm-score" id="rmScore">—</span>
+          <div class="rm-scorebar-bg"><div class="rm-scorebar" id="rmScoreBar"></div></div>
+        </div>
+        <p class="rm-summary" id="rmSummary"></p>
+        <p class="rm-fallback rm-hidden" id="rmFallbackNote"></p>
+
+        <div class="rm-palettes">
+          <div><div class="rm-palette-title">Your video · dominant colors</div><div id="rmPaletteUploaded"></div></div>
+          <div><div class="rm-palette-title">Reference · dominant colors</div><div id="rmPaletteReference"></div></div>
+        </div>
+
+        <table class="rm-table">
+          <thead><tr><th>Metric</th><th>Your video</th><th>Reference</th><th>Delta</th></tr></thead>
+          <tbody id="rmTable"></tbody>
+        </table>
+
+        <div class="rm-cards" id="rmSuggestions"></div>
+
+        <div class="rm-prompt-row">
+          <button class="btn btn-gold rm-hidden" id="rmSendCoach">🎬 Send to Prompt Coach</button>
+          <button class="btn btn-gold rm-hidden" id="rmCopyPrompt">📋 Copy improved prompt</button>
+          <pre class="rm-prompt selectable" id="rmPrompt"></pre>
+        </div>
+      </div>
+    </section>
   </main>
 
   <!-- Scene-by-Scene Script Importer Modal -->
@@ -2718,12 +2840,12 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
             Select Enhancement Preset:
           </label>
           <select id="modalEnhancePresetSelect" class="btn" style="width:100%; padding:0.65rem 0.9rem; border-radius:8px; background:#121720; border:1px solid var(--card-border); color:#fff; font-size:0.85rem;">
-            <option value="nvidia_nemotron_ai">⚡ AI Autonomous (NVIDIA Nemotron Intelligent Grading)</option>
-            <option value="modern_cinematic" selected>🎬 Modern Cinematic (Vibrant, balanced contrast & unsharp mask)</option>
-            <option value="vintage_film">🎞️ Vintage Film (Warm analog tones & classic film curve)</option>
-            <option value="dramatic">🎭 Dramatic (High contrast, deep shadows & cool undertones)</option>
-            <option value="television_style">📺 Television Style (Clean, broadcast neutral contrast)</option>
-            <option value="neutral">⚖️ Neutral (Minimal enhancement, subtle clarity polish)</option>
+            <option value="nvidia_nemotron_ai"> AI Autonomous (NVIDIA Nemotron Intelligent Grading)</option>
+            <option value="modern_cinematic" selected> Modern Cinematic (Vibrant, balanced contrast & unsharp mask)</option>
+            <option value="vintage_film"> Vintage Film (Warm analog tones & classic film curve)</option>
+            <option value="dramatic"> Dramatic (High contrast, deep shadows & cool undertones)</option>
+            <option value="television_style"> Television Style (Clean, broadcast neutral contrast)</option>
+            <option value="neutral"> Neutral (Minimal enhancement, subtle clarity polish)</option>
           </select>
         </div>
 
@@ -2762,6 +2884,7 @@ VOICE: Enter custom voiceover dialogue for this scene here."></textarea>
     <div style="font-size:0.84rem; line-height:1.4;" id="toastMsg" class="toast-message selectable">Ready</div>
   </div>
 
+  <script src="reference_match.js"></script>
   <script>
     // -------------------------------------------------------------
     // SCRIPT CUES + SUBTITLES (persisted per video in versioned localStorage)

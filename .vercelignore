@@ -1,0 +1,37 @@
+# --- Local-only Python tooling (not deployed as serverless functions) ---
+editor_server.py
+editor_render.py
+editor_colorist.py
+render_movie.py
+video_colorist.py
+video_enhancer.py
+generate_favicons.py
+demo_enhancement.py
+fix_editor.py
+requirements.txt
+
+# --- Local editor UI (served by editor_server.py, not Vercel) ---
+editor.html
+editor.css
+editor.js
+
+# --- Tests, CI and scratch runtimes ---
+tests/
+.github/
+.agents/
+.kilo/
+.freebuff/
+.vibe-wise/
+__pycache__/
+.pytest_cache/
+audio_cache/
+.cinevoice-editor/
+
+# --- Local media artifacts and scratch tests ---
+*.wav
+test_*.py
+test_*.mp4
+schedule_cinematography_prompts.md
+VIDEO_ENHANCEMENT.md
+GEMINI.md
+.env

@@ -18,6 +18,7 @@ Live studio: [https://cine-voice-puce.vercel.app/](https://cine-voice-puce.verce
 | **Narration editor** | Local editor for trimming and reordering source ranges, layering narration with music ducking, and exporting a new MP4. |
 | **AI colorist** | Per-scene measurement and restoration grading, delivered as a Resolve-ready 3D `.cube` LUT, a 1D tone LUT and a filtergraph. |
 | **Prompt coach** | Frame-by-frame review of the paused scene that returns an improved AI-generation prompt. |
+| **Reference match** | Upload your video plus a reference clip or stills; the browser computes numeric look metrics locally, a Gemini route receives only small JPEG frames, and you get prioritized grade suggestions, a similarity score and an improved generative prompt (with rule-based fallback when the AI is unavailable). |
 | **Studio enhancement** | One-click cinematic pass over an uploaded clip, with optional Nemotron-driven grading. |
 | **Film pipeline** | 1080p composition, neural narration, Ken Burns motion, procedural score and burned-in subtitles. |
 
